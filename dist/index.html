@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f4f4f0" />
+    <meta name="description" content="Baixe o JayV para Windows, macOS ou Linux. Um ambiente local para coordenar agentes de IA com contexto, controle e rastreabilidade." />
+    <meta property="og:title" content="JayV — Agentes de IA, sob controle" />
+    <meta property="og:description" content="Baixe o JayV para Windows, macOS ou Linux." />
+    <title>JayV — Agentes de IA, sob controle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: light;
+        --background: #f4f4f0;
+        --surface: #ffffff;
+        --surface-muted: #eaeae5;
+        --foreground: #161616;
+        --muted: #6f6f6a;
+        --border: #d8d8d2;
+        --accent: #dfff5f;
+        --accent-soft: #efffb5;
+        --button: #161616;
+        --button-text: #ffffff;
+        --grid: rgba(22, 22, 22, 0.055);
+        --radius: 6px;
+      }
+
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --background: #111210;
+        --surface: #1b1c19;
+        --surface-muted: #252620;
+        --foreground: #f4f4f0;
+        --muted: #a0a09a;
+        --border: #353630;
+        --accent: #dfff5f;
+        --accent-soft: #2d3514;
+        --button: #f4f4f0;
+        --button-text: #111210;
+        --grid: rgba(244, 244, 240, 0.045);
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        min-width: 320px;
+        background-color: var(--background);
+        background-image:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 32px 32px;
+        color: var(--foreground);
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        transition: background-color 180ms ease-out, color 180ms ease-out;
+      }
+      a { color: inherit; }
+      button, a { -webkit-tap-highlight-color: transparent; }
+      button { font: inherit; }
+      :focus-visible { outline: 2px solid var(--foreground); outline-offset: 3px; }
+      .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+      .shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+      .nav {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        border-bottom: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+        background: color-mix(in srgb, var(--background) 88%, transparent);
+        backdrop-filter: blur(14px);
+      }
+      .nav-inner { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+      .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 700; letter-spacing: -0.03em; }
+      .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--foreground); background: var(--accent); color: #161616; border-radius: 4px; font: 600 13px/1 "IBM Plex Mono", monospace; }
+      .nav-actions { display: flex; align-items: center; gap: 10px; }
+      .nav-link { text-decoration: none; color: var(--muted); font-size: 14px; font-weight: 500; padding: 8px 10px; }
+      .nav-link:hover { color: var(--foreground); }
+      .icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--foreground); cursor: pointer; transition: background 150ms ease-out, border-color 150ms ease-out; }
+      .icon-button:hover { border-color: var(--foreground); background: var(--surface-muted); }
+
+      .hero { padding: 108px 0 76px; border-bottom: 1px solid var(--border); }
+      .hero-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr); gap: 76px; align-items: center; }
+      .eyebrow { display: inline-flex; align-items: center; gap: 9px; margin-bottom: 26px; font: 500 12px/1.2 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+      .eyebrow::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); border: 1px solid #8b9d35; box-shadow: 0 0 0 4px var(--accent-soft); }
+      h1 { max-width: 760px; margin: 0; font-size: clamp(44px, 6vw, 76px); line-height: .99; letter-spacing: -.06em; font-weight: 600; }
+      .highlight { position: relative; display: inline-block; z-index: 0; }
+      .highlight::after { content: ""; position: absolute; z-index: -1; left: -.03em; right: -.03em; bottom: .05em; height: .28em; background: var(--accent); }
+      .hero-copy { max-width: 640px; margin: 30px 0 0; font-size: 18px; line-height: 1.7; color: var(--muted); }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+      .button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--foreground); border-radius: 4px; padding: 10px 17px; text-decoration: none; font-size: 14px; font-weight: 600; transition: transform 150ms ease-out, background 150ms ease-out, color 150ms ease-out; }
+      .button:hover { transform: translateY(-1px); }
+      .button.primary { background: var(--button); color: var(--button-text); }
+      .button.primary:hover { background: var(--accent); color: #161616; }
+      .button.secondary { background: var(--surface); }
+      .button.secondary:hover { background: var(--surface-muted); }
+      .release-note { margin-top: 18px; color: var(--muted); font: 400 13px/1.6 "IBM Plex Mono", monospace; }
+
+      .terminal { border: 1px solid var(--foreground); border-radius: var(--radius); overflow: hidden; background: #121412; color: #eef0e9; box-shadow: 14px 14px 0 var(--accent); }
+      .terminal-bar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; border-bottom: 1px solid #363a34; background: #1b1e1a; color: #aeb3a8; font: 500 11px/1 "IBM Plex Mono", monospace; letter-spacing: .07em; text-transform: uppercase; }
+      .terminal-lights { display: flex; gap: 6px; }
+      .terminal-lights i { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #686e62; }
+      .terminal-body { padding: 24px 22px 27px; min-height: 310px; font: 400 13px/1.85 "IBM Plex Mono", monospace; }
+      .line { display: grid; grid-template-columns: 28px 1fr; gap: 8px; }
+      .ln { color: #555b51; user-select: none; text-align: right; }
+      .prompt { color: #dfff5f; }
+      .dim { color: #747b6f; }
+      .success { color: #b8df78; }
+      .terminal-result { margin: 18px 0 5px 36px; border-left: 2px solid #dfff5f; background: #1a1d18; padding: 12px 14px; color: #d8dbd3; }
+
+      .section { padding: 88px 0; border-bottom: 1px solid var(--border); }
+      .section-heading { display: flex; justify-content: space-between; gap: 30px; align-items: end; margin-bottom: 35px; }
+      .kicker { margin: 0 0 10px; color: var(--muted); font: 500 12px/1.2 "IBM Plex Mono", monospace; letter-spacing: .08em; text-transform: uppercase; }
+      h2 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1.1; letter-spacing: -.045em; font-weight: 600; }
+      .section-note { max-width: 420px; margin: 0; color: var(--muted); }
+
+      .download-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      .download-card { position: relative; display: flex; min-height: 330px; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); padding: 25px; background: var(--surface); transition: border-color 150ms ease-out, transform 150ms ease-out; }
+      .download-card:hover { border-color: var(--foreground); transform: translateY(-2px); }
+      .download-card.recommended { border-color: var(--foreground); box-shadow: inset 0 4px 0 var(--accent); }
+      .os-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
+      .os-icon { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-muted); }
+      .recommended-badge { display: none; padding: 6px 8px; border: 1px solid #a8bb51; border-radius: 4px; background: var(--accent-soft); color: var(--foreground); font: 600 10px/1 "IBM Plex Mono", monospace; letter-spacing: .06em; text-transform: uppercase; }
+      .recommended .recommended-badge { display: block; }
+      .download-card h3 { margin: 22px 0 5px; font-size: 21px; line-height: 1.2; letter-spacing: -.025em; }
+      .arch { color: var(--muted); font: 400 12px/1.5 "IBM Plex Mono", monospace; }
+      .package-list { display: grid; gap: 9px; margin-top: 24px; }
+      .package-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--background); text-decoration: none; font-size: 13px; font-weight: 600; }
+      .package-link:hover { border-color: var(--foreground); background: var(--accent-soft); }
+      .package-link svg { flex: none; }
+      .package-meta { margin-top: auto; padding-top: 20px; color: var(--muted); font-size: 12px; }
+
+      .process-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+      .process-copy { padding: 42px; }
+      .process-copy p { color: var(--muted); max-width: 540px; margin: 18px 0 0; }
+      .steps { display: grid; border-left: 1px solid var(--border); }
+      .step { display: grid; grid-template-columns: 58px 1fr; gap: 10px; padding: 23px 26px; border-bottom: 1px solid var(--border); }
+      .step:last-child { border-bottom: 0; }
+      .step-no { color: var(--muted); font: 500 12px/1.6 "IBM Plex Mono", monospace; }
+      .step h3 { margin: 0 0 5px; font-size: 16px; }
+      .step p { margin: 0; color: var(--muted); font-size: 14px; }
+
+      .privacy-strip { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: center; padding: 34px 0; }
+      .privacy-strip strong { font-size: 18px; }
+      .privacy-strip p { margin: 4px 0 0; color: var(--muted); }
+      .repo-link { white-space: nowrap; color: var(--muted); font: 500 13px/1.4 "IBM Plex Mono", monospace; }
+      .repo-link:hover { color: var(--foreground); }
+      footer { padding: 28px 0 42px; color: var(--muted); font-size: 13px; }
+      .footer-inner { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+
+      @media (max-width: 920px) {
+        .hero { padding-top: 78px; }
+        .hero-grid { grid-template-columns: 1fr; gap: 58px; }
+        .terminal { max-width: 650px; }
+        .download-grid { grid-template-columns: 1fr; }
+        .download-card { min-height: auto; }
+        .package-meta { margin-top: 5px; }
+        .process-grid { grid-template-columns: 1fr; }
+        .steps { border-left: 0; border-top: 1px solid var(--border); }
+      }
+      @media (max-width: 640px) {
+        .shell { width: min(100% - 28px, 1180px); }
+        .nav-inner { min-height: 60px; }
+        .nav-link { display: none; }
+        .hero { padding: 58px 0 60px; }
+        h1 { font-size: clamp(42px, 13vw, 60px); }
+        .hero-copy { font-size: 16px; }
+        .button { width: 100%; }
+        .terminal { box-shadow: 8px 8px 0 var(--accent); }
+        .terminal-body { padding: 20px 14px; font-size: 11px; overflow: hidden; }
+        .section { padding: 64px 0; }
+        .section-heading { display: block; }
+        .section-note { margin-top: 18px; }
+        .download-card { padding: 21px; }
+        .process-copy { padding: 28px 22px; }
+        .step { grid-template-columns: 42px 1fr; padding: 20px 18px; }
+        .privacy-strip { grid-template-columns: 1fr; }
+        .footer-inner { display: grid; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <div class="shell nav-inner">
+        <a class="brand" href="#top" aria-label="JayV, início"><span class="brand-mark">J</span><span>JayV</span></a>
+        <nav class="nav-actions" aria-label="Navegação principal">
+          <a class="nav-link" href="#downloads">Downloads</a>
+          <a class="nav-link" href="#como-funciona">Como funciona</a>
+          <a class="nav-link" href="https://github.com/JayV-Coder/jayv-coder-releases/releases" target="_blank" rel="noreferrer">Versões</a>
+          <button class="icon-button" id="theme-toggle" type="button" aria-label="Ativar tema escuro" title="Alternar tema">
+            <svg id="theme-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="shell hero-grid">
+          <div>
+            <div class="eyebrow">Orquestração local para desenvolvimento</div>
+            <h1>Agentes de IA,<br /><span class="highlight">sob controle.</span></h1>
+            <p class="hero-copy">O JayV coordena Codex, Claude e outros modelos no contexto do seu projeto. Cada pedido passa por portarias de entrada e saída para reduzir desperdício, preservar intenção e deixar decisões rastreáveis.</p>
+            <div class="hero-actions">
+              <a class="button primary" id="hero-download" href="#downloads">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                <span>Baixar para o meu sistema</span>
+              </a>
+              <a class="button secondary" href="https://github.com/JayV-Coder/jayv-coder-releases/releases/latest" target="_blank" rel="noreferrer">Ver notas da versão</a>
+            </div>
+            <div class="release-note" id="release-summary" aria-live="polite">Consultando a versão mais recente…</div>
+          </div>
+
+          <div class="terminal" aria-label="Exemplo de uma rota analisada pelo JayV">
+            <div class="terminal-bar"><span>route.trace</span><span class="terminal-lights"><i></i><i></i><i></i></span></div>
+            <div class="terminal-body">
+              <div class="line"><span class="ln">01</span><span><span class="prompt">$</span> jayv run <span class="dim">"revise o fluxo de autenticação"</span></span></div>
+              <div class="line"><span class="ln">02</span><span class="dim">indexando contexto do projeto…</span></div>
+              <div class="line"><span class="ln">03</span><span><span class="success">✓</span> entrada avaliada</span></div>
+              <div class="line"><span class="ln">04</span><span><span class="success">✓</span> escopo: alteração média</span></div>
+              <div class="terminal-result">
+                <div><span class="dim">agente</span>&nbsp;&nbsp;codex</div>
+                <div><span class="dim">modo</span>&nbsp;&nbsp;&nbsp;&nbsp;planejamento</div>
+                <div><span class="dim">papel</span>&nbsp;&nbsp;&nbsp;revisor</div>
+              </div>
+              <div class="line"><span class="ln">05</span><span><span class="success">✓</span> saída verificada</span></div>
+              <div class="line"><span class="ln">06</span><span class="dim">turno salvo · contexto preservado</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="downloads">
+        <div class="shell">
+          <div class="section-heading">
+            <div><p class="kicker">Downloads oficiais</p><h2>Escolha seu sistema</h2></div>
+            <p class="section-note">Os links apontam para os artefatos publicados no repositório oficial. O JayV avisa quando uma versão nova estiver disponível.</p>
+          </div>
+          <div class="download-grid" id="download-grid" aria-busy="true"></div>
+        </div>
+      </section>
+
+      <section class="section" id="como-funciona">
+        <div class="shell process-grid">
+          <div class="process-copy">
+            <p class="kicker">Fluxo com contexto</p>
+            <h2>Do pedido à resposta, cada etapa tem uma função.</h2>
+            <p>O JayV mantém os agentes focados no projeto certo e registra como cada turno foi conduzido. Você acompanha a rota sem perder o ritmo da conversa.</p>
+          </div>
+          <div class="steps">
+            <article class="step"><span class="step-no">01</span><div><h3>Entende o pedido</h3><p>A portaria de entrada identifica intenção, porte e limites antes da execução.</p></div></article>
+            <article class="step"><span class="step-no">02</span><div><h3>Escolhe a rota</h3><p>O trabalho segue para o agente, modelo e modo adequados ao escopo.</p></div></article>
+            <article class="step"><span class="step-no">03</span><div><h3>Verifica a saída</h3><p>A resposta retorna pela portaria de saída, com decisão e histórico visíveis.</p></div></article>
+          </div>
+        </div>
+      </section>
+
+      <section class="shell privacy-strip">
+        <div><strong>Seu ambiente continua sendo seu.</strong><p>Projetos, conversas e configurações ficam no aplicativo local.</p></div>
+        <a class="repo-link" href="https://github.com/JayV-Coder/jayv-coder-releases" target="_blank" rel="noreferrer">github.com/JayV-Coder</a>
+      </section>
+    </main>
+
+    <footer>
+      <div class="shell footer-inner"><span>© <span id="year"></span> JayV</span><span class="mono" id="footer-version">versão atual</span></div>
+    </footer>
+
+    <script>
+      const REPOSITORY = "JayV-Coder/jayv-coder-releases";
+      const RELEASE_API = `https://api.github.com/repos/${REPOSITORY}/releases/latest`;
+      const MANIFEST_URL = `https://github.com/${REPOSITORY}/releases/latest/download/latest.json`;
+      const CURRENT_FALLBACK = {
+        version: "0.11.0",
+        published: "2026-10-02T14:45:22Z",
+        assets: [
+          ["JayV_0.11.0_x64-setup.exe", "https://github.com/JayV-Coder/jayv-coder-releases/releases/latest/download/JayV_0.11.0_x64-setup.exe", 5859584],
+          ["JayV_0.11.0_x64_en-US.msi", "https://github.com/JayV-Coder/jayv-coder-releases/releases/latest/download/JayV_0.11.0_x64_en-US.msi", 8437760],
+          ["JayV_0.11.0_aarch64.dmg", "https://github.com/JayV-Coder/jayv-coder-releases/releases/latest/download/JayV_0.11.0_aarch64.dmg", 8770922],
+          ["JayV_0.11.0_x64.dmg", "https://github.com/JayV-Coder/jayv-coder-releases/releases/latest/download/JayV_0.11.0_x64.dmg", 9048924],
+          ["JayV_0.11.0_amd64.AppImage", "https://github.com/JayV-Coder/jayv-coder-releases/releases/latest/download/JayV_0.11.0_amd64.AppImage", 88865272],
+          ["JayV_0.11.0_amd64.deb", "https://github.com/JayV-Coder/jayv-coder-releases/releases/latest/download/JayV_0.11.0_amd64.deb", 11430504],
+          ["JayV-0.11.0-1.x86_64.rpm", "https://github.com/JayV-Coder/jayv-coder-releases/releases/latest/download/JayV-0.11.0-1.x86_64.rpm", 11430221]
+        ].map(([name, browser_download_url, size]) => ({ name, browser_download_url, size }))
+      };
+
+      const icons = {
+        windows: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 5.5 10.5 4v7H3V5.5Zm9-1.8L21 2v9h-9V3.7ZM3 12.5h7.5v7L3 18v-5.5Zm9 0h9v9.5l-9-1.8v-7.7Z"/></svg>',
+        mac: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.3 6.2c1.1-1.3 1-2.6 1-3.1-1.6.1-2.8 1.1-3.5 2-.7.8-1.2 1.8-1.1 3 1.7.1 2.7-.7 3.6-1.9Z"/><path d="M16.8 12.8c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.2-2-3.9-2-1.7-.2-3.2 1-4 1-1 0-2.4-1-3.9-1C5.2 7 3.4 8.1 2.4 10c-2 3.5-.5 8.7 1.4 11.6.9 1.4 2 2.9 3.5 2.8 1.4-.1 2-1 3.7-1 1.7 0 2.2 1 3.7 1 1.5 0 2.5-1.4 3.4-2.8 1.1-1.6 1.5-3.1 1.5-3.2-.1 0-2.8-1.1-2.8-5.6Z" transform="scale(.8) translate(3 1)"/></svg>',
+        linux: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7.5c0-2.5 1-4.5 3-4.5s3 2 3 4.5c0 1.2-.2 2.2-.6 3.1 1.9 1.2 3.1 3.4 3.1 5.9 0 2.8-2.5 4.5-5.5 4.5s-5.5-1.7-5.5-4.5c0-2.5 1.2-4.7 3.1-5.9-.4-.9-.6-1.9-.6-3.1Z"/><path d="M9.7 8.3h.1M14.2 8.3h.1M10.3 11.2c1.1.6 2.3.6 3.4 0M7.2 14.4 4 17.5M16.8 14.4l3.2 3.1M9.2 20.5 7.8 22M14.8 20.5l1.4 1.5"/></svg>',
+        download: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>'
+      };
+
+      const system = (() => {
+        const value = `${navigator.userAgent} ${navigator.platform}`.toLowerCase();
+        if (value.includes("win")) return "windows";
+        if (value.includes("mac")) return "mac";
+        if (value.includes("linux") || value.includes("x11")) return "linux";
+        return "unknown";
+      })();
+
+      const formatSize = (bytes) => bytes ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : "";
+      const formatDate = (iso) => new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(iso));
+      const asset = (assets, pattern) => assets.find((item) => pattern.test(item.name) && !item.name.endsWith(".sig"));
+      const packageLink = (item, label) => item ? `<a class="package-link" href="${item.browser_download_url}" data-download="${item.name}"><span>${label}</span>${icons.download}</a>` : "";
+
+      function renderDownloads(release, manifestVersion, live = true) {
+        const assets = release.assets;
+        const grid = document.getElementById("download-grid");
+        const cards = [
+          { id: "windows", name: "Windows", arch: "64 bits · Windows 10 ou superior", links: [packageLink(asset(assets, /-setup\.exe$/i), "Instalador EXE"), packageLink(asset(assets, /\.msi$/i), "Pacote MSI")] },
+          { id: "mac", name: "macOS", arch: "Apple Silicon ou Intel", links: [packageLink(asset(assets, /_aarch64\.dmg$/i), "Apple Silicon DMG"), packageLink(asset(assets, /_x64\.dmg$/i), "Intel DMG")] },
+          { id: "linux", name: "Linux", arch: "x86_64", links: [packageLink(asset(assets, /\.AppImage$/i), "AppImage"), packageLink(asset(assets, /\.deb$/i), "Debian / Ubuntu"), packageLink(asset(assets, /\.rpm$/i), "Fedora / RHEL")] }
+        ];
+
+        grid.innerHTML = cards.map((card) => `
+          <article class="download-card ${system === card.id ? "recommended" : ""}" data-system="${card.id}">
+            <div class="os-row"><span class="os-icon">${icons[card.id]}</span><span class="recommended-badge">Seu sistema</span></div>
+            <h3>${card.name}</h3><div class="arch">${card.arch}</div>
+            <div class="package-list">${card.links.filter(Boolean).join("") || '<span class="arch">Pacote ainda indisponível.</span>'}</div>
+            <div class="package-meta">JayV v${release.version} · publicado em ${formatDate(release.published)}</div>
+          </article>`).join("");
+
+        document.getElementById("release-summary").textContent = `Versão ${release.version} · Windows, macOS e Linux`;
+        document.getElementById("footer-version").textContent = `v${release.version}`;
+        grid.dataset.manifestVersion = manifestVersion || release.version;
+        grid.dataset.liveRelease = String(live);
+        grid.setAttribute("aria-busy", "false");
+
+        const firstRecommended = document.querySelector(`.download-card[data-system="${system}"] .package-link`);
+        const hero = document.getElementById("hero-download");
+        if (firstRecommended) {
+          hero.href = firstRecommended.href;
+          hero.querySelector("span").textContent = `Baixar para ${cards.find((card) => card.id === system).name}`;
+        }
+      }
+
+      async function loadRelease() {
+        renderDownloads(CURRENT_FALLBACK, CURRENT_FALLBACK.version, false);
+        try {
+          const releaseResponse = await fetch(RELEASE_API, { headers: { Accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(8000) });
+          if (!releaseResponse.ok) throw new Error("release unavailable");
+          const release = await releaseResponse.json();
+          let manifestVersion = release.tag_name.replace(/^v/, "");
+          try {
+            const manifestResponse = await fetch(MANIFEST_URL, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(5000) });
+            if (manifestResponse.ok) manifestVersion = (await manifestResponse.json()).version || manifestVersion;
+          } catch (_) {
+            // Some browsers block the manifest redirect; the matching release
+            // API remains the source for the installer assets shown here.
+          }
+          renderDownloads({ version: release.tag_name.replace(/^v/, ""), published: release.published_at, assets: release.assets }, manifestVersion, true);
+        } catch (error) {}
+      }
+
+      const root = document.documentElement;
+      const themeToggle = document.getElementById("theme-toggle");
+      const storedTheme = localStorage.getItem("jayv-theme");
+      if (storedTheme === "dark" || (!storedTheme && matchMedia("(prefers-color-scheme: dark)").matches)) root.dataset.theme = "dark";
+      const updateThemeLabel = () => themeToggle.setAttribute("aria-label", root.dataset.theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro");
+      updateThemeLabel();
+      themeToggle.addEventListener("click", () => {
+        root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+        localStorage.setItem("jayv-theme", root.dataset.theme);
+        updateThemeLabel();
+      });
+      document.getElementById("year").textContent = new Date().getFullYear();
+      loadRelease();
+    </script>
+  </body>
+</html>
