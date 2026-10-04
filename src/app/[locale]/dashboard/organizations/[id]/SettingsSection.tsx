@@ -22,9 +22,13 @@ export function SettingsSection({ organization }: { organization: Organization }
   const [busy, startBusy] = useTransition();
   const [name, setName] = useState(organization.name);
   const [confirm, setConfirm] = useState("");
+  // Qual ação está indo: o giro aparece no botão dela.
+  const [running, setRunning] = useState<"rename" | "leave" | "delete" | null>(null);
 
-  const run = (action: () => Promise<ActionResult<null>>, after: () => void, done?: string) => startBusy(async () => {
+  const run = (key: "rename" | "leave" | "delete", action: () => Promise<ActionResult<null>>, after: () => void, done?: string) => startBusy(async () => {
+    setRunning(key);
     const result = await action();
+    setRunning(null);
     if (!result.ok) {
       report(result.error);
       return;
@@ -38,34 +42,34 @@ export function SettingsSection({ organization }: { organization: Organization }
   const rename = (event: FormEvent) => {
     event.preventDefault();
     if (!name.trim() || name.trim() === organization.name) return;
-    run(() => renameOrganization(organization.id, name), () => router.refresh(), t("org.settings.renamed"));
+    run("rename", () => renameOrganization(organization.id, name), () => router.refresh(), t("org.settings.renamed"));
   };
 
   return (
     <div className="grid gap-5">
       {canManage(organization.role) && (
         <Section title={t("org.settings.rename")}>
-          <form onSubmit={rename} className="flex flex-wrap items-end gap-2">
-            <FormField label={t("org.field.name")} htmlFor="org-rename" className="min-w-[240px] flex-1">
+          <form onSubmit={rename} className="flex flex-col gap-2 @lg:flex-row @lg:items-end">
+            <FormField label={t("org.field.name")} htmlFor="org-rename" className="min-w-0 flex-1">
               <Input id="org-rename" maxLength={80} value={name} onChange={(event) => setName(event.target.value)} />
             </FormField>
-            <Button type="submit" loading={busy} disabled={!name.trim() || name.trim() === organization.name}>{t("profile.save")}</Button>
+            <Button type="submit" loading={running === "rename"} disabled={busy || !name.trim() || name.trim() === organization.name}>{t("profile.save")}</Button>
           </form>
         </Section>
       )}
       <Section title={t("org.settings.leave")} description={t("org.settings.leave.description")}>
         <ConfirmAction title={t("org.settings.leave")} description={t("org.settings.leave.confirm", { name: organization.name })} confirm={t("org.settings.leave")}
-          onConfirm={() => run(() => leaveOrganization(organization.id), toList)}>
-          <Button variant="outline" className="justify-self-start" disabled={busy}>{t("org.settings.leave")}</Button>
+          onConfirm={() => run("leave", () => leaveOrganization(organization.id), toList)}>
+          <Button variant="outline" className="justify-self-start" loading={running === "leave"} disabled={busy}>{t("org.settings.leave")}</Button>
         </ConfirmAction>
       </Section>
       {canDelete(organization.role) && (
         <Section title={t("org.settings.delete")} description={t("org.settings.delete.description")}>
-          <div className="flex flex-wrap items-end gap-2">
-            <FormField label={t("org.settings.delete.type", { slug: organization.slug })} htmlFor="org-delete" className="min-w-[240px] flex-1">
+          <div className="flex flex-col gap-2 @lg:flex-row @lg:items-end">
+            <FormField label={t("org.settings.delete.type", { slug: organization.slug })} htmlFor="org-delete" className="min-w-0 flex-1">
               <Input id="org-delete" spellCheck={false} autoCapitalize="none" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
             </FormField>
-            <Button variant="destructive" loading={busy} disabled={confirm !== organization.slug} onClick={() => run(() => deleteOrganization(organization.id), toList)}>
+            <Button variant="destructive" loading={running === "delete"} disabled={busy || confirm !== organization.slug} onClick={() => run("delete", () => deleteOrganization(organization.id), toList)}>
               {t("org.settings.delete")}
             </Button>
           </div>

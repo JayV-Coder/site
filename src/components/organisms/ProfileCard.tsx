@@ -39,9 +39,9 @@ export async function ProfileCard({ locale, data, badges, action }: { locale: st
   return (
     <Card className="relative mb-6 gap-0 overflow-hidden p-0">
       <div aria-hidden="true" className="h-20 border-b border-border bg-secondary" />
-      <div className="flex flex-wrap items-end gap-5 px-7 pb-6">
+      <div className="flex flex-col items-start gap-4 px-4 pb-5 @lg:flex-row @lg:items-end @lg:gap-5 @lg:px-7 @lg:pb-6">
         <UserAvatar name={data.name} src={data.avatarUrl} className="-mt-10 size-[84px] border-4 border-card text-h1" />
-        <div className="min-w-0 flex-1">
+        <div className="w-full min-w-0 @lg:w-auto @lg:flex-1">
           <h1 className="truncate text-h2 font-semibold">{data.name}</h1>
           {(data.username || data.email) && (
             <p className="truncate text-sm text-muted-foreground">
@@ -63,9 +63,9 @@ export async function ProfileCard({ locale, data, badges, action }: { locale: st
         {action}
       </div>
       {(since || last) && (
-        <dl className="grid gap-x-8 gap-y-1 border-t border-border/60 px-7 py-3.5 text-xs sm:grid-cols-2">
-          {since && <div className="flex gap-2"><dt className="text-muted-foreground">{t("profile.memberSince")}</dt><dd>{since}</dd></div>}
-          {last && <div className="flex gap-2"><dt className="text-muted-foreground">{t("profile.lastSignIn")}</dt><dd>{last}</dd></div>}
+        <dl className="grid gap-x-8 gap-y-1 border-t border-border/60 px-4 py-3.5 text-xs @xl:grid-cols-2 @lg:px-7">
+          {since && <div className="flex flex-wrap gap-x-2"><dt className="text-muted-foreground">{t("profile.memberSince")}</dt><dd>{since}</dd></div>}
+          {last && <div className="flex flex-wrap gap-x-2"><dt className="text-muted-foreground">{t("profile.lastSignIn")}</dt><dd>{last}</dd></div>}
         </dl>
       )}
     </Card>

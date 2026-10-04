@@ -25,6 +25,7 @@ export function LinkedSection({ providers, hasPassword, result }: {
   const { notify, report } = useFeedback();
   const [busy, startBusy] = useTransition();
   const [linking, setLinking] = useState<Provider | null>(null);
+  const [unlinking, setUnlinking] = useState<Provider | null>(null);
   const shown = useRef(false);
 
   // A volta do provedor chega no endereço; o aviso sai uma vez e o endereço
@@ -53,7 +54,9 @@ export function LinkedSection({ providers, hasPassword, result }: {
   };
 
   const unlink = (provider: Provider) => startBusy(async () => {
+    setUnlinking(provider);
     const outcome = await unlinkProvider(provider);
+    setUnlinking(null);
     if (!outcome.ok) report(outcome.error);
     router.refresh();
   });
@@ -75,14 +78,14 @@ export function LinkedSection({ providers, hasPassword, result }: {
               {linked ? (
                 removable ? (
                   <ConfirmAction title={t("linked.unlink.title", { provider: name })} description={t("linked.unlink.description", { provider: name })} confirm={t("linked.unlink")} onConfirm={() => unlink(provider)}>
-                    <Button type="button" variant="outline" size="sm" disabled={busy}>{t("linked.unlink")}</Button>
+                    <Button type="button" variant="outline" size="sm" disabled={busy} loading={unlinking === provider}>{t("linked.unlink")}</Button>
                   </ConfirmAction>
                 ) : (
                   // O botão desativado não recebe o mouse: a dica fica no invólucro.
                   <span title={t("auth.lastIdentity")}><Button type="button" variant="outline" size="sm" disabled>{t("linked.unlink")}</Button></span>
                 )
               ) : (
-                <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => link(provider)}>
+                <Button type="button" variant="outline" size="sm" disabled={busy || linking !== null} loading={linking === provider} onClick={() => link(provider)}>
                   {linking === provider ? t("auth.waitingBrowser") : t("linked.link")}
                 </Button>
               )}
