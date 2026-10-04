@@ -29,11 +29,14 @@ export function NewPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
+  // A conta da sessão aberta pelo link, à vista: a senha nova é dela.
+  const [email, setEmail] = useState<string | null>(null);
   const mismatch = confirm.length > 0 && confirm !== password;
 
   useEffect(() => {
     void (async () => {
       const { data } = await browserSupabase().auth.getSession();
+      setEmail(data.session?.user.email ?? null);
       if (!data.session) setState("missing");
       else setState((await nextStep()) === "secondFactor" ? "secondFactor" : "ready");
     })();
@@ -73,6 +76,7 @@ export function NewPasswordForm() {
   return (
     <AuthShell title={t("auth.newPassword.title")} subtitle={t("auth.newPassword.description")}>
       <form onSubmit={submit} className="grid gap-4">
+        {email && <p className="text-center font-mono text-sm break-all">{email}</p>}
         <FormField label={t("security.new")} htmlFor="recover-password">
           <Input id="recover-password" type="password" autoComplete="new-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
         </FormField>

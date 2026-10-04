@@ -1,6 +1,6 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { SUPABASE_KEY, SUPABASE_URL } from "@/modules/supabase/config";
+import { supabaseAuth, type Tokens } from "@/modules/supabase/gotrue";
 import { decodeClaims, displayName, avatarUrl, needsMoreAssurance, type SupabaseUser } from "@/modules/auth/session";
 
 declare module "next-auth" {
@@ -11,6 +11,10 @@ declare module "next-auth" {
     accessToken?: string;
     /** O Supabase recusou renovar a sessão: é preciso entrar de novo. */
     error?: "refresh";
+    /** Só na troca de sessão (`unstable_update`): os tokens que a página Conta
+     * recebeu ao trocar a senha, confirmar o app autenticador ou vincular uma
+     * conta. Nunca volta ao cliente. */
+    supabase?: Tokens;
     user: { id: string } & DefaultSession["user"];
   }
 }
@@ -23,17 +27,25 @@ declare module "@auth/core/jwt" {
  * vencendo no caminho. */
 const EARLY = 60;
 
-async function supabaseAuth(path: string, init: RequestInit & { token?: string }) {
-  const headers: Record<string, string> = { apikey: SUPABASE_KEY, "Content-Type": "application/json" };
-  if (init.token) headers.Authorization = `Bearer ${init.token}`;
-  return fetch(`${SUPABASE_URL}/auth/v1/${path}`, { ...init, headers, cache: "no-store" });
+/** Confere os tokens com o Supabase: são de uma pessoa, e da que se diz
+ * (`expected`), e passam pelo segundo fator. */
+async function checkTokens(accessToken: string, expected?: string) {
+  const response = await supabaseAuth("user", { token: accessToken });
+  if (!response.ok) return null;
+  const user = (await response.json()) as SupabaseUser;
+  const claims = decodeClaims(accessToken);
+  // Com o app autenticador cadastrado, a senha sozinha não abre o site,
+  // como não abre o app nem o banco (migração `second_factor`).
+  if (!claims || claims.sub !== user.id || needsMoreAssurance(user, claims)) return null;
+  if (expected && user.id !== expected) return null;
+  return { user, claims };
 }
 
 /** O login acontece no navegador, pelo Supabase Auth (senha, GitHub, GitLab,
  * Bitbucket, segundo fator), igual ao app. O NextAuth recebe os tokens já
  * prontos, confere com o Supabase quem é a pessoa e passa a guardar a sessão
  * num cookie cifrado. Os usuários são os mesmos do app. */
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
@@ -46,21 +58,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const accessToken = typeof credentials?.accessToken === "string" ? credentials.accessToken : "";
         const refreshToken = typeof credentials?.refreshToken === "string" ? credentials.refreshToken : "";
         if (!accessToken || !refreshToken) return null;
-        const response = await supabaseAuth("user", { token: accessToken });
-        if (!response.ok) return null;
-        const user = (await response.json()) as SupabaseUser;
-        const claims = decodeClaims(accessToken);
-        // Com o app autenticador cadastrado, a senha sozinha não abre o site,
-        // como não abre o app nem o banco (migração `second_factor`).
-        if (!claims || needsMoreAssurance(user, claims)) return null;
+        const checked = await checkTokens(accessToken);
+        if (!checked) return null;
+        const { user, claims } = checked;
         return { id: user.id, email: user.email ?? null, name: displayName(user), image: avatarUrl(user), accessToken, refreshToken, expiresAt: claims.exp };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         return { ...token, accessToken: user.accessToken, refreshToken: user.refreshToken, expiresAt: user.expiresAt, error: undefined };
+      }
+      // A sessão nova da página Conta substitui a guardada, se for da mesma
+      // pessoa; qualquer outra coisa enviada pelo `update` é ignorada.
+      if (trigger === "update") {
+        const fresh = (session as { supabase?: Tokens } | undefined)?.supabase;
+        if (!fresh?.accessToken || !fresh.refreshToken || !token.sub) return token;
+        const checked = await checkTokens(fresh.accessToken, token.sub);
+        if (!checked) return token;
+        return { ...token, accessToken: fresh.accessToken, refreshToken: fresh.refreshToken, expiresAt: checked.claims.exp, error: undefined };
       }
       if (!token.refreshToken || token.error) return token;
       if (token.expiresAt && Date.now() / 1000 < token.expiresAt - EARLY) return token;

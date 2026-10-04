@@ -20,6 +20,9 @@ export default async function LoginPage({ params, searchParams }: PageProps<"/[l
   if (session?.accessToken) redirect(next);
   const t = await getT(locale);
   // A sessão que o Supabase não renovou (senha trocada, sessão revogada).
-  const notice = session?.error === "refresh" ? t("site.session.failed") : query.next === `/${locale}/admin` ? t("site.admin.signIn") : undefined;
+  const notice = session?.error === "refresh"
+    ? t("site.session.failed")
+    : next === `/${locale}/dashboard/admin` ? t("site.admin.signIn")
+      : next.startsWith(`/${locale}/dashboard`) ? t("site.dashboard.signIn") : undefined;
   return <SitePage locale={locale}><LoginForm next={next} notice={notice} /></SitePage>;
 }
