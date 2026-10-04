@@ -37,7 +37,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const messages = await getMessages(locale);
 
   return (
-    <html lang={locale} dir={option?.rtl ? "rtl" : "ltr"} suppressHydrationWarning>
+    <html lang={locale} dir={option?.rtl ? "rtl" : "ltr"} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOT }} />
       </head>

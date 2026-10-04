@@ -35,7 +35,7 @@ export function AdminBoard({ plans, features, subscribers }: { plans: Plan[]; fe
 
   return (
     <Tabs defaultValue="features" className="gap-5">
-      <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto">
+      <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
         <TabsTrigger value="features" className="flex-none px-4 py-2">{t("admin.tab.features")}</TabsTrigger>
         <TabsTrigger value="plans" className="flex-none px-4 py-2">{t("admin.tab.plans")}</TabsTrigger>
       </TabsList>

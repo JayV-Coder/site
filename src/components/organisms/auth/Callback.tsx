@@ -34,12 +34,23 @@ export function Callback() {
     if (started.current) return;
     started.current = true;
     const code = query.get("code");
-    if (query.get("error") || !code) {
+    // O link de troca de senha que o admin manda (página Usuários) não tem
+    // PKCE — abre num navegador que não pediu nada — e traz a sessão no `#`.
+    // Só vale para recuperação e só segue para a senha nova, que mostra de
+    // que conta é: um link montado com a sessão de outra conta não entra
+    // direto no site.
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const implicit = !code && fragment.get("type") === "recovery" && next === href("/new-password") && fragment.get("access_token") && fragment.get("refresh_token")
+      ? { access_token: fragment.get("access_token")!, refresh_token: fragment.get("refresh_token")! }
+      : null;
+    if (query.get("error") || fragment.get("error") || (!code && !implicit)) {
       setState("failed");
       return;
     }
     void (async () => {
-      const { data, error } = await browserSupabase().auth.exchangeCodeForSession(code);
+      const supabase = browserSupabase();
+      const { data, error } = code ? await supabase.auth.exchangeCodeForSession(code) : await supabase.auth.setSession(implicit!);
+      if (implicit) window.history.replaceState(null, "", window.location.pathname + window.location.search);
       if (error || !data.session) {
         setState("failed");
         return;

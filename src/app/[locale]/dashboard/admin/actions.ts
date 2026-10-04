@@ -15,7 +15,7 @@ async function call(name: string, args: Record<string, unknown>): Promise<Action
   if (!supabase) return { ok: false, error: { key: "admin.forbidden" } };
   const { error } = await supabase.rpc(name, args);
   if (error) return { ok: false, error: adminFailure(error) };
-  revalidatePath("/[locale]/admin", "page");
+  revalidatePath("/[locale]/dashboard/admin", "page");
   return { ok: true };
 }
 

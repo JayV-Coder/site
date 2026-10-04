@@ -1,28 +1,21 @@
 import Link from "next/link";
+import { LayoutDashboardIcon } from "lucide-react";
 import { auth } from "@/auth";
 import { BrandMark } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
 import { getT } from "@/modules/i18n/server";
-import { userSupabase } from "@/modules/supabase/server";
 import { RELEASES_URL } from "@/modules/releases/config";
 import { signOutAction } from "@/app/[locale]/actions";
 import { ThemeToggle } from "./ThemeToggle";
 
-/** O admin vê o atalho da Administração; quem decide é o banco. */
-async function isAdmin() {
-  const supabase = await userSupabase();
-  if (!supabase) return false;
-  const { data, error } = await supabase.rpc("my_features");
-  return !error && (data as { admin?: boolean } | null)?.admin === true;
-}
-
 /** A barra de cima, como o cabeçalho do app: a marca, os atalhos da página e
- * a conta. No celular os atalhos da página somem e fica o essencial. */
+ * a conta. Quem entrou ganha o botão do painel (onde também mora a
+ * Administração, para o admin). No celular os atalhos da página somem e fica
+ * o essencial. */
 export async function SiteHeader({ locale }: { locale: string }) {
   const t = await getT(locale);
   const session = await auth();
   const signedIn = !!session?.accessToken;
-  const admin = signedIn && (await isAdmin());
   const home = `/${locale}`;
   const link = "rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
 
@@ -40,13 +33,15 @@ export async function SiteHeader({ locale }: { locale: string }) {
             <Link className={link} href={`${home}#how`}>{t("site.nav.how")}</Link>
             <a className={link} href={RELEASES_URL} target="_blank" rel="noreferrer">{t("site.nav.releases")}</a>
           </div>
-          {admin && <Link className={link} href={`${home}/admin`}>{t("nav.admin")}</Link>}
           <ThemeToggle />
           {signedIn ? (
             <form action={signOutAction.bind(null, locale)} className="flex items-center gap-2">
               <span className="hidden max-w-48 truncate text-xs text-muted-foreground lg:inline" title={session?.user?.email ?? undefined}>
                 {t("site.nav.account", { email: session?.user?.email ?? "" })}
               </span>
+              <Button asChild size="sm">
+                <Link href={`${home}/dashboard`}><LayoutDashboardIcon />{t("site.nav.dashboard")}</Link>
+              </Button>
               <Button type="submit" variant="outline" size="sm">{t("auth.signOut")}</Button>
             </form>
           ) : (

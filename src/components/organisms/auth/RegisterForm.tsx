@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { authFailure } from "@/modules/auth/errors";
 import { useHandoff } from "@/modules/auth/handoff";
 import { passwordOk } from "@/modules/auth/password";
-import { DISPLAY_NAME_MAX } from "@/modules/auth/profile";
+import { DISPLAY_NAME_MAX } from "@/modules/profile/fields";
 import { useFeedback } from "@/modules/feedback";
 import { useHref, useLocale, useT } from "@/modules/i18n";
 import { browserSupabase } from "@/modules/supabase/browser";
