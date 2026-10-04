@@ -44,7 +44,7 @@ export function NewOrganizationForm() {
 
   return (
     <SettingsSection title={t("org.new.title")} description={t("org.new.description")}>
-      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+      <form onSubmit={submit} className="grid gap-4 @xl:grid-cols-2">
         <FormField label={t("org.field.name")} htmlFor="org-name">
           <Input id="org-name" required maxLength={80} value={name} autoFocus
             onChange={(event) => { setName(event.target.value); if (!typed) setSlug(slugify(event.target.value)); }} />
@@ -56,7 +56,7 @@ export function NewOrganizationForm() {
               onChange={(event) => { setTyped(true); setSlug(event.target.value.toLowerCase().replace(/\s/g, "-")); }} />
           </div>
         </FormField>
-        <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">
+        <div className="flex flex-wrap justify-end gap-2 @xl:col-span-2">
           <Button type="button" variant="ghost" onClick={close}>{t("common.cancel")}</Button>
           <Button type="submit" loading={busy} disabled={!name.trim() || !slugOk(slug)}>{t("org.new.create")}</Button>
         </div>

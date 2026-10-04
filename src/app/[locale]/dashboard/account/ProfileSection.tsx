@@ -116,7 +116,7 @@ export function ProfileSection({ initial }: { initial: AccountProfile }) {
   return (
     <SettingsSection title={t("profile.data.title")} description={t("profile.data.description")}>
       <form onSubmit={submit} className="grid gap-5">
-        <fieldset disabled={!editing || busy} className="grid min-w-0 gap-4 sm:grid-cols-2">
+        <fieldset disabled={!editing || busy} className="grid min-w-0 gap-4 @xl:grid-cols-2">
           <FormField label={t("profile.field.displayName")} htmlFor="profile-display-name" hint={t("profile.field.displayName.hint")}>
             <Input id="profile-display-name" required maxLength={DISPLAY_NAME_MAX} value={draft.displayName} onChange={(event) => set("displayName", event.target.value)} />
           </FormField>

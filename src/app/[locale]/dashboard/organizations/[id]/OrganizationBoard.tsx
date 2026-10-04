@@ -14,7 +14,7 @@ export function OrganizationBoard({ detail }: { detail: OrganizationDetail }) {
   const t = useT();
   return (
     <Tabs defaultValue="members" className="gap-5">
-      <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
+      <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto [scrollbar-width:none] @lg:flex-wrap">
         <TabsTrigger value="members" className="flex-none gap-2 px-4 py-2"><UsersIcon />{t("org.tab.members")}</TabsTrigger>
         <TabsTrigger value="policy" className="flex-none gap-2 px-4 py-2"><ShieldCheckIcon />{t("org.tab.policy")}</TabsTrigger>
         <TabsTrigger value="settings" className="flex-none gap-2 px-4 py-2"><SettingsIcon />{t("org.tab.settings")}</TabsTrigger>

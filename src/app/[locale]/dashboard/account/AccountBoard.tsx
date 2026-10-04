@@ -18,7 +18,7 @@ export function AccountBoard({ account, tab, result }: {
   const t = useT();
   return (
     <Tabs defaultValue={tab} className="gap-5">
-      <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
+      <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto [scrollbar-width:none] @lg:flex-wrap">
         <TabsTrigger value="data" className="flex-none gap-2 px-4 py-2"><UserRoundIcon />{t("profile.tab.data")}</TabsTrigger>
         <TabsTrigger value="security" className="flex-none gap-2 px-4 py-2"><ShieldCheckIcon />{t("profile.tab.security")}</TabsTrigger>
         <TabsTrigger value="linked" className="flex-none gap-2 px-4 py-2"><LinkIcon />{t("profile.tab.linked")}</TabsTrigger>

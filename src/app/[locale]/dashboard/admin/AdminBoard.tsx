@@ -142,14 +142,14 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
         )}
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 @xl:grid-cols-2">
         <ToggleRow id={id("active")} label={t("admin.plan.active")} hint={t("admin.plan.activeHint")} checked={draft.active} disabled={draft.isDefault} onChange={(active) => edit({ active })} />
         <ToggleRow id={id("default")} label={t("admin.plan.default")} hint={t("admin.plan.defaultHint")} checked={draft.isDefault} disabled={plan.isDefault} onChange={(isDefault) => edit({ isDefault, active: isDefault || draft.active })} />
       </div>
 
       <fieldset className="grid gap-2">
         <legend className="mb-1 text-xs text-muted-foreground">{t("admin.plan.features")}</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 @xl:grid-cols-2">
           {features.map((feature) => (
             <label key={feature.key} className="flex items-center gap-2.5 text-sm">
               <Checkbox checked={draft.features.includes(feature.key)} onCheckedChange={(on) => toggle(feature.key, on === true)} />

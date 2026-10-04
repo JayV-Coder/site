@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LayoutDashboardIcon } from "lucide-react";
 import { auth } from "@/auth";
 import { BrandMark } from "@/components/atoms";
+import { SubmitButton } from "@/components/molecules";
 import { Button } from "@/components/ui/button";
 import { getT } from "@/modules/i18n/server";
 import { RELEASES_URL } from "@/modules/releases/config";
@@ -40,9 +41,9 @@ export async function SiteHeader({ locale }: { locale: string }) {
                 {t("site.nav.account", { email: session?.user?.email ?? "" })}
               </span>
               <Button asChild size="sm">
-                <Link href={`${home}/dashboard`}><LayoutDashboardIcon />{t("site.nav.dashboard")}</Link>
+                <Link href={`${home}/dashboard`} aria-label={t("site.nav.dashboard")}><LayoutDashboardIcon /><span className="hidden sm:inline">{t("site.nav.dashboard")}</span></Link>
               </Button>
-              <Button type="submit" variant="outline" size="sm">{t("auth.signOut")}</Button>
+              <SubmitButton variant="outline" size="sm">{t("auth.signOut")}</SubmitButton>
             </form>
           ) : (
             <>

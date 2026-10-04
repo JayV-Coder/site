@@ -58,12 +58,15 @@ function PolicyForm({ orgId, repository, initial, manages }: { orgId: string; re
   const [deny, setDeny] = useState(policy.deny.join("\n"));
   const [localOnly, setLocalOnly] = useState(policy.local_only.join("\n"));
   const [busy, startBusy] = useTransition();
+  const [running, setRunning] = useState<"save" | "clear" | null>(null);
   const draft: LlmPolicy = { ...policy, blocked_models: policyLines(models), deny: policyLines(deny), local_only: policyLines(localOnly) };
   const problems = policyProblems(draft);
   const update = (changes: Partial<LlmPolicy>) => setPolicy((current) => ({ ...current, ...changes }));
 
-  const run = (action: () => Promise<ActionResult<null>>, done: string) => startBusy(async () => {
+  const run = (key: "save" | "clear", action: () => Promise<ActionResult<null>>, done: string) => startBusy(async () => {
+    setRunning(key);
     const result = await action();
+    setRunning(null);
     if (!result.ok) {
       report(result.error);
       return;
@@ -86,7 +89,7 @@ function PolicyForm({ orgId, repository, initial, manages }: { orgId: string; re
           <ToggleRow id="policy-all-agents" label={t("policy.agents.all")} hint={t("policy.agents.all.hint")} checked={policy.agents === null}
             onChange={(all) => update({ agents: all ? null : [...POLICY_AGENTS] })} disabled={!manages} />
           {policy.agents !== null && (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 @xl:grid-cols-2">
               {POLICY_AGENTS.map((agent) => (
                 <label key={agent} htmlFor={`policy-agent-${agent}`} className="flex items-center gap-2.5 rounded-md border border-border/60 px-3 py-2 text-sm">
                   <Checkbox id={`policy-agent-${agent}`} checked={policy.agents!.includes(agent)} onCheckedChange={(on) => toggleAgent(agent, on === true)} />
@@ -121,7 +124,7 @@ function PolicyForm({ orgId, repository, initial, manages }: { orgId: string; re
         <div className="grid gap-3">
           <ToggleRow id="policy-redact" label={t("app.redact")} hint={t("policy.redact.hint")} checked={policy.redact_secrets}
             onChange={(redact_secrets) => update({ redact_secrets })} disabled={!manages} />
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 @xl:grid-cols-2">
             <FormField label={t("app.deny")} htmlFor="policy-deny" hint={t("app.deny.hint")} error={problems.includes("patterns") ? t("policy.patterns.invalid") : null}>
               <Textarea id="policy-deny" rows={5} spellCheck={false} className="font-mono text-xs" value={deny} onChange={(event) => setDeny(event.target.value)} />
             </FormField>
@@ -133,7 +136,7 @@ function PolicyForm({ orgId, repository, initial, manages }: { orgId: string; re
       </SettingsSection>
 
       <SettingsSection title={t("policy.exit.title")} description={t("policy.exit.description")}>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 @2xl:grid-cols-3">
           {POLICY_RULES.map((rule) => {
             const field = `min_${rule}` as const;
             return (
@@ -148,11 +151,11 @@ function PolicyForm({ orgId, repository, initial, manages }: { orgId: string; re
 
       {manages && (
         <div className="flex flex-wrap gap-2">
-          <Button loading={busy} disabled={problems.length > 0} onClick={() => run(() => savePolicy(orgId, repository, draft), t("policy.saved"))}>{t("policy.save")}</Button>
+          <Button loading={running === "save"} disabled={busy || problems.length > 0} onClick={() => run("save", () => savePolicy(orgId, repository, draft), t("policy.saved"))}>{t("policy.save")}</Button>
           {initial && (
             <ConfirmAction title={t("policy.clear.title")} description={t("policy.clear.description")} confirm={t("policy.clear")}
-              onConfirm={() => run(() => clearPolicy(orgId, repository), t("policy.cleared"))}>
-              <Button variant="outline" disabled={busy}>{t("policy.clear")}</Button>
+              onConfirm={() => run("clear", () => clearPolicy(orgId, repository), t("policy.cleared"))}>
+              <Button variant="outline" loading={running === "clear"} disabled={busy}>{t("policy.clear")}</Button>
             </ConfirmAction>
           )}
         </div>

@@ -37,7 +37,7 @@ const PROFILE_FIELDS: [column: string, label: Key, group?: string][] = [
 
 function Facts({ items }: { items: [label: string, value: ReactNode][] }) {
   return (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+    <dl className="grid gap-x-6 gap-y-3 @xl:grid-cols-2">
       {items.map(([label, value]) => (
         <div key={label} className="grid min-w-0 gap-0.5">
           <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -160,8 +160,8 @@ export default async function UserPage({ params }: PageProps<"/[locale]/dashboar
           {user.organizations.length === 0 ? <EmptyText>{t("site.users.noOrganizations")}</EmptyText> : (
             <ul className="grid gap-2">
               {user.organizations.map((org) => (
-                <li key={org.id} className="flex flex-wrap items-center gap-3 rounded-md border border-border/60 px-3 py-2.5">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{org.name} <span className="font-mono text-xs text-muted-foreground">@{org.slug}</span></span>
+                <li key={org.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-border/60 px-3 py-2.5">
+                  <span className="min-w-0 basis-full truncate text-sm font-medium @lg:basis-auto @lg:flex-1">{org.name} <span className="font-mono text-xs text-muted-foreground">@{org.slug}</span></span>
                   <Badge variant="outline">{t(`org.role.${org.role}` as Key)}</Badge>
                   <span className="text-xs text-muted-foreground">{t("org.count.members", { count: org.members })}</span>
                 </li>
@@ -174,9 +174,9 @@ export default async function UserPage({ params }: PageProps<"/[locale]/dashboar
           {user.audit.length === 0 ? <EmptyText>{t("site.users.noAudit")}</EmptyText> : (
             <ul className="grid gap-2">
               {user.audit.map((entry, index) => (
-                <li key={`${entry.createdAt}-${index}`} className="flex flex-wrap items-center gap-3 border-b border-border/50 pb-2 text-sm last:border-0 last:pb-0">
-                  <span className="min-w-0 flex-1">{t(`site.users.audit.${entry.action}` as Key)}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{entry.admin ? `@${entry.admin}` : "—"}</span>
+                <li key={`${entry.createdAt}-${index}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/50 pb-2 text-sm last:border-0 last:pb-0">
+                  <span className="min-w-0 basis-full break-words @lg:basis-auto @lg:flex-1">{t(`site.users.audit.${entry.action}` as Key)}</span>
+                  <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">{entry.admin ? `@${entry.admin}` : "—"}</span>
                   <span className="text-xs text-muted-foreground">{day(entry.createdAt)}</span>
                 </li>
               ))}

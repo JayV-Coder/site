@@ -31,7 +31,7 @@ export function ProviderButtons({ next, disabled }: { next: string; disabled?: b
     <div className="grid gap-2">
       <p className="flex items-center gap-3 text-caption tracking-wider text-muted-foreground uppercase before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border">{t("auth.or")}</p>
       {PROVIDERS.map((provider) => (
-        <ProviderButton key={provider} provider={provider} disabled={disabled || chosen !== null} onClick={() => void go(provider)}
+        <ProviderButton key={provider} provider={provider} disabled={disabled || chosen !== null} loading={chosen === provider} onClick={() => void go(provider)}
           label={chosen === provider ? t("auth.waitingBrowser") : t("auth.continueWith", { provider: PROVIDER_NAMES[provider] })} />
       ))}
     </div>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LogOutIcon } from "lucide-react";
 import { LoadingNote } from "@/components/atoms";
 import { cardName, ProfileCard } from "@/components/organisms/ProfileCard";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/molecules";
 import { getT } from "@/modules/i18n/server";
 import { signOutAction } from "../../actions";
 import { requireAccess } from "../access";
@@ -52,10 +52,10 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
             }}
             action={(
               <form action={signOutAction.bind(null, locale)}>
-                <Button type="submit" variant="outline" className="hover:border-destructive/60 hover:text-destructive">
+                <SubmitButton variant="outline" className="hover:border-destructive/60 hover:text-destructive">
                   <LogOutIcon />
                   {t("auth.signOut")}
-                </Button>
+                </SubmitButton>
               </form>
             )} />
           <AccountBoard account={account} tab={tab} result={result} />

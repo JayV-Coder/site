@@ -53,7 +53,7 @@ export function UserProfileEditor({ target, displayName, username, locked }: { t
     <form onSubmit={submit} className="grid gap-4 border-t border-border/70 pt-4">
       <p className="text-sm font-medium">{t("site.users.editProfile")}</p>
       <fieldset disabled={!editing || busy} className="grid min-w-0 gap-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 @xl:grid-cols-2">
           <FormField label={t("profile.field.displayName")} htmlFor="user-display-name">
             <Input id="user-display-name" required maxLength={DISPLAY_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} />
           </FormField>

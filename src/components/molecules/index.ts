@@ -10,5 +10,6 @@ export { PasswordRules } from "./PasswordRules";
 export { ProviderButton } from "./ProviderButton";
 export { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 export { SettingsSection } from "./SettingsSection";
+export { SubmitButton } from "./SubmitButton";
 export { ThemeSelect } from "./ThemeSelect";
 export { ToggleRow } from "./ToggleRow";

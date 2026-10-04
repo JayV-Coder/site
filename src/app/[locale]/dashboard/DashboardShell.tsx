@@ -5,11 +5,12 @@ import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import { getT } from "@/modules/i18n/server";
 import type { Access } from "./access";
+import { CurrentInView } from "./CurrentInView";
 
 export type DashboardSection = "account" | "organizations" | "users" | "admin";
 
-/** A moldura do painel: as seções à esquerda (em cima, no celular) e a
- * página ao lado. A conta é de todo mundo; Usuários e Administração só
+/** A moldura do painel: as seções à esquerda (no celular, uma faixa que
+ * rola de lado, de ponta a ponta) e a página ao lado. A conta é de todo mundo; Usuários e Administração só
  * aparecem para o admin do sistema. */
 export async function DashboardShell({ locale, access, current, children }: {
   locale: string; access: Access; current: DashboardSection; children: ReactNode;
@@ -25,8 +26,8 @@ export async function DashboardShell({ locale, access, current, children }: {
 
   return (
     <SitePage locale={locale}>
-      <div className="shell grid gap-8 py-10 md:grid-cols-[13rem_minmax(0,1fr)]">
-        <nav aria-label={t("site.dashboard.label")} className="flex gap-1 overflow-x-auto md:sticky md:top-20 md:flex-col md:self-start">
+      <div className="shell grid gap-6 py-6 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-8 md:py-10">
+        <nav id="dashboard-sections" aria-label={t("site.dashboard.label")} className="relative -mx-4 flex gap-1 overflow-x-auto border-b border-border/70 px-4 pb-3 [scrollbar-width:none] md:sticky md:top-20 md:mx-0 md:flex-col md:self-start md:border-0 md:px-0 md:pb-0">
           {sections.map(({ id, href, label, Icon }) => (
             <Link key={id} href={href} aria-current={id === current ? "page" : undefined}
               className={cn(
@@ -38,7 +39,8 @@ export async function DashboardShell({ locale, access, current, children }: {
             </Link>
           ))}
         </nav>
-        <div className="min-w-0">{children}</div>
+        <CurrentInView nav="dashboard-sections" />
+        <div className="@container min-w-0">{children}</div>
       </div>
     </SitePage>
   );
