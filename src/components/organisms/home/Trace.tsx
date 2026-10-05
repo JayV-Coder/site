@@ -31,6 +31,9 @@ export function Trace({ t }: { t: T }) {
           ))}
         </dl>
         <p><span className="text-go">✓</span> {t("site.trace.exit")}</p>
+        {/* Passar pelas regras não é estar verificado: a linha não ganha o ✓
+            verde, como no app. */}
+        <p className="text-muted-foreground"><span aria-hidden="true">○</span> {t("site.trace.unverified")}</p>
         <p className="text-muted-foreground">{t("site.trace.saved")}<span aria-hidden="true" className="ml-1 inline-block h-[1.1em] w-[0.6ch] translate-y-[0.2em] animate-caret bg-foreground" /></p>
       </div>
     </figure>
