@@ -34,7 +34,13 @@ export default async function DocsPage({ params }: PageProps<"/[locale]/docs">) 
       summary: localized(texts, `docs.${feature.id}.summary`, feature.summary),
       usage: localized(texts, `docs.${feature.id}.usage`, feature.usage),
     })),
-    commands: data.commands.map((command) => ({ ...command, detail: localized(texts, `docs.command.${command.id}`, command.detail) })),
+    // O que se digita só muda nos nomes entre `<>` (`jayv run <pedido>`), que
+    // também vêm do i18n (`docs.command.<id>.usage`).
+    commands: data.commands.map((command) => ({
+      ...command,
+      usage: localized(texts, `docs.command.${command.id}.usage`, command.usage),
+      detail: localized(texts, `docs.command.${command.id}`, command.detail),
+    })),
   } : null;
 
   return (
