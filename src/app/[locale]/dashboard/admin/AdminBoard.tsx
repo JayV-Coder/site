@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeedback } from "@/modules/feedback";
 import { useT, type Key } from "@/modules/i18n";
-import { blankPlan, type FeatureRow, type Plan } from "@/modules/plans/catalog";
+import { blankPlan, modeOf, withDefault, withMode, type FeatureMode, type FeatureRow, type Plan } from "@/modules/plans/catalog";
 import { deletePlan, savePlan, setFeatureEnabled, type ActionResult } from "./actions";
 
 /** A administração do sistema, trazida do app: liga e desliga cada recurso
@@ -48,8 +48,10 @@ export function AdminBoard({ plans, features, subscribers }: { plans: Plan[]; fe
                 key={feature.key}
                 id={`feature-${feature.key}`}
                 label={t(`feature.${feature.key}.title` as Key)}
-                hint={t(`feature.${feature.key}.detail` as Key)}
-                checked={feature.enabled}
+                // O núcleo fica ligado em todo plano: o banco recusa desligá-lo.
+                hint={feature.core ? `${t("site.admin.feature.core")} · ${t(`feature.${feature.key}.detail` as Key)}` : t(`feature.${feature.key}.detail` as Key)}
+                checked={feature.core || feature.enabled}
+                disabled={feature.core}
                 onChange={(enabled) => void toggle(feature.key, enabled)}
               />
             ))}
@@ -82,7 +84,13 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
   useEffect(() => setDraft(plan), [plan]);
   const dirty = fresh || JSON.stringify(draft) !== JSON.stringify(plan);
   const edit = (patch: Partial<Plan>) => setDraft((current) => ({ ...current, ...patch }));
-  const toggle = (key: string, on: boolean) => edit({ features: on ? [...draft.features, key] : draft.features.filter((item) => item !== key) });
+  const choose = (feature: FeatureRow, mode: FeatureMode) => setDraft((current) => withMode(current, feature, mode));
+  const startOn = (key: string, on: boolean) => setDraft((current) => withDefault(current, key, on));
+  const modes: { value: FeatureMode; label: string }[] = [
+    { value: "off", label: t("site.admin.feature.mode.off") },
+    { value: "optional", label: t("site.admin.feature.mode.optional") },
+    { value: "locked", label: t("site.admin.feature.mode.locked") },
+  ];
   const id = (field: string) => `plan-${plan.key || "new"}-${field}`;
   const price = draft.priceCents === null ? "" : (draft.priceCents / 100).toString();
   const paid = !draft.isDefault;
@@ -148,14 +156,48 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
       </div>
 
       <fieldset className="grid gap-2">
+        <legend className="mb-1 text-xs text-muted-foreground">{t("site.admin.plan.limits")}</legend>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+          <FormField label={t("site.admin.plan.jevDailyLimit")} htmlFor={id("jev")} hint={t("site.admin.plan.jevDailyLimitHint")}>
+            <Input id={id("jev")} type="number" min={1} step={1} value={draft.jevDailyLimit ?? ""}
+              onChange={(event) => edit({ jevDailyLimit: event.target.value === "" ? null : Math.max(1, Math.round(Number(event.target.value))) })} />
+          </FormField>
+          <FormField label={t("site.admin.plan.maxConcurrentTurns")} htmlFor={id("turns")} hint={t("site.admin.plan.maxConcurrentTurnsHint")}>
+            <OptionSelect
+              id={id("turns")}
+              value={String(draft.maxConcurrentTurns)}
+              options={[1, 2, 3, 4, 5, 6, 7, 8].map((count) => ({ value: String(count), label: String(count) }))}
+              onChange={(value) => edit({ maxConcurrentTurns: Number(value) })}
+            />
+          </FormField>
+        </div>
+      </fieldset>
+
+      <fieldset className="grid gap-2">
         <legend className="mb-1 text-xs text-muted-foreground">{t("admin.plan.features")}</legend>
         <div className="grid gap-2 @xl:grid-cols-2">
-          {features.map((feature) => (
-            <label key={feature.key} className="flex items-center gap-2.5 text-sm">
-              <Checkbox checked={draft.features.includes(feature.key)} onCheckedChange={(on) => toggle(feature.key, on === true)} />
-              <span className={feature.enabled ? undefined : "text-muted-foreground line-through"}>{t(`feature.${feature.key}.title` as Key)}</span>
-            </label>
-          ))}
+          {features.map((feature) => {
+            const mode = modeOf(draft, feature);
+            const included = draft.features.find((item) => item.key === feature.key);
+            return (
+              <div key={feature.key} className="grid gap-1.5 rounded-lg border border-border/60 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className={feature.enabled || feature.core ? "text-sm" : "text-sm text-muted-foreground line-through"}>{t(`feature.${feature.key}.title` as Key)}</span>
+                  <div className="w-36 shrink-0">
+                    <OptionSelect id={id(`mode-${feature.key}`)} label={t(`feature.${feature.key}.title` as Key)} value={mode} options={modes}
+                      disabled={feature.core} onChange={(next) => choose(feature, next)} />
+                  </div>
+                </div>
+                {feature.core && <span className="text-xs text-muted-foreground">{t("site.admin.feature.core")}</span>}
+                {mode === "optional" && included && (
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Checkbox checked={included.defaultOn} onCheckedChange={(on) => startOn(feature.key, on === true)} />
+                    {t("site.admin.feature.defaultOn")}
+                  </label>
+                )}
+              </div>
+            );
+          })}
         </div>
       </fieldset>
 
