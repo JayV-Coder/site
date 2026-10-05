@@ -1,26 +1,43 @@
 import "server-only";
 import { cache } from "react";
-import { RELEASES_REPOSITORY } from "./config";
+import { SUPABASE_KEY } from "@/modules/supabase/config";
+import { RELEASES_API } from "./config";
 import type { Release } from "./assets";
+import type { ChangeRelease, Manual } from "./content";
 
-/** A última versão publicada, lida do GitHub no servidor e guardada por dez
- * minutos (a API sem token aceita 60 pedidos por hora por IP). Sem rede, nulo:
- * a página mostra os links de "latest" sem número de versão. */
-export const latestRelease = cache(async (): Promise<Release | null> => {
+/** Quanto tempo a resposta da função vale no cache do Next antes de pedir de
+ * novo. A própria função guarda o GitHub por cinco minutos. */
+const REVALIDATE = 300;
+
+async function read<T>(path: string): Promise<T | null> {
   try {
-    const response = await fetch(`https://api.github.com/repos/${RELEASES_REPOSITORY}/releases/latest`, {
-      headers: { Accept: "application/vnd.github+json" },
-      next: { revalidate: 600 },
+    const response = await fetch(`${RELEASES_API}${path}`, {
+      headers: { apikey: SUPABASE_KEY },
+      next: { revalidate: REVALIDATE, tags: ["releases"] },
     });
     if (!response.ok) return null;
-    const data = (await response.json()) as { tag_name: string; published_at: string; assets: { name: string; browser_download_url: string; size: number }[] };
-    return {
-      version: data.tag_name.replace(/^v/, ""),
-      publishedAt: data.published_at,
-      assets: data.assets.map((asset) => ({ name: asset.name, url: asset.browser_download_url, size: asset.size })),
-    };
+    return (await response.json()) as T;
   } catch (error) {
-    console.error("releases", error);
+    console.error("releases", path, error);
     return null;
   }
+}
+
+/** A última versão publicada, com os links de download pela função. Sem
+ * rede, nulo: a página mostra os cartões sem número de versão. */
+export const latestRelease = cache(async (): Promise<Release | null> => {
+  const release = await read<Release>("/latest");
+  return release && typeof release.version === "string" && Array.isArray(release.assets) ? release : null;
+});
+
+/** Tudo que cada versão trouxe, da mais nova para a mais antiga. */
+export const changelog = cache(async (): Promise<ChangeRelease[] | null> => {
+  const data = await read<{ releases?: ChangeRelease[] }>("/changelog");
+  return Array.isArray(data?.releases) ? data.releases : null;
+});
+
+/** A documentação: as funcionalidades e os comandos do app. */
+export const manual = cache(async (): Promise<Manual | null> => {
+  const data = await read<Manual>("/manual");
+  return data && Array.isArray(data.features) && Array.isArray(data.commands) ? data : null;
 });

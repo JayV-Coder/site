@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useLocale, useT, type Key } from "@/modules/i18n";
 import { PACKAGES, SYSTEMS, detectSystem, findAsset, type Release, type System } from "@/modules/releases/assets";
-import { RELEASES_URL } from "@/modules/releases/config";
 
 const NAMES: Record<System, string> = { windows: "Windows", mac: "macOS", linux: "Linux" };
 
@@ -18,9 +17,10 @@ export function useSystem() {
   return system;
 }
 
-/** O link do pacote; sem a versão lida do GitHub, a página de releases. */
+/** O link do pacote, que passa pela função `releases` do Supabase; sem a
+ * versão lida, nenhum (o cartão diz que o pacote não está disponível). */
 function packageUrl(release: Release | null, pattern: RegExp) {
-  if (!release) return RELEASES_URL + "/latest";
+  if (!release) return null;
   return findAsset(release.assets, pattern)?.url ?? null;
 }
 

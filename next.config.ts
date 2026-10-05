@@ -6,6 +6,9 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // A foto de perfil sobe por uma ação do servidor: já recortada, até 1 MB
+  // (o limite do bucket `avatars`), mais o envelope do formulário.
+  experimental: { serverActions: { bodySizeLimit: "2mb" } },
   async headers() {
     return [{
       source: "/:path*",

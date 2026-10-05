@@ -14,6 +14,7 @@ import { totpOk } from "@/modules/auth/mfa";
 import { passwordOk } from "@/modules/auth/password";
 import { isText } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
+import { extensionOf, uploadable } from "@/modules/profile/crop";
 import { normalizeProfile, toRow, usernameOk, type AccountProfile } from "@/modules/profile/fields";
 import type { Tokens } from "@/modules/supabase/gotrue";
 import { userSupabase } from "@/modules/supabase/server";
@@ -71,6 +72,64 @@ export async function saveProfile(draft: AccountProfile): Promise<ActionResult> 
   if (error) return { ok: false, error: profileFailure(error) };
   revalidatePath("/[locale]/dashboard/account", "page");
   return { ok: true, data: undefined };
+}
+
+/** O bucket público das fotos de perfil (migração `profile_photo`). */
+const PHOTOS = "avatars";
+
+/** Erro do banco com chave do i18n (`site.account.photo.invalid`) vira texto
+ * traduzido; o resto vai como motivo técnico. */
+const photoFailure = (message: string) => ({ ok: false as const, error: message.startsWith("site.") ? { key: message } : message });
+
+/** Apaga da pasta da conta as fotos que não são a atual (`keep`). Falhar aqui
+ * só deixa um arquivo a mais: a foto gravada já é a nova. */
+async function prunePhotos(supabase: NonNullable<Awaited<ReturnType<typeof userSupabase>>>, userId: string, keep?: string) {
+  try {
+    const bucket = supabase.storage.from(PHOTOS);
+    const { data } = await bucket.list(userId, { limit: 100 });
+    const stale = (data ?? []).map((item) => `${userId}/${item.name}`).filter((path) => path !== keep);
+    if (stale.length) await bucket.remove(stale);
+  } catch (error) {
+    console.error("photo prune", error);
+  }
+}
+
+/** Grava a foto que o navegador já recortou (512 × 512): sobe para a pasta da
+ * conta no Storage e o banco passa a usá-la em todo login, no site e no app. */
+export async function uploadProfilePhoto(form: FormData): Promise<ActionResult<string>> {
+  const supabase = await userSupabase();
+  const session = await auth();
+  const userId = session?.user.id;
+  if (!supabase || !userId) return { ok: false, error: { key: "site.session.failed" } };
+  const file = form.get("photo");
+  if (!(file instanceof Blob) || !uploadable(file)) return { ok: false, error: { key: "site.account.photo.invalid" } };
+  const path = `${userId}/${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}.${extensionOf(file.type)}`;
+  const bucket = supabase.storage.from(PHOTOS);
+  const { error: uploading } = await bucket.upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
+  if (uploading) return photoFailure(uploading.message);
+  const url = bucket.getPublicUrl(path).data.publicUrl;
+  const { error } = await supabase.rpc("profile_photo_set", { url });
+  if (error) {
+    await bucket.remove([path]).catch(() => {});
+    return photoFailure(error.message);
+  }
+  await prunePhotos(supabase, userId, path);
+  // O cabeçalho de todas as páginas mostra a foto.
+  revalidatePath("/[locale]", "layout");
+  return { ok: true, data: url };
+}
+
+/** Tira a foto própria: volta a do provedor (ou nenhuma) e apaga os arquivos. */
+export async function removeProfilePhoto(): Promise<ActionResult<string | null>> {
+  const supabase = await userSupabase();
+  const session = await auth();
+  const userId = session?.user.id;
+  if (!supabase || !userId) return { ok: false, error: { key: "site.session.failed" } };
+  const { data, error } = await supabase.rpc("profile_photo_clear");
+  if (error) return photoFailure(error.message);
+  await prunePhotos(supabase, userId);
+  revalidatePath("/[locale]", "layout");
+  return { ok: true, data: typeof data === "string" ? data : null };
 }
 
 /** Pergunta ao banco sem ler perfil nenhum; nulo quando não deu para saber. */

@@ -21,9 +21,12 @@ export interface AccountData {
 }
 
 export interface AccountCard {
-  /** O nome do provedor (só no login por provedor) e a foto dele. */
+  /** O nome do provedor (só no login por provedor). */
   providerName: string | null;
+  /** A foto da conta: a que a pessoa escolheu ou, sem ela, a do provedor. */
   avatarUrl: string | null;
+  /** A foto foi escolhida aqui (e pode ser tirada). */
+  avatarCustom: boolean;
   /** O provedor do último login: `email`, `github`, `gitlab` ou `bitbucket`. */
   lastProvider: string;
   createdAt: string | null;
@@ -44,10 +47,11 @@ export async function loadAccount(): Promise<AccountData | null> {
   const [user, password, profile, expertise] = await Promise.all([
     readUser(session.accessToken),
     supabase.rpc("account_has_password"),
-    supabase.from("profiles").select(`${PROFILE_COLUMNS},avatar_url`).maybeSingle(),
+    supabase.from("profiles").select(`${PROFILE_COLUMNS},avatar_url,avatar_custom`).maybeSingle(),
     supabase.from("account_settings").select("value").eq("key", "expertise_level").is("row_deleted_at", null).maybeSingle(),
   ]);
   if (profile.error) throw new Error(profile.error.message);
+  const photo = profile.data as { avatar_url?: string | null; avatar_custom?: boolean } | null;
   return {
     email: user.email ?? null,
     profile: profile.data ? fromRow(profile.data as ProfileRow) : null,
@@ -56,7 +60,10 @@ export async function loadAccount(): Promise<AccountData | null> {
     totpFactorId: verifiedTotp(user),
     card: {
       providerName: displayName(user),
-      avatarUrl: avatarUrl(user) ?? ((profile.data as { avatar_url?: string | null } | null)?.avatar_url ?? null),
+      // O banco guarda a foto que vale em todo login (migração `profile_photo`);
+      // a do provedor é só a reserva de um perfil ainda sem foto.
+      avatarUrl: photo?.avatar_url || avatarUrl(user) || null,
+      avatarCustom: photo?.avatar_custom === true,
       lastProvider: user.app_metadata?.provider ?? "email",
       createdAt: user.created_at ?? null,
       lastSignInAt: user.last_sign_in_at ?? null,

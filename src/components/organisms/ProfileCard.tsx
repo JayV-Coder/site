@@ -26,9 +26,12 @@ export const cardName = (profileName: string | null | undefined, providerName: s
   profileName || providerName || email?.split("@")[0] || "";
 
 /** Quem é a conta: foto, nome, e-mail, como entra e desde quando — o cartão do
- * topo do Perfil do app. `badges` entra junto das marcas (admin, bloqueada) e
- * `action` à direita (sair, na própria conta). */
-export async function ProfileCard({ locale, data, badges, action }: { locale: string; data: ProfileCardData; badges?: ReactNode; action?: ReactNode }) {
+ * topo do Perfil do app. `badges` entra junto das marcas (admin, bloqueada),
+ * `action` à direita (sair, na própria conta) e `avatar` no lugar da foto
+ * (o editor da foto, na própria conta). */
+export async function ProfileCard({ locale, data, badges, action, avatar }: {
+  locale: string; data: ProfileCardData; badges?: ReactNode; action?: ReactNode; avatar?: ReactNode;
+}) {
   const t = await getT(locale);
   const date = (iso: string | null) => (iso ? new Intl.DateTimeFormat(locale, { dateStyle: "long" }).format(new Date(iso)) : null);
   const since = date(data.createdAt);
@@ -40,7 +43,7 @@ export async function ProfileCard({ locale, data, badges, action }: { locale: st
     <Card className="relative mb-6 gap-0 overflow-hidden p-0">
       <div aria-hidden="true" className="h-20 border-b border-border bg-secondary" />
       <div className="flex flex-col items-start gap-4 px-4 pb-5 @lg:flex-row @lg:items-end @lg:gap-5 @lg:px-7 @lg:pb-6">
-        <UserAvatar name={data.name} src={data.avatarUrl} className="-mt-10 size-[84px] border-4 border-card text-h1" />
+        {avatar ?? <UserAvatar name={data.name} src={data.avatarUrl} className="-mt-10 size-[84px] border-4 border-card text-h1" />}
         <div className="w-full min-w-0 @lg:w-auto @lg:flex-1">
           <h1 className="truncate text-h2 font-semibold">{data.name}</h1>
           {(data.username || data.email) && (
