@@ -225,6 +225,13 @@ export function PhotoEditor({ name, photo, custom }: { name: string; photo: stri
                 <Button type="button" variant="ghost" size="icon-sm" aria-label={t("site.account.photo.zoomIn")} disabled={zoom >= MAX_ZOOM} onClick={() => zoomTo(zoom + 0.25)}><PlusIcon /></Button>
               </div>
               <p className="text-center text-xs text-muted-foreground">{t("site.account.photo.hint")}</p>
+              {/* Trocar a imagem e desfazer o ajuste ficam junto do recorte, e
+                  quebram linha: no rodapé, ao lado de Salvar, não cabiam em
+                  todos os idiomas e o modal rolava para o lado. */}
+              <div className="flex max-w-full flex-wrap justify-center gap-1">
+                <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => input.current?.click()}><ImageUpIcon />{t("site.account.photo.another")}</Button>
+                <Button type="button" variant="ghost" size="sm" disabled={busy || (zoom === MIN_ZOOM && offset.x === 0 && offset.y === 0)} onClick={reset}><RotateCcwIcon />{t("site.account.photo.reset")}</Button>
+              </div>
             </div>
           ) : (
             <button type="button" onClick={() => input.current?.click()}
@@ -238,18 +245,11 @@ export function PhotoEditor({ name, photo, custom }: { name: string; photo: stri
             </button>
           )}
 
-          <DialogFooter className="sm:justify-between">
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              {picked && (
-                <>
-                  <Button type="button" variant="ghost" disabled={busy} onClick={() => input.current?.click()}><ImageUpIcon />{t("site.account.photo.another")}</Button>
-                  <Button type="button" variant="ghost" disabled={busy || (zoom === MIN_ZOOM && offset.x === 0 && offset.y === 0)} onClick={reset}><RotateCcwIcon />{t("site.account.photo.reset")}</Button>
-                </>
-              )}
-              {!picked && custom && (
-                <Button type="button" variant="ghost" loading={busy} onClick={remove} className="text-destructive hover:bg-destructive/10 hover:text-destructive"><Trash2Icon />{t("site.account.photo.remove")}</Button>
-              )}
-            </div>
+          <DialogFooter>
+            {!picked && custom && (
+              <Button type="button" variant="ghost" loading={busy} onClick={remove} className="text-destructive hover:bg-destructive/10 hover:text-destructive sm:me-auto"><Trash2Icon />{t("site.account.photo.remove")}</Button>
+            )}
+            <Button type="button" variant="outline" disabled={busy} onClick={() => close(false)}>{t("common.cancel")}</Button>
             {picked && <Button type="button" loading={busy} onClick={save}>{t("site.account.photo.save")}</Button>}
           </DialogFooter>
         </DialogContent>

@@ -1,10 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { auth } from "@/auth";
+import { authorizeUrl, isGitProvider, LINK_MAX, linkPayload, OAUTH, pathOk, type GitProvider, type GitRepository } from "@/modules/git/providers";
+import { randomText } from "@/modules/git/seal";
+import {
+  GitExpired, getRepository, gitClient, listRepositories, pkcePair, requestOrigin, saveState, storedToken, tokensCookie, TOKENS_COOKIE,
+} from "@/modules/git/server";
+import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
 import { policyOk, policyPayload, type LlmPolicy } from "@/modules/organizations/policy";
 import { INVITE_ROLES, orgFailure, slugOk, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
+import { loadOrganizations } from "./data";
 
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: Text | string };
 
@@ -70,4 +79,107 @@ export async function findUsers(query: string): Promise<FoundUser[]> {
   return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
     userId: row.user_id as string, username: row.username as string, displayName: row.display_name as string, avatarUrl: (row.avatar_url as string) ?? null,
   }));
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Quem entrou, se for owner desta organização. O banco confere de novo em
+ * cada RPC; aqui é para não abrir o provedor nem gastar o token à toa. */
+async function ownerOf(org: string) {
+  if (!UUID.test(org)) return null;
+  const [session, organizations] = await Promise.all([auth(), loadOrganizations()]);
+  const user = session?.user.id;
+  return user && organizations.some((known) => known.id === org && known.role === "owner") ? user : null;
+}
+
+const forbidden = { ok: false, error: { key: "org.forbidden" } } as const;
+const expired = { ok: false, error: { key: "org.gitExpired" } } as const;
+const unavailable = { ok: false, error: { key: "org.gitUnavailable" } } as const;
+
+/** Conectar (ou reconectar) o provedor: devolve o endereço do login nele. A
+ * volta é por `/api/git/callback`, que grava a conta conectada e guarda o
+ * token só no cookie cifrado. `pick` abre a lista do provedor ao voltar. */
+export async function startGitConnection(org: string, provider: GitProvider, locale: string, pick = false): Promise<ActionResult<string>> {
+  // O idioma vira o começo do endereço da volta: só um idioma de verdade.
+  if (!isGitProvider(provider) || !looksLikeLocale(locale)) return forbidden;
+  const client = gitClient(provider);
+  if (!client) return unavailable;
+  const user = await ownerOf(org);
+  if (!user) return forbidden;
+  try {
+    const redirectUri = `${await requestOrigin()}/api/git/callback`;
+    const state = randomText(24);
+    const pair = OAUTH[provider].pkce ? pkcePair() : null;
+    await saveState({ state, verifier: pair?.verifier ?? null, provider, org, locale, user, redirectUri, pick });
+    return { ok: true, data: authorizeUrl(provider, client.id, redirectUri, state, pair?.challenge) };
+  } catch (error) {
+    console.error("git start", error);
+    return unavailable;
+  }
+}
+
+/** Desconectar tira a conta e o token deste navegador; os repositórios
+ * continuam na organização até o owner removê-los. */
+export async function disconnectGit(org: string, provider: GitProvider) {
+  if (!isGitProvider(provider)) return forbidden;
+  const result = await call<null>("org_disconnect_git", { org, provider });
+  const session = await auth();
+  if (result.ok && session?.user.id) {
+    const store = await cookies();
+    const cookie = tokensCookie(store.get(TOKENS_COOKIE)?.value, session.user.id, provider, null, (await requestOrigin()).startsWith("https://"));
+    store.set(cookie.name, cookie.value, cookie.options);
+  }
+  return result;
+}
+
+async function withToken<T>(org: string, provider: GitProvider, run: (token: string) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+  if (!isGitProvider(provider)) return forbidden;
+  const user = await ownerOf(org);
+  if (!user) return forbidden;
+  const stored = await storedToken(user, provider);
+  if (!stored) return expired;
+  try {
+    return await run(stored.token);
+  } catch (error) {
+    if (error instanceof GitExpired) return expired;
+    console.error("git", provider, error);
+    return unavailable;
+  }
+}
+
+/** A lista do provedor, para o owner escolher. */
+export async function listGitRepositories(org: string, provider: GitProvider, query: string) {
+  return withToken<{ repositories: GitRepository[]; truncated: boolean }>(org, provider, async (token) => ({
+    ok: true, data: await listRepositories(provider, token, typeof query === "string" ? query.slice(0, 100) : ""),
+  }));
+}
+
+/** Associa os escolhidos. Cada um é lido de novo no provedor com o token: só
+ * entra o que a conta conectada alcança, com os dados que o provedor dá (o
+ * navegador manda só os caminhos). Devolve quantos entraram e os que o
+ * provedor não mostrou. */
+export async function linkGitRepositories(org: string, provider: GitProvider, paths: string[]) {
+  const wanted = Array.isArray(paths) ? [...new Set(paths)] : [];
+  if (wanted.length === 0 || wanted.length > LINK_MAX || !wanted.every((path) => typeof path === "string" && pathOk(path))) {
+    return { ok: false, error: { key: "org.repoInvalid" } } as const;
+  }
+  return withToken<{ linked: number; missing: string[] }>(org, provider, async (token) => {
+    const found: GitRepository[] = [];
+    const missing: string[] = [];
+    // Dez de cada vez, para não estourar o limite do provedor.
+    for (let start = 0; start < wanted.length; start += 10) {
+      const batch = wanted.slice(start, start + 10);
+      const results = await Promise.all(batch.map((path) => getRepository(provider, token, path)));
+      results.forEach((repository, index) => (repository ? found.push(repository) : missing.push(batch[index])));
+    }
+    if (found.length === 0) return { ok: true, data: { linked: 0, missing } };
+    const result = await call<number>("org_link_repositories", { org, provider, repositories: found.map(linkPayload) });
+    return result.ok ? { ok: true, data: { linked: result.data, missing } } : result;
+  });
+}
+
+/** Tirar um repositório da organização (só o owner). */
+export async function removeRepository(repository: string) {
+  if (!UUID.test(repository)) return forbidden;
+  return call<null>("remove_repository", { repository });
 }

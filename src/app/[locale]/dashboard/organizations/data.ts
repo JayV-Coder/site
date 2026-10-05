@@ -1,12 +1,28 @@
 import "server-only";
 import { auth } from "@/auth";
+import { isGitProvider, type GitProvider } from "@/modules/git/providers";
+import { configuredProviders } from "@/modules/git/server";
 import { storedPolicy, type StoredPolicy } from "@/modules/organizations/policy";
 import { canManage, isRole, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
 
 export interface Organization { id: string; name: string; slug: string; role: Role; members: number; repositories: number }
 export interface PendingInvite { id: string; username: string | null; email: string | null; role: Role; expiresAt: string }
-export interface Repository { id: string; repoKey: string }
+export interface Repository {
+  id: string;
+  repoKey: string;
+  provider: GitProvider;
+  path: string;
+  /** O que o provedor disse ao associar; nulo no que foi colado por URL no app. */
+  defaultBranch: string | null;
+  private: boolean | null;
+  description: string | null;
+  webUrl: string | null;
+  linkedVia: "url" | "provider";
+}
+
+/** A conta de um provedor que o owner conectou. */
+export interface GitConnection { provider: GitProvider; account: string; connectedAt: string }
 
 export interface OrganizationDetail {
   organization: Organization;
@@ -14,6 +30,9 @@ export interface OrganizationDetail {
   repositories: Repository[];
   /** A política da organização e as dos repositórios dela. */
   policies: StoredPolicy[];
+  connections: GitConnection[];
+  /** Os provedores com app OAuth configurado neste site. */
+  providers: GitProvider[];
 }
 
 type Row = Record<string, unknown>;
@@ -50,18 +69,34 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
   const organization = (await loadOrganizations()).find((org) => org.id === id);
   const supabase = await userSupabase();
   if (!organization || !supabase) return null;
-  const [invites, repositories, policies] = await Promise.all([
+  const [invites, repositories, policies, connections] = await Promise.all([
     canManage(organization.role) ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
-    supabase.from("organization_repositories").select("id, repo_key").eq("org_id", id).order("repo_key"),
+    supabase.from("organization_repositories")
+      .select("id, repo_key, provider, path, default_branch, private, description, web_url, linked_via").eq("org_id", id).order("repo_key"),
     supabase.from("organization_llm_policies").select("*").eq("org_id", id),
+    supabase.from("organization_git_connections").select("provider, account, connected_at").eq("org_id", id),
   ]);
-  for (const result of [invites, repositories, policies]) if (result.error) throw new Error(result.error.message);
+  for (const result of [invites, repositories, policies, connections]) if (result.error) throw new Error(result.error.message);
   return {
     organization,
     invites: ((invites.data ?? []) as Row[]).flatMap((row) => (isRole(row.role) ? [{
       id: row.id as string, username: (row.username as string) ?? null, email: (row.email as string) ?? null, role: row.role, expiresAt: row.expires_at as string,
     }] : [])),
-    repositories: (repositories.data ?? []).map((row) => ({ id: row.id as string, repoKey: row.repo_key as string })),
+    repositories: ((repositories.data ?? []) as Row[]).flatMap((row) => (isGitProvider(row.provider) ? [{
+      id: row.id as string,
+      repoKey: row.repo_key as string,
+      provider: row.provider,
+      path: row.path as string,
+      defaultBranch: (row.default_branch as string) ?? null,
+      private: typeof row.private === "boolean" ? row.private : null,
+      description: (row.description as string) ?? null,
+      webUrl: (row.web_url as string) ?? null,
+      linkedVia: row.linked_via === "provider" ? "provider" as const : "url" as const,
+    }] : [])),
     policies: (policies.data ?? []).map((row) => storedPolicy(row as Row)),
+    connections: ((connections.data ?? []) as Row[]).flatMap((row) => (isGitProvider(row.provider) ? [{
+      provider: row.provider, account: row.account as string, connectedAt: row.connected_at as string,
+    }] : [])),
+    providers: configuredProviders(),
   };
 }

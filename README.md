@@ -36,6 +36,14 @@ estática. Variáveis: `AUTH_SECRET` (obrigatória), `AUTH_URL` fora da Vercel e
 se mudar de projeto, `NEXT_PUBLIC_SUPABASE_URL` /
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
+O provedor git das organizações (aba **Repositórios**) usa um app OAuth do
+próprio site em cada provedor, com o retorno em `https://<domínio>/api/git/callback`
+e as variáveis `GIT_<PROVEDOR>_CLIENT_ID` / `GIT_<PROVEDOR>_CLIENT_SECRET`
+(veja `.env.example`). Um provedor sem as duas aparece indisponível. O token
+do owner fica só num cookie cifrado com o `AUTH_SECRET`, por uma hora, e
+nunca vai ao banco: serve para listar e conferir os repositórios na hora de
+associar.
+
 No Supabase › Authentication › URL Configuration, inclua
 `https://<domínio>/**` em **Redirect URLs**: é para onde voltam o login por
 GitHub/GitLab/Bitbucket, a confirmação de e-mail e a recuperação de senha.
