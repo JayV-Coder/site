@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { Text } from "@/modules/i18n/types";
-import { adminFailure, type Plan } from "@/modules/plans/catalog";
+import { adminFailure, featuresPayload, type Plan } from "@/modules/plans/catalog";
 import { userSupabase } from "@/modules/supabase/server";
 
 export type ActionResult = { ok: true } | { ok: false; error: Text | string };
@@ -28,7 +28,8 @@ export async function savePlan(plan: Plan) {
     plan: {
       key: plan.key, name: plan.name, description: plan.description, position: plan.position, active: plan.active, is_default: plan.isDefault,
       stripe_price_id: plan.isDefault ? "" : plan.stripePriceId ?? "", price_cents: plan.priceCents, currency: plan.currency ?? "", billing_interval: plan.billingInterval ?? "",
-      features: plan.features,
+      jev_daily_limit: plan.jevDailyLimit ?? "", max_concurrent_turns: plan.maxConcurrentTurns,
+      features: featuresPayload(plan),
     },
   });
 }
