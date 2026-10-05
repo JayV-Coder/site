@@ -9,6 +9,7 @@ import { requireAccess } from "../access";
 import { DashboardShell } from "../DashboardShell";
 import { AccountBoard, type AccountTab } from "./AccountBoard";
 import { loadAccount } from "./data";
+import { PhotoEditor } from "./PhotoEditor";
 import type { LinkResult } from "./LinkedSection";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/dashboard/account">): Promise<Metadata> {
@@ -38,6 +39,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
       {account ? (
         <>
           <ProfileCard locale={locale}
+            avatar={<PhotoEditor name={cardName(account.profile?.displayName, account.card.providerName, account.email)} photo={account.card.avatarUrl} custom={account.card.avatarCustom} />}
             data={{
               name: cardName(account.profile?.displayName, account.card.providerName, account.email),
               username: account.profile?.username ?? null,

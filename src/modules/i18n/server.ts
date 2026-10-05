@@ -59,6 +59,27 @@ export const getMessages = cache(async (locale: Locale): Promise<Messages> => {
   return messages;
 });
 
+/** As traduções de conteúdo que não moram no `en.ts` do site: as novidades
+ * de cada versão (`whatsNew.item.*`, do app) e a documentação (`docs.*`). O
+ * inglês vem junto do conteúdo, então só os outros idiomas descem. Sem rede,
+ * vazio: vale o inglês. */
+export const getContentTexts = cache(async (locale: Locale, prefix: "docs" | "whatsNew.item"): Promise<Record<string, string>> => {
+  if (locale === FALLBACK) return {};
+  const texts: Record<string, string> = {};
+  try {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const rows = await rest<{ key: string; value: unknown }[]>(
+        `translations?select=key,value&locale=eq.${encodeURIComponent(locale)}&key=like.${encodeURIComponent(`${prefix}.*`)}&order=key.asc&limit=${PAGE}&offset=${page * PAGE}`,
+      );
+      if (!rows.length) break;
+      for (const row of rows) if (typeof row.value === "string") texts[row.key] = row.value;
+    }
+  } catch (error) {
+    console.error("i18n content", locale, prefix, error);
+  }
+  return texts;
+});
+
 /** O texto no idioma da página, para componentes do servidor. */
 export async function getT(locale: Locale) {
   const messages = await getMessages(locale);

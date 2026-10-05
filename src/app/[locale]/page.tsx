@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Eyebrow } from "@/components/atoms";
 import { Downloads, HeroDownload } from "@/components/organisms/home/Downloads";
 import { Trace } from "@/components/organisms/home/Trace";
@@ -5,7 +6,6 @@ import { SitePage } from "@/components/organisms/SitePage";
 import { Badge } from "@/components/ui/badge";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
-import { RELEASES_REPOSITORY, RELEASES_URL } from "@/modules/releases/config";
 import { latestRelease } from "@/modules/releases/server";
 
 const AGENTS = ["Codex", "Claude Code", "GitHub Copilot", "Cursor Agent"];
@@ -43,9 +43,9 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
             <p className="mt-6 max-w-[60ch] text-sm leading-relaxed text-muted-foreground sm:text-base">{t("site.hero.copy")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <HeroDownload release={release} />
-              <a href={`${RELEASES_URL}/latest`} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-card px-5 text-sm font-medium transition-colors hover:bg-secondary">
+              <Link href={`/${locale}/releases`} className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-card px-5 text-sm font-medium transition-colors hover:bg-secondary">
                 {t("site.hero.notes")}
-              </a>
+              </Link>
             </div>
             <p className="mt-4 font-mono text-caption text-muted-foreground">
               {release ? t("site.hero.release", { version: release.version }) : t("site.hero.releaseUnknown")}
@@ -104,12 +104,9 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
         </div>
       </section>
 
-      <section className="shell flex flex-wrap items-center justify-between gap-4 py-10">
-        <div>
-          <p className="font-semibold">{t("site.privacy.title")}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{t("site.privacy.detail")}</p>
-        </div>
-        <a href={`https://github.com/${RELEASES_REPOSITORY}`} target="_blank" rel="noreferrer" className="font-mono text-small text-muted-foreground hover:text-foreground">github.com/JayV-Coder</a>
+      <section className="shell py-10">
+        <p className="font-semibold">{t("site.privacy.title")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t("site.privacy.detail")}</p>
       </section>
     </SitePage>
   );
