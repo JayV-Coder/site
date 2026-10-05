@@ -7,7 +7,11 @@ import { getT } from "@/modules/i18n/server";
 import { requireAccess } from "../../access";
 import { DashboardShell } from "../../DashboardShell";
 import { loadOrganization } from "../data";
-import { OrganizationBoard } from "./OrganizationBoard";
+import { OrganizationBoard, type OrganizationTab } from "./OrganizationBoard";
+import type { GitOutcome } from "./RepositoriesSection";
+
+const TABS: OrganizationTab[] = ["members", "repositories", "policy", "settings"];
+const OUTCOMES: GitOutcome[] = ["connected", "denied", "forbidden", "failed"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/dashboard/organizations/[id]">): Promise<Metadata> {
   const { locale } = await params;
@@ -15,10 +19,16 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/dashboar
   return { title: `${t("nav.organizations")} · JayV`, robots: { index: false } };
 }
 
-/** Uma organização no painel: o convite de membros e a política de LLM. O
- * resto (papéis, repositórios, projetos, estatísticas) continua no app. */
-export default async function OrganizationPage({ params }: PageProps<"/[locale]/dashboard/organizations/[id]">) {
+/** Uma organização no painel: o convite de membros, os repositórios (pelo
+ * provedor git do owner) e a política de LLM. O resto (papéis, projetos,
+ * estatísticas e o clone dos repositórios) continua no app. `?tab=` abre uma
+ * aba; `?git=` é a volta do provedor (`/api/git/callback`). */
+export default async function OrganizationPage({ params, searchParams }: PageProps<"/[locale]/dashboard/organizations/[id]">) {
   const { locale, id } = await params;
+  const query = await searchParams;
+  const tab = TABS.find((known) => known === query.tab) ?? "members";
+  const kind = OUTCOMES.find((known) => known === query.git);
+  const outcome = kind ? { kind, provider: typeof query.provider === "string" ? query.provider : null, pick: query.pick === "1" } : null;
   const access = await requireAccess(locale, `/dashboard/organizations/${id}`);
   const t = await getT(locale);
   // O id vem do endereço: um texto que não é uuid nem chega ao banco.
@@ -37,7 +47,7 @@ export default async function OrganizationPage({ params }: PageProps<"/[locale]/
                 <Badge variant="outline">{t(`org.role.${detail.organization.role}` as Key)}</Badge>
               </span>
             )} />
-          <OrganizationBoard detail={detail} />
+          <OrganizationBoard detail={detail} tab={tab} outcome={outcome} />
         </>
       )}
     </DashboardShell>
