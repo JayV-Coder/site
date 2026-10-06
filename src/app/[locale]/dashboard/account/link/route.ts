@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth, unstable_update } from "@/auth";
 import { exchangeCode, readUser } from "@/modules/auth/account";
 import { isProvider } from "@/modules/auth/identities";
+import { requestOrigin } from "@/modules/git/server";
 import { LINK_COOKIE, type LinkCookie } from "./cookie";
 
 /** A volta do provedor no vínculo de uma conta. O código vira a sessão (com o
@@ -18,8 +19,10 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[loca
     saved = null;
   }
   const provider = saved && isProvider(saved.provider) ? saved.provider : null;
+  // A origem pública (cabeçalhos do proxy), não a interna de `request.url`.
+  const base = await requestOrigin().catch(() => request.nextUrl.origin);
   const back = (result: "linked" | "taken" | "failed") => {
-    const target = new URL(`/${locale}/dashboard/account`, request.url);
+    const target = new URL(`/${locale}/dashboard/account`, base);
     target.searchParams.set("tab", "linked");
     target.searchParams.set("result", result);
     if (provider) target.searchParams.set("provider", provider);
