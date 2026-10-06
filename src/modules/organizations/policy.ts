@@ -1,10 +1,10 @@
 /** A política de LLM como o app a edita (`src/modules/organizations/policy.ts`
  * do jayv-coder), o banco a guarda (`organization_llm_policies`) e
  * `set_llm_policy` a recebe. */
-export type AgentId = "claude" | "codex" | "copilot" | "cursor";
+export type AgentId = "claude" | "codex" | "copilot" | "cursor" | "kilo" | "openrouter" | "litellm";
 export type Permission = "allow" | "ask" | "deny";
 
-export const AGENT_LABELS: Record<AgentId, string> = { claude: "Claude Code", codex: "Codex", copilot: "GitHub Copilot", cursor: "Cursor" };
+export const AGENT_LABELS: Record<AgentId, string> = { claude: "Claude Code", codex: "Codex", copilot: "GitHub Copilot", cursor: "Cursor", kilo: "Kilo Code", openrouter: "OpenRouter", litellm: "LiteLLM" };
 
 /** Os mecanismos que cada agente liga sem perguntar (`AGENT_MECHANISMS` do
  * app); o texto de cada um vem do i18n (`mechanism.<nome>`). */
@@ -13,6 +13,9 @@ export const AGENT_MECHANISMS: Record<AgentId, string[]> = {
   codex: ["webSearch"],
   copilot: ["webFetch", "shell", "githubTools"],
   cursor: [],
+  kilo: [],
+  openrouter: [],
+  litellm: [],
 };
 
 /** `agents` nulo é "todos os agentes". */
@@ -34,7 +37,7 @@ export interface LlmPolicy {
  * repositório dela. */
 export interface StoredPolicy extends LlmPolicy { repositoryId: string | null; updatedAt: string }
 
-export const POLICY_AGENTS: AgentId[] = ["claude", "codex", "copilot", "cursor"];
+export const POLICY_AGENTS: AgentId[] = ["claude", "codex", "copilot", "cursor", "kilo", "openrouter", "litellm"];
 export const POLICY_RULES = ["read", "write", "shell"] as const;
 export const PERMISSIONS: Permission[] = ["allow", "ask", "deny"];
 export const PATTERNS_MAX = 50;
