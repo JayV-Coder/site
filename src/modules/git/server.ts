@@ -9,7 +9,14 @@ import { randomText, seal, tokenOf, unseal, withToken, type GitState, type GitTo
  *   GIT_GITHUB_CLIENT_ID / GIT_GITHUB_CLIENT_SECRET          (GitHub › OAuth Apps)
  *   GIT_GITLAB_CLIENT_ID / GIT_GITLAB_CLIENT_SECRET          (GitLab › Applications, escopo read_api)
  *   GIT_BITBUCKET_CLIENT_ID / GIT_BITBUCKET_CLIENT_SECRET    (Bitbucket › OAuth consumers, Repositories: Read e Account: Read)
- * Sem as duas, o provedor aparece indisponível no painel. */
+ * Sem as duas, o provedor aparece indisponível no painel.
+ *
+ * GitHub App (recomendado): com GIT_GITHUB_APP_SLUG (o nome do app na URL
+ * github.com/apps/<slug>), conectar abre a tela do GitHub de escolher onde
+ * instalar — a conta pessoal ou uma organização, e quais repositórios — a
+ * cada vez e em cada organização do JayV. Client ID/secret são os do próprio
+ * GitHub App; Setup URL e Callback URL = <site>/api/git/callback, com
+ * "Redirect on update" ligado. Sem o slug, vale o fluxo de OAuth App. */
 const ENV: Record<GitProvider, [string, string]> = {
   github: ["GIT_GITHUB_CLIENT_ID", "GIT_GITHUB_CLIENT_SECRET"],
   gitlab: ["GIT_GITLAB_CLIENT_ID", "GIT_GITLAB_CLIENT_SECRET"],
@@ -24,6 +31,11 @@ export function gitClient(provider: GitProvider) {
 }
 
 export const configuredProviders = () => GIT_PROVIDERS.filter((provider) => gitClient(provider));
+
+export function githubAppSlug() {
+  const slug = process.env.GIT_GITHUB_APP_SLUG?.trim();
+  return slug && /^[a-z0-9-]+$/i.test(slug) && gitClient("github") ? slug : null;
+}
 
 function authSecret() {
   const secret = process.env.AUTH_SECRET;
@@ -53,8 +65,12 @@ export function pkcePair() {
   return { verifier, challenge: createHash("sha256").update(verifier).digest("base64url") };
 }
 
+export const stateCookie = (state: GitState) =>
+  ({ name: STATE_COOKIE, value: seal(state, authSecret(), "state"), options: cookieOptions(state.redirectUri.startsWith("https://"), STATE_TTL) });
+
 export async function saveState(state: GitState) {
-  (await cookies()).set(STATE_COOKIE, seal(state, authSecret(), "state"), cookieOptions(state.redirectUri.startsWith("https://"), STATE_TTL));
+  const cookie = stateCookie(state);
+  (await cookies()).set(cookie.name, cookie.value, cookie.options);
 }
 
 export const readState = (raw: string | undefined) => unseal<GitState>(raw, authSecret(), "state");
@@ -68,7 +84,7 @@ export async function storedToken(user: string, org: string, provider: GitProvid
 
 /** O cookie com o token novo (ou sem o deste provedor), para quem o grava:
  * a rota de retorno põe na resposta; a ação, no `cookies()`. */
-export function tokensCookie(raw: string | undefined, user: string, org: string, provider: GitProvider, entry: { token: string; account: string } | null, secure: boolean) {
+export function tokensCookie(raw: string | undefined, user: string, org: string, provider: GitProvider, entry: { token: string; account: string; installation?: number } | null, secure: boolean) {
   const jar = withToken(readJar(raw), user, org, provider, entry ? { ...entry, expiresAt: Date.now() + TOKEN_TTL * 1000 } : null);
   return { name: TOKENS_COOKIE, value: seal(jar, authSecret(), "tokens"), options: cookieOptions(secure, TOKEN_TTL) };
 }
@@ -129,6 +145,24 @@ export async function accountName(provider: GitProvider, token: string): Promise
 /** Quantas páginas de 100 a lista lê, no máximo. */
 const PAGES = 5;
 
+/** A instalação do GitHub App que a pessoa acabou de escolher, se ela de
+ * fato a alcança: o dono dela (conta ou organização) vira a organização do
+ * provedor desta organização do JayV. */
+export async function githubInstallation(token: string, id: number): Promise<{ namespace: string } | null> {
+  for (let page = 1; page <= PAGES; page++) {
+    const body = (await api<{ installations?: { id?: unknown; account?: { login?: unknown } }[] }>("github", token,
+      `https://api.github.com/user/installations?per_page=100&page=${page}`))?.body;
+    const list = body?.installations ?? [];
+    const found = list.find((item) => item.id === id);
+    if (found) {
+      const namespace = typeof found.account?.login === "string" ? cleanNamespace(found.account.login) : "";
+      return namespaceOk(namespace) ? { namespace } : null;
+    }
+    if (list.length < 100) break;
+  }
+  return null;
+}
+
 /** As organizações do provedor que a conta alcança — a conta pessoal e as
  * organizações do GitHub, os grupos do GitLab ou os workspaces do
  * Bitbucket —, para o owner prender a organização do JayV a uma delas. */
@@ -170,12 +204,21 @@ export async function listNamespaces(provider: GitProvider, token: string, accou
  * mais mexido ao menos, filtrados pela busca. Só entram os que estão nela:
  * os de outras organizações que a mesma conta alcança ficam de fora.
  * `truncated` diz que havia mais do que as páginas lidas. */
-export async function listRepositories(provider: GitProvider, token: string, query: string, namespace: string, account: string): Promise<{ repositories: GitRepository[]; truncated: boolean }> {
+export async function listRepositories(provider: GitProvider, token: string, query: string, namespace: string, account: string, installation?: number): Promise<{ repositories: GitRepository[]; truncated: boolean }> {
   const found: GitRepository[] = [];
   let truncated = false;
   const space = encodeURIComponent(namespace);
   const personal = namespace === cleanNamespace(account);
-  if (provider === "github") {
+  if (provider === "github" && installation) {
+    // GitHub App: só os repositórios que a pessoa liberou nesta instalação.
+    for (let page = 1; page <= PAGES; page++) {
+      const rows = (await api<{ repositories?: Record<string, unknown>[] }>(provider, token,
+        `https://api.github.com/user/installations/${installation}/repositories?per_page=100&page=${page}`))?.body.repositories ?? [];
+      found.push(...rows.flatMap((row) => NORMALIZE.github(row) ?? []));
+      truncated = rows.length === 100 && page === PAGES;
+      if (rows.length < 100) break;
+    }
+  } else if (provider === "github") {
     const base = personal
       ? "https://api.github.com/user/repos?affiliation=owner&sort=updated"
       : `https://api.github.com/orgs/${space}/repos?type=all&sort=updated`;

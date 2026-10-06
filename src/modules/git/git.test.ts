@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authorizeUrl, cleanNamespace, cleanPath, inNamespace, namespaceOk, fromBitbucket, fromGithub, fromGitlab, linkPayload, matches, pathOk, repoKey } from "./providers";
+import { authorizeUrl, cleanNamespace, githubInstallUrl, cleanPath, inNamespace, namespaceOk, fromBitbucket, fromGithub, fromGitlab, linkPayload, matches, pathOk, repoKey } from "./providers";
 import { JAR_MAX, sameText, seal, tokenOf, unseal, withToken, type GitTokens } from "./seal";
 
 describe("git provider login", () => {
@@ -16,6 +16,12 @@ describe("git provider login", () => {
     expect(gitlab.searchParams.get("scope")).toBe("read_api");
     expect(gitlab.searchParams.get("code_challenge")).toBe("challenge");
     expect(gitlab.searchParams.get("code_challenge_method")).toBe("S256");
+  });
+
+  it("opens GitHub's install screen to pick the account or organization", () => {
+    const url = new URL(githubInstallUrl("jayv-site", "st/1"));
+    expect(url.origin + url.pathname).toBe("https://github.com/apps/jayv-site/installations/select_target");
+    expect(url.searchParams.get("state")).toBe("st/1");
   });
 
   it("leaves Bitbucket's redirect and scope to the consumer", () => {

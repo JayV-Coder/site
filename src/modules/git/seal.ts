@@ -46,6 +46,9 @@ export interface GitState {
   redirectUri: string;
   /** Abrir a lista do provedor ao voltar. */
   pick: boolean;
+  /** GitHub App: a instalação escolhida na tela do GitHub, guardada entre a
+   * volta da instalação e a autorização da pessoa. */
+  installation?: number | null;
 }
 
 /** Os tokens do owner, um por organização e provedor (`<org>:<provedor>`):
@@ -54,7 +57,7 @@ export interface GitState {
  * listar e conferir os repositórios na hora de associar. */
 export interface GitTokens {
   user: string;
-  tokens: Record<string, { token: string; account: string; expiresAt: number }>;
+  tokens: Record<string, { token: string; account: string; expiresAt: number; installation?: number }>;
 }
 
 /** Quantos tokens o cookie guarda: os mais velhos saem primeiro, para ele não

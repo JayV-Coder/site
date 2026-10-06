@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import {
-  authorizeUrl, cleanNamespace, inNamespace, isGitProvider, LINK_MAX, linkPayload, namespaceOk, OAUTH, pathOk, type GitNamespace, type GitProvider, type GitRepository,
+  authorizeUrl, cleanNamespace, githubInstallUrl, inNamespace, isGitProvider, LINK_MAX, linkPayload, namespaceOk, OAUTH, pathOk, type GitNamespace, type GitProvider, type GitRepository,
 } from "@/modules/git/providers";
 import { randomText } from "@/modules/git/seal";
 import {
-  GitExpired, getRepository, gitClient, listNamespaces, listRepositories, pkcePair, requestOrigin, saveState, storedToken, tokensCookie, TOKENS_COOKIE,
+  GitExpired, getRepository, githubAppSlug, gitClient, listNamespaces, listRepositories, pkcePair, requestOrigin, saveState, storedToken, tokensCookie, TOKENS_COOKIE,
 } from "@/modules/git/server";
 import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
@@ -112,8 +112,11 @@ export async function startGitConnection(org: string, provider: GitProvider, loc
     const redirectUri = `${await requestOrigin()}/api/git/callback`;
     const state = randomText(24);
     const pair = OAUTH[provider].pkce ? pkcePair() : null;
-    await saveState({ state, verifier: pair?.verifier ?? null, provider, org, locale, user, redirectUri, pick });
-    return { ok: true, data: authorizeUrl(provider, client.id, redirectUri, state, pair?.challenge) };
+    await saveState({ state, verifier: pair?.verifier ?? null, provider, org, locale, user, redirectUri, pick, installation: null });
+    // GitHub App: a tela do GitHub de escolher a conta ou a organização (e os
+    // repositórios), sempre; a autorização da pessoa vem na volta.
+    const slug = provider === "github" ? githubAppSlug() : null;
+    return { ok: true, data: slug ? githubInstallUrl(slug, state) : authorizeUrl(provider, client.id, redirectUri, state, pair?.challenge) };
   } catch (error) {
     console.error("git start", error);
     return unavailable;
@@ -146,7 +149,10 @@ async function connectionOf(org: string, provider: GitProvider) {
 /** Roda com o token desta organização. O token só vale se for da conta que
  * está conectada nela agora: uma reconexão com outra conta (em outro
  * navegador, ou noutra aba) invalida o que ficou no cookie. */
-async function withToken<T>(org: string, provider: GitProvider, run: (token: string, connection: { account: string; namespace: string | null }) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+async function withToken<T>(
+  org: string, provider: GitProvider,
+  run: (token: string, connection: { account: string; namespace: string | null; installation?: number }) => Promise<ActionResult<T>>,
+): Promise<ActionResult<T>> {
   if (!isGitProvider(provider)) return forbidden;
   const user = await ownerOf(org);
   if (!user) return forbidden;
@@ -154,7 +160,7 @@ async function withToken<T>(org: string, provider: GitProvider, run: (token: str
   if (!connection) return { ok: false, error: { key: "org.gitNotConnected" } };
   if (!stored || stored.account !== connection.account) return expired;
   try {
-    return await run(stored.token, connection);
+    return await run(stored.token, { ...connection, installation: stored.installation });
   } catch (error) {
     if (error instanceof GitExpired) return expired;
     console.error("git", provider, error);
@@ -188,7 +194,7 @@ export async function chooseGitNamespace(org: string, provider: GitProvider, nam
 export async function listGitRepositories(org: string, provider: GitProvider, query: string) {
   return withToken<{ repositories: GitRepository[]; truncated: boolean }>(org, provider, async (token, connection) => {
     if (!connection.namespace) return namespaceMissing;
-    return { ok: true, data: await listRepositories(provider, token, typeof query === "string" ? query.slice(0, 100) : "", connection.namespace, connection.account) };
+    return { ok: true, data: await listRepositories(provider, token, typeof query === "string" ? query.slice(0, 100) : "", connection.namespace, connection.account, connection.installation) };
   });
 }
 

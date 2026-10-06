@@ -502,6 +502,7 @@ export const en = {
   "site.org.git.done": "{provider} connected.",
   "site.org.git.denied": "The connection with {provider} was cancelled.",
   "site.org.git.failed": "Could not connect {provider}. Try again.",
+  "site.org.git.requested": "{provider} sent the installation for the organization owner's approval. Once it is approved, click the provider again.",
   "site.org.git.namespace": "Organization: {namespace}",
   "site.org.git.namespace.none": "Choose which {provider} organization belongs to this one",
   "site.org.git.namespace.choose": "Choose organization",
