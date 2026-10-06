@@ -41,11 +41,15 @@ site em cada provedor, com o retorno em `https://<domínio>/api/git/callback`
 e as variáveis `GIT_<PROVEDOR>_CLIENT_ID` / `GIT_<PROVEDOR>_CLIENT_SECRET`
 (veja `.env.example`). Um provedor sem elas aparece indisponível. O GitHub é
 só por **GitHub App** (OAuth App não é mais aceito): além do Client ID e do
-secret do app, `GIT_GITHUB_APP_SLUG` é obrigatório. Cada clique em GitHub, em
-cada organização do JayV, abre a tela do GitHub de escolher a conta ou a
-organização e os repositórios (Setup URL e Callback URL apontando para
-`/api/git/callback`, com "Redirect on update" ligado, permissões de
-repositório Metadata e Contents só leitura). Uma organização conectada antes
+secret do app, `GIT_GITHUB_APP_SLUG` é obrigatório. Conectar o GitHub pede a
+autorização da pessoa (que sempre volta para o site) e abre a escolha entre as
+contas e organizações onde o app já está instalado; sem nenhuma, segue para a
+tela do GitHub de instalar. A escolha tem "Instalar o GitHub App em outra
+conta ou organização", que abre essa tela numa aba nova: numa conta onde o
+app já está instalado, o GitHub abre as configurações da instalação e não
+volta, e a aba do site relê a lista quando a pessoa volta a ela (Setup URL e
+Callback URL apontando para `/api/git/callback`, com "Redirect on update"
+ligado, permissões de repositório Metadata e Contents só leitura). Uma organização conectada antes
 por OAuth App pede para conectar de novo. No GitLab e no Bitbucket, a
 organização (grupo ou workspace) é escolhida no site, logo depois de entrar. O token
 do owner fica só num cookie cifrado com o `AUTH_SECRET`, por uma hora, e

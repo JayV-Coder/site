@@ -151,22 +151,29 @@ export async function accountName(provider: GitProvider, token: string): Promise
 /** Quantas páginas de 100 a lista lê, no máximo. */
 const PAGES = 5;
 
+/** As instalações do GitHub App que a pessoa alcança, com o dono de cada
+ * uma (a conta pessoal ou uma organização do GitHub). */
+async function githubInstallations(token: string): Promise<{ id: number; namespace: string; login: string }[]> {
+  const found: { id: number; namespace: string; login: string }[] = [];
+  for (let page = 1; page <= PAGES; page++) {
+    const list = (await api<{ installations?: { id?: unknown; account?: { login?: unknown } }[] }>("github", token,
+      `https://api.github.com/user/installations?per_page=100&page=${page}`))?.body.installations ?? [];
+    list.forEach((item) => {
+      const login = typeof item.account?.login === "string" ? item.account.login : "";
+      const namespace = cleanNamespace(login);
+      if (typeof item.id === "number" && namespaceOk(namespace)) found.push({ id: item.id, namespace, login });
+    });
+    if (list.length < 100) break;
+  }
+  return found;
+}
+
 /** A instalação do GitHub App que a pessoa acabou de escolher, se ela de
  * fato a alcança: o dono dela (conta ou organização) vira a organização do
  * provedor desta organização do JayV. */
 export async function githubInstallation(token: string, id: number): Promise<{ namespace: string } | null> {
-  for (let page = 1; page <= PAGES; page++) {
-    const body = (await api<{ installations?: { id?: unknown; account?: { login?: unknown } }[] }>("github", token,
-      `https://api.github.com/user/installations?per_page=100&page=${page}`))?.body;
-    const list = body?.installations ?? [];
-    const found = list.find((item) => item.id === id);
-    if (found) {
-      const namespace = typeof found.account?.login === "string" ? cleanNamespace(found.account.login) : "";
-      return namespaceOk(namespace) ? { namespace } : null;
-    }
-    if (list.length < 100) break;
-  }
-  return null;
+  const found = (await githubInstallations(token)).find((item) => item.id === id);
+  return found ? { namespace: found.namespace } : null;
 }
 
 /** As organizações do provedor que a conta alcança — no GitHub, as contas e
@@ -182,15 +189,7 @@ export async function listNamespaces(provider: GitProvider, token: string, accou
     }
   };
   if (provider === "github") {
-    for (let page = 1; page <= PAGES; page++) {
-      const list = (await api<{ installations?: { account?: { login?: unknown } }[] }>(provider, token,
-        `https://api.github.com/user/installations?per_page=100&page=${page}`))?.body.installations ?? [];
-      list.forEach((item) => {
-        const login = item.account?.login;
-        add(login, login, typeof login === "string" && cleanNamespace(login) === cleanNamespace(account));
-      });
-      if (list.length < 100) break;
-    }
+    (await githubInstallations(token)).forEach((item) => add(item.login, item.login, item.namespace === cleanNamespace(account)));
   } else if (provider === "gitlab") {
     add(account, account, true);
     for (let page = 1; page <= PAGES; page++) {
@@ -214,16 +213,17 @@ export async function listNamespaces(provider: GitProvider, token: string, accou
  * mais mexido ao menos, filtrados pela busca. Só entram os que estão nela:
  * os de outras organizações que a mesma conta alcança ficam de fora.
  * `truncated` diz que havia mais do que as páginas lidas. */
-export async function listRepositories(provider: GitProvider, token: string, query: string, namespace: string, account: string, installation?: number): Promise<{ repositories: GitRepository[]; truncated: boolean }> {
+export async function listRepositories(provider: GitProvider, token: string, query: string, namespace: string, account: string): Promise<{ repositories: GitRepository[]; truncated: boolean }> {
   const found: GitRepository[] = [];
   let truncated = false;
   const space = encodeURIComponent(namespace);
   const personal = namespace === cleanNamespace(account);
   if (provider === "github") {
-    // GitHub App: só os repositórios que a pessoa liberou nesta instalação.
-    // Um token sem instalação vem da conexão antiga por OAuth App: é preciso
-    // conectar de novo, agora pelo GitHub App.
-    if (!installation) throw new GitExpired(provider);
+    // GitHub App: só os repositórios que a pessoa liberou na instalação do
+    // app na organização escolhida, achada pelo dono (a escolha pode ter
+    // mudado depois da entrada). Sem o app instalado nela, a lista é vazia.
+    const installation = (await githubInstallations(token)).find((item) => item.namespace === namespace)?.id;
+    if (!installation) return { repositories: [], truncated: false };
     for (let page = 1; page <= PAGES; page++) {
       const rows = (await api<{ repositories?: Record<string, unknown>[] }>(provider, token,
         `https://api.github.com/user/installations/${installation}/repositories?per_page=100&page=${page}`))?.body.repositories ?? [];
