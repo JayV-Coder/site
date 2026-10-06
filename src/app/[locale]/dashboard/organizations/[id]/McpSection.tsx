@@ -14,10 +14,11 @@ import { useFeedback } from "@/modules/feedback";
 import { useT } from "@/modules/i18n";
 import { blankServer, mcpProblems, MCP_AGENTS, parseMcpJson, parsePairs, pairsText, textLines, type McpTransport, type OrgMcpServer } from "@/modules/organizations/extensions";
 import { canManage } from "@/modules/organizations/rules";
+import { AGENT_LABELS } from "@/modules/organizations/policy";
 import { removeMcpServer, saveMcpServer, type ActionResult } from "../actions";
 import type { OrganizationDetail } from "../data";
 
-const AGENT_NAMES: Record<string, string> = { claude: "Claude Code", codex: "Codex", copilot: "GitHub Copilot" };
+const AGENT_NAMES: Record<string, string> = AGENT_LABELS;
 
 /** Os servidores MCP que a organização dá aos membros: eles descem para o
  * app de cada um, somados aos que a pessoa já tem, e lá não se editam. Só

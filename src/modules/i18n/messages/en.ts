@@ -537,7 +537,7 @@ export const en = {
   "site.org.mcp.field.headers": "Headers",
   "site.org.mcp.field.headers.hint": "Name: value, one per line. They can carry tokens.",
   "site.org.mcp.field.agents": "Agents",
-  "site.org.mcp.field.agents.hint": "With none checked, it applies to every agent that receives MCP. Cursor reads its own configuration file and doesn’t receive it.",
+  "site.org.mcp.field.agents.hint": "With none checked, it applies to every agent. Each member’s app hands it over only to the agents that have “Approve MCP servers” on.",
   "site.org.mcp.save": "Save server",
   "site.org.mcp.replaces": "A server with this name already exists: saving replaces it.",
   "site.org.mcp.invalid": "This MCP server isn’t valid. Check the name, command or URL.",
