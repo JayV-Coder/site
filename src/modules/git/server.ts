@@ -62,14 +62,14 @@ export const readState = (raw: string | undefined) => unseal<GitState>(raw, auth
 const readJar = (raw: string | undefined) => unseal<GitTokens>(raw, authSecret(), "tokens");
 
 /** O token guardado deste provedor para quem entrou, se ainda valer. */
-export async function storedToken(user: string, provider: GitProvider) {
-  return tokenOf(readJar((await cookies()).get(TOKENS_COOKIE)?.value), user, provider);
+export async function storedToken(user: string, org: string, provider: GitProvider) {
+  return tokenOf(readJar((await cookies()).get(TOKENS_COOKIE)?.value), user, org, provider);
 }
 
 /** O cookie com o token novo (ou sem o deste provedor), para quem o grava:
  * a rota de retorno põe na resposta; a ação, no `cookies()`. */
-export function tokensCookie(raw: string | undefined, user: string, provider: GitProvider, entry: { token: string; account: string } | null, secure: boolean) {
-  const jar = withToken(readJar(raw), user, provider, entry ? { ...entry, expiresAt: Date.now() + TOKEN_TTL * 1000 } : null);
+export function tokensCookie(raw: string | undefined, user: string, org: string, provider: GitProvider, entry: { token: string; account: string } | null, secure: boolean) {
+  const jar = withToken(readJar(raw), user, org, provider, entry ? { ...entry, expiresAt: Date.now() + TOKEN_TTL * 1000 } : null);
   return { name: TOKENS_COOKIE, value: seal(jar, authSecret(), "tokens"), options: cookieOptions(secure, TOKEN_TTL) };
 }
 

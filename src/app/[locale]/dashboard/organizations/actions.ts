@@ -126,7 +126,7 @@ export async function disconnectGit(org: string, provider: GitProvider) {
   const session = await auth();
   if (result.ok && session?.user.id) {
     const store = await cookies();
-    const cookie = tokensCookie(store.get(TOKENS_COOKIE)?.value, session.user.id, provider, null, (await requestOrigin()).startsWith("https://"));
+    const cookie = tokensCookie(store.get(TOKENS_COOKIE)?.value, session.user.id, org, provider, null, (await requestOrigin()).startsWith("https://"));
     store.set(cookie.name, cookie.value, cookie.options);
   }
   return result;
@@ -136,7 +136,7 @@ async function withToken<T>(org: string, provider: GitProvider, run: (token: str
   if (!isGitProvider(provider)) return forbidden;
   const user = await ownerOf(org);
   if (!user) return forbidden;
-  const stored = await storedToken(user, provider);
+  const stored = await storedToken(user, org, provider);
   if (!stored) return expired;
   try {
     return await run(stored.token);

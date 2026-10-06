@@ -52,7 +52,12 @@ export function authorizeUrl(provider: GitProvider, clientId: string, redirectUr
   const query = new URLSearchParams({ client_id: clientId, response_type: "code", state });
   if (provider !== "bitbucket") query.set("redirect_uri", redirectUri);
   if (endpoints.scope) query.set("scope", endpoints.scope);
-  if (provider === "github") query.set("allow_signup", "false");
+  if (provider === "github") {
+    query.set("allow_signup", "false");
+    // Mostra a escolha de conta: cada organização pode usar uma conta
+    // diferente do GitHub, mesmo com outra já entrada no navegador.
+    query.set("prompt", "select_account");
+  }
   if (endpoints.pkce && challenge) {
     query.set("code_challenge", challenge);
     query.set("code_challenge_method", "S256");
