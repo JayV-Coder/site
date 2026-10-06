@@ -36,16 +36,18 @@ estática. Variáveis: `AUTH_SECRET` (obrigatória), `AUTH_URL` fora da Vercel e
 se mudar de projeto, `NEXT_PUBLIC_SUPABASE_URL` /
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
-O provedor git das organizações (aba **Repositórios**) usa um app OAuth do
-próprio site em cada provedor, com o retorno em `https://<domínio>/api/git/callback`
+O provedor git das organizações (aba **Repositórios**) usa um app do próprio
+site em cada provedor, com o retorno em `https://<domínio>/api/git/callback`
 e as variáveis `GIT_<PROVEDOR>_CLIENT_ID` / `GIT_<PROVEDOR>_CLIENT_SECRET`
-(veja `.env.example`). Um provedor sem as duas aparece indisponível. No
-GitHub, prefira um GitHub App com `GIT_GITHUB_APP_SLUG`: cada clique em
-GitHub, em cada organização do JayV, abre a tela do GitHub de escolher a conta
-ou a organização e os repositórios (Setup URL e Callback URL apontando para
-`/api/git/callback`, com "Redirect on update" ligado). No GitLab e no
-Bitbucket, a organização (grupo ou workspace) é escolhida no site, logo depois
-de entrar. O token
+(veja `.env.example`). Um provedor sem elas aparece indisponível. O GitHub é
+só por **GitHub App** (OAuth App não é mais aceito): além do Client ID e do
+secret do app, `GIT_GITHUB_APP_SLUG` é obrigatório. Cada clique em GitHub, em
+cada organização do JayV, abre a tela do GitHub de escolher a conta ou a
+organização e os repositórios (Setup URL e Callback URL apontando para
+`/api/git/callback`, com "Redirect on update" ligado, permissões de
+repositório Metadata e Contents só leitura). Uma organização conectada antes
+por OAuth App pede para conectar de novo. No GitLab e no Bitbucket, a
+organização (grupo ou workspace) é escolhida no site, logo depois de entrar. O token
 do owner fica só num cookie cifrado com o `AUTH_SECRET`, por uma hora, e
 nunca vai ao banco: serve para listar e conferir os repositórios na hora de
 associar.
@@ -53,6 +55,14 @@ associar.
 No Supabase › Authentication › URL Configuration, inclua
 `https://<domínio>/**` em **Redirect URLs**: é para onde voltam o login por
 GitHub/GitLab/Bitbucket, a confirmação de e-mail e a recuperação de senha.
+
+O **login com GitHub** (no site e no app) também é por GitHub App: em
+Supabase › Authentication › Providers › GitHub vão o Client ID e um client
+secret do GitHub App, não de um OAuth App. No GitHub App, a Callback URL
+inclui `https://<projeto>.supabase.co/auth/v1/callback` (ele aceita várias,
+então pode ser o mesmo app do provedor git) e a permissão de conta
+**Email addresses: Read-only**, sem a qual o Supabase não lê o e-mail de quem
+entra.
 
 ## Versão
 

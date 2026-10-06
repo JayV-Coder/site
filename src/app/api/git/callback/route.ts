@@ -11,13 +11,13 @@ import { userSupabase } from "@/modules/supabase/server";
 
 type Outcome = "connected" | "denied" | "requested" | "forbidden" | "failed";
 
-/** A volta do provedor git (o mesmo endereço nos três apps OAuth e na Setup
- * URL do GitHub App). Confere o `state` com o cookie e a pessoa com a sessão,
+/** A volta do provedor git (o mesmo endereço nos apps do GitLab e do
+ * Bitbucket e na Callback URL e Setup URL do GitHub App). Confere o `state` com o cookie e a pessoa com a sessão,
  * troca o código pelo token, grava no banco qual conta foi conectada
  * (`org_connect_git`, só o owner) e guarda o token só no cookie cifrado. A
  * organização abre na aba de repositórios com o resultado em `git`.
  *
- * GitHub App, em dois passos: a tela do GitHub (conta ou organização e quais
+ * GitHub (só por GitHub App), em dois passos: a tela do GitHub (conta ou organização e quais
  * repositórios) volta aqui com `installation_id`; a rota guarda a instalação
  * no cookie e pede a autorização da pessoa, que volta com o `code`. A
  * instalação só vale se a pessoa a alcança, e o dono dela (conta ou
@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
   if (!session?.user.id || session.user.id !== saved.user) return back("failed");
   const code = params.get("code");
   const state = params.get("state") ?? "";
-  const appSlug = saved.provider === "github" ? githubAppSlug() : null;
+  // O GitHub é só por GitHub App: sem ele configurado, não há volta válida.
+  const app = saved.provider === "github";
+  if (app && !githubAppSlug()) return back("failed");
   const fromInstall = !!params.get("installation_id") && !sameText(state, saved.state);
 
   // GitHub App, primeiro passo: voltou da tela de instalação. A instalação
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
   // Um código que veio da instalação sem o nosso `state` (o app pedindo a
   // autorização durante a instalação) é descartado: a autorização é pedida
   // de novo, com o `state` conferido.
-  if (appSlug && (!code || fromInstall)) {
+  if (app && (!code || fromInstall)) {
     if (params.get("setup_action") === "request") return back("requested");
     const installation = Number(params.get("installation_id"));
     const client = gitClient("github");
@@ -83,9 +85,9 @@ export async function GET(request: NextRequest) {
     const account = await accountName(saved.provider, token);
     // Com o GitHub App, a instalação escolhida na tela do GitHub (a guardada
     // no primeiro passo, ou a que veio junto com o código).
-    const installation = appSlug ? saved.installation || Number(params.get("installation_id")) || null : null;
+    const installation = app ? saved.installation || Number(params.get("installation_id")) || null : null;
     const owner = installation ? await githubInstallation(token, installation) : null;
-    if (appSlug && !owner) return back("failed");
+    if (app && !owner) return back("failed");
     const supabase = await userSupabase();
     if (!supabase) return back("failed");
     const connected = await supabase.rpc("org_connect_git", { org: saved.org, provider: saved.provider, account });

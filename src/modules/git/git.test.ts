@@ -3,11 +3,12 @@ import { authorizeUrl, cleanNamespace, githubInstallUrl, cleanPath, inNamespace,
 import { JAR_MAX, sameText, seal, tokenOf, unseal, withToken, type GitTokens } from "./seal";
 
 describe("git provider login", () => {
-  it("sends the redirect and the scope GitHub and GitLab need", () => {
+  it("sends the redirect, and the scope only where the provider uses one", () => {
     const github = new URL(authorizeUrl("github", "id-1", "https://site.test/api/git/callback", "st"));
     expect(github.origin + github.pathname).toBe("https://github.com/login/oauth/authorize");
     expect(github.searchParams.get("redirect_uri")).toBe("https://site.test/api/git/callback");
-    expect(github.searchParams.get("scope")).toBe("repo read:org");
+    // GitHub App: o acesso vem das permissões do app, não de escopo.
+    expect(github.searchParams.has("scope")).toBe(false);
     expect(github.searchParams.get("state")).toBe("st");
     expect(github.searchParams.has("code_challenge")).toBe(false);
     expect(github.searchParams.get("prompt")).toBe("select_account");

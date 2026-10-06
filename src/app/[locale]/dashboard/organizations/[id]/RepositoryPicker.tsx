@@ -182,7 +182,6 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
                 </ul>
               ))}
             </div>
-            {provider === "github" && <p className="text-xs text-muted-foreground">{t("site.org.git.namespace.githubHint")}</p>}
             <DialogFooter>
               {namespace && changing && <Button type="button" variant="outline" disabled={busy} onClick={() => setChanging(false)}>{t("site.org.git.namespace.back")}</Button>}
               <Button type="button" variant="outline" disabled={busy} onClick={() => close(false)}>{t("common.cancel")}</Button>

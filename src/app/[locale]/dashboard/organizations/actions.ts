@@ -113,10 +113,14 @@ export async function startGitConnection(org: string, provider: GitProvider, loc
     const state = randomText(24);
     const pair = OAUTH[provider].pkce ? pkcePair() : null;
     await saveState({ state, verifier: pair?.verifier ?? null, provider, org, locale, user, redirectUri, pick, installation: null });
-    // GitHub App: a tela do GitHub de escolher a conta ou a organização (e os
-    // repositórios), sempre; a autorização da pessoa vem na volta.
-    const slug = provider === "github" ? githubAppSlug() : null;
-    return { ok: true, data: slug ? githubInstallUrl(slug, state) : authorizeUrl(provider, client.id, redirectUri, state, pair?.challenge) };
+    // GitHub (só por GitHub App): a tela do GitHub de escolher a conta ou a
+    // organização (e os repositórios), sempre; a autorização da pessoa vem na
+    // volta.
+    if (provider === "github") {
+      const slug = githubAppSlug();
+      return slug ? { ok: true, data: githubInstallUrl(slug, state) } : unavailable;
+    }
+    return { ok: true, data: authorizeUrl(provider, client.id, redirectUri, state, pair?.challenge) };
   } catch (error) {
     console.error("git start", error);
     return unavailable;
