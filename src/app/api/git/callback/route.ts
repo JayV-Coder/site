@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { sameText } from "@/modules/git/seal";
-import { accountName, exchangeCode, readState, STATE_COOKIE, tokensCookie, TOKENS_COOKIE } from "@/modules/git/server";
+import { accountName, exchangeCode, readState, requestOrigin, STATE_COOKIE, tokensCookie, TOKENS_COOKIE } from "@/modules/git/server";
 import { looksLikeLocale } from "@/modules/i18n/render";
 import { orgFailure } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
@@ -18,10 +18,14 @@ export async function GET(request: NextRequest) {
   // O cookie é cifrado, mas o endereço da volta só sai de um idioma e de uma
   // organização com formato válido.
   const saved = sealed && looksLikeLocale(sealed.locale) && /^[0-9a-f-]{36}$/i.test(sealed.org) ? sealed : null;
+  // Atrás de um proxy, `request.url` é o endereço interno do servidor
+  // (`http://localhost:3000`): a volta usa a origem pública, a mesma do
+  // `redirect_uri` gravado no início (ou a dos cabeçalhos do proxy).
+  const base = saved ? new URL(saved.redirectUri).origin : await requestOrigin().catch(() => request.nextUrl.origin);
   const back = (outcome: Outcome, cookie?: ReturnType<typeof tokensCookie>) => {
     const target = saved
-      ? new URL(`/${saved.locale}/dashboard/organizations/${saved.org}`, request.url)
-      : new URL("/dashboard/organizations", request.url);
+      ? new URL(`/${saved.locale}/dashboard/organizations/${saved.org}`, base)
+      : new URL("/dashboard/organizations", base);
     if (saved) {
       target.searchParams.set("tab", "repositories");
       target.searchParams.set("git", outcome);
