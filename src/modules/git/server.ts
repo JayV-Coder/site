@@ -4,38 +4,44 @@ import { cookies, headers } from "next/headers";
 import { cleanNamespace, GIT_PROVIDERS, inNamespace, matches, namespaceOk, NORMALIZE, OAUTH, type GitNamespace, type GitProvider, type GitRepository } from "./providers";
 import { randomText, seal, tokenOf, unseal, withToken, type GitState, type GitTokens } from "./seal";
 
-/** Cada provedor precisa de um app OAuth próprio do site (o login do JayV
- * continua no Supabase), com o retorno em `<site>/api/git/callback`:
- *   GIT_GITHUB_CLIENT_ID / GIT_GITHUB_CLIENT_SECRET          (GitHub › OAuth Apps)
+/** Cada provedor precisa de um app próprio do site (o login do JayV continua
+ * no Supabase), com o retorno em `<site>/api/git/callback`:
+ *   GIT_GITHUB_CLIENT_ID / GIT_GITHUB_CLIENT_SECRET / GIT_GITHUB_APP_SLUG
+ *                                                            (GitHub › GitHub Apps)
  *   GIT_GITLAB_CLIENT_ID / GIT_GITLAB_CLIENT_SECRET          (GitLab › Applications, escopo read_api)
  *   GIT_BITBUCKET_CLIENT_ID / GIT_BITBUCKET_CLIENT_SECRET    (Bitbucket › OAuth consumers, Repositories: Read e Account: Read)
- * Sem as duas, o provedor aparece indisponível no painel.
+ * Sem elas, o provedor aparece indisponível no painel.
  *
- * GitHub App (recomendado): com GIT_GITHUB_APP_SLUG (o nome do app na URL
- * github.com/apps/<slug>), conectar abre a tela do GitHub de escolher onde
- * instalar — a conta pessoal ou uma organização, e quais repositórios — a
- * cada vez e em cada organização do JayV. Client ID/secret são os do próprio
- * GitHub App; Setup URL e Callback URL = <site>/api/git/callback, com
- * "Redirect on update" ligado. Sem o slug, vale o fluxo de OAuth App. */
+ * O GitHub é só por GitHub App (OAuth App não serve mais): o slug é o nome do
+ * app na URL github.com/apps/<slug>, e Client ID/secret são os do próprio
+ * app. Conectar abre a tela do GitHub de escolher onde instalar — a conta
+ * pessoal ou uma organização, e quais repositórios — a cada vez e em cada
+ * organização do JayV. No app: Setup URL e Callback URL =
+ * <site>/api/git/callback, "Redirect on update" ligado, permissões de
+ * repositório Metadata e Contents só leitura. */
 const ENV: Record<GitProvider, [string, string]> = {
   github: ["GIT_GITHUB_CLIENT_ID", "GIT_GITHUB_CLIENT_SECRET"],
   gitlab: ["GIT_GITLAB_CLIENT_ID", "GIT_GITLAB_CLIENT_SECRET"],
   bitbucket: ["GIT_BITBUCKET_CLIENT_ID", "GIT_BITBUCKET_CLIENT_SECRET"],
 };
 
+function appSlug() {
+  const slug = process.env.GIT_GITHUB_APP_SLUG?.trim();
+  return slug && /^[a-z0-9-]+$/i.test(slug) ? slug : null;
+}
+
+/** As credenciais do provedor; no GitHub, só com o slug do GitHub App. */
 export function gitClient(provider: GitProvider) {
   const [idName, secretName] = ENV[provider];
   const id = process.env[idName]?.trim();
   const secret = process.env[secretName]?.trim();
+  if (provider === "github" && !appSlug()) return null;
   return id && secret ? { id, secret } : null;
 }
 
 export const configuredProviders = () => GIT_PROVIDERS.filter((provider) => gitClient(provider));
 
-export function githubAppSlug() {
-  const slug = process.env.GIT_GITHUB_APP_SLUG?.trim();
-  return slug && /^[a-z0-9-]+$/i.test(slug) && gitClient("github") ? slug : null;
-}
+export const githubAppSlug = () => (gitClient("github") ? appSlug() : null);
 
 function authSecret() {
   const secret = process.env.AUTH_SECRET;
@@ -163,9 +169,10 @@ export async function githubInstallation(token: string, id: number): Promise<{ n
   return null;
 }
 
-/** As organizações do provedor que a conta alcança — a conta pessoal e as
- * organizações do GitHub, os grupos do GitLab ou os workspaces do
- * Bitbucket —, para o owner prender a organização do JayV a uma delas. */
+/** As organizações do provedor que a conta alcança — no GitHub, as contas e
+ * organizações onde o GitHub App está instalado e a pessoa tem acesso; os
+ * grupos do GitLab ou os workspaces do Bitbucket —, para o owner prender a
+ * organização do JayV a uma delas. */
 export async function listNamespaces(provider: GitProvider, token: string, account: string): Promise<GitNamespace[]> {
   const found: GitNamespace[] = [];
   const add = (raw: unknown, label: unknown, personal: boolean) => {
@@ -175,11 +182,14 @@ export async function listNamespaces(provider: GitProvider, token: string, accou
     }
   };
   if (provider === "github") {
-    add(account, account, true);
     for (let page = 1; page <= PAGES; page++) {
-      const rows = (await api<Record<string, unknown>[]>(provider, token, `https://api.github.com/user/orgs?per_page=100&page=${page}`))?.body ?? [];
-      rows.forEach((row) => add(row.login, row.login, false));
-      if (rows.length < 100) break;
+      const list = (await api<{ installations?: { account?: { login?: unknown } }[] }>(provider, token,
+        `https://api.github.com/user/installations?per_page=100&page=${page}`))?.body.installations ?? [];
+      list.forEach((item) => {
+        const login = item.account?.login;
+        add(login, login, typeof login === "string" && cleanNamespace(login) === cleanNamespace(account));
+      });
+      if (list.length < 100) break;
     }
   } else if (provider === "gitlab") {
     add(account, account, true);
@@ -209,21 +219,14 @@ export async function listRepositories(provider: GitProvider, token: string, que
   let truncated = false;
   const space = encodeURIComponent(namespace);
   const personal = namespace === cleanNamespace(account);
-  if (provider === "github" && installation) {
+  if (provider === "github") {
     // GitHub App: só os repositórios que a pessoa liberou nesta instalação.
+    // Um token sem instalação vem da conexão antiga por OAuth App: é preciso
+    // conectar de novo, agora pelo GitHub App.
+    if (!installation) throw new GitExpired(provider);
     for (let page = 1; page <= PAGES; page++) {
       const rows = (await api<{ repositories?: Record<string, unknown>[] }>(provider, token,
         `https://api.github.com/user/installations/${installation}/repositories?per_page=100&page=${page}`))?.body.repositories ?? [];
-      found.push(...rows.flatMap((row) => NORMALIZE.github(row) ?? []));
-      truncated = rows.length === 100 && page === PAGES;
-      if (rows.length < 100) break;
-    }
-  } else if (provider === "github") {
-    const base = personal
-      ? "https://api.github.com/user/repos?affiliation=owner&sort=updated"
-      : `https://api.github.com/orgs/${space}/repos?type=all&sort=updated`;
-    for (let page = 1; page <= PAGES; page++) {
-      const rows = (await api<Record<string, unknown>[]>(provider, token, `${base}&per_page=100&page=${page}`))?.body ?? [];
       found.push(...rows.flatMap((row) => NORMALIZE.github(row) ?? []));
       truncated = rows.length === 100 && page === PAGES;
       if (rows.length < 100) break;

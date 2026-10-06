@@ -50,11 +50,11 @@ export function RepositoriesSection({ detail, outcome }: {
     const name = provider ? PROVIDER_NAMES[provider] : "";
     if (outcome.kind === "connected") {
       notify(t("site.org.git.done", { provider: name }));
-      // Depois de cada entrada no provedor, a escolha: no GitHub App ela já
-      // foi feita na tela do GitHub; nos outros, o diálogo abre na escolha da
-      // organização do provedor.
+      // Depois de cada entrada no provedor, a escolha: no GitHub (GitHub App)
+      // ela já foi feita na tela do GitHub; nos outros, o diálogo abre na
+      // escolha da organização do provedor.
       if (provider && outcome.pick) {
-        setChangingNamespace(!(provider === "github" && detail.githubApp));
+        setChangingNamespace(provider !== "github");
         setPicking(provider);
       }
     } else if (outcome.kind === "denied") report({ key: "site.org.git.denied", params: { provider: name } });
@@ -62,7 +62,7 @@ export function RepositoriesSection({ detail, outcome }: {
     else if (outcome.kind === "forbidden") report({ key: "org.forbidden" });
     else report({ key: "site.org.git.failed", params: { provider: name } });
     router.replace(`${pathname}?tab=repositories`);
-  }, [outcome, notify, report, t, router, pathname, detail.githubApp]);
+  }, [outcome, notify, report, t, router, pathname]);
 
   const connect = (provider: GitProvider, pick = false) => startBusy(async () => {
     setRunning(`connect:${provider}`);
@@ -209,7 +209,7 @@ export function RepositoriesSection({ detail, outcome }: {
       </SettingsSection>
 
       {owner && picking && (
-        <RepositoryPicker org={org.id} initial={picking} connections={detail.connections} changeNamespace={changingNamespace} namespaceFromProvider={(provider) => provider === "github" && detail.githubApp}
+        <RepositoryPicker org={org.id} initial={picking} connections={detail.connections} changeNamespace={changingNamespace} namespaceFromProvider={(provider) => provider === "github"}
           linked={detail.repositories.map((repository) => repository.repoKey)}
           onReconnect={(provider) => connect(provider, true)}
           onClose={(changed) => {

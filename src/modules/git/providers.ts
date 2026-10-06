@@ -36,11 +36,12 @@ interface OAuthEndpoints {
   pkce: boolean;
 }
 
-/** GitHub: `repo` é o único escopo que lista os privados (só leitura não
- * existe nos OAuth Apps); `read:org` traz os das organizações. O token só é
- * usado na hora, no servidor, e nunca vai ao banco. */
+/** GitHub só por GitHub App: o app ignora escopos (o acesso é o das
+ * permissões dele, Metadata e Contents só leitura, nos repositórios que a
+ * pessoa liberou na instalação). O token só é usado na hora, no servidor, e
+ * nunca vai ao banco. */
 export const OAUTH: Record<GitProvider, OAuthEndpoints> = {
-  github: { authorize: "https://github.com/login/oauth/authorize", token: "https://github.com/login/oauth/access_token", scope: "repo read:org", pkce: false },
+  github: { authorize: "https://github.com/login/oauth/authorize", token: "https://github.com/login/oauth/access_token", scope: null, pkce: false },
   gitlab: { authorize: "https://gitlab.com/oauth/authorize", token: "https://gitlab.com/oauth/token", scope: "read_api", pkce: true },
   bitbucket: { authorize: "https://bitbucket.org/site/oauth2/authorize", token: "https://bitbucket.org/site/oauth2/access_token", scope: null, pkce: false },
 };

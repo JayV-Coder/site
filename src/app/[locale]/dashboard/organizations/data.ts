@@ -1,7 +1,7 @@
 import "server-only";
 import { auth } from "@/auth";
 import { isGitProvider, type GitProvider } from "@/modules/git/providers";
-import { configuredProviders, githubAppSlug } from "@/modules/git/server";
+import { configuredProviders } from "@/modules/git/server";
 import { storedPolicy, type StoredPolicy } from "@/modules/organizations/policy";
 import { canManage, isRole, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
@@ -38,11 +38,9 @@ export interface OrganizationDetail {
   /** A política da organização e as dos repositórios dela. */
   policies: StoredPolicy[];
   connections: GitConnection[];
-  /** Os provedores com app OAuth configurado neste site. */
+  /** Os provedores com o app configurado neste site (o GitHub, só pelo
+   * GitHub App: a conta ou a organização é escolhida na tela do GitHub). */
   providers: GitProvider[];
-  /** O GitHub conecta pelo GitHub App: a conta ou a organização é escolhida
-   * na tela do próprio GitHub. */
-  githubApp: boolean;
 }
 
 type Row = Record<string, unknown>;
@@ -108,6 +106,5 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
       provider: row.provider, account: row.account as string, connectedAt: row.connected_at as string, namespace: (row.namespace as string) ?? null,
     }] : [])),
     providers: configuredProviders(),
-    githubApp: githubAppSlug() !== null,
   };
 }
