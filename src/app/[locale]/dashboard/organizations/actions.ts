@@ -100,8 +100,25 @@ const unavailable = { ok: false, error: { key: "org.gitUnavailable" } } as const
 
 /** Conectar (ou reconectar) o provedor: devolve o endereço do login nele. A
  * volta é por `/api/git/callback`, que grava a conta conectada e guarda o
- * token só no cookie cifrado. `pick` abre a lista do provedor ao voltar. */
+ * token só no cookie cifrado. `pick` abre a lista do provedor ao voltar.
+ *
+ * No GitHub (só por GitHub App) é a autorização da pessoa, que sempre volta
+ * para o site; a volta abre a escolha entre as contas e organizações onde o
+ * app já está instalado, ou a tela de instalar quando não há nenhuma. A tela
+ * de instalar não serve de começo: numa conta ou organização onde o app já
+ * está instalado, o GitHub abre as configurações da instalação e não volta. */
 export async function startGitConnection(org: string, provider: GitProvider, locale: string, pick = false): Promise<ActionResult<string>> {
+  return beginGit(org, provider, locale, pick, false);
+}
+
+/** Instalar o GitHub App em outra conta ou organização: a tela do GitHub de
+ * escolher onde (e quais repositórios). Abre numa aba nova; a volta pela
+ * Setup URL termina a conexão ali, e esta aba relê a lista ao voltar. */
+export async function startGithubInstall(org: string, locale: string): Promise<ActionResult<string>> {
+  return beginGit(org, "github", locale, true, true);
+}
+
+async function beginGit(org: string, provider: GitProvider, locale: string, pick: boolean, install: boolean): Promise<ActionResult<string>> {
   // O idioma vira o começo do endereço da volta: só um idioma de verdade.
   if (!isGitProvider(provider) || !looksLikeLocale(locale)) return forbidden;
   const client = gitClient(provider);
@@ -113,10 +130,7 @@ export async function startGitConnection(org: string, provider: GitProvider, loc
     const state = randomText(24);
     const pair = OAUTH[provider].pkce ? pkcePair() : null;
     await saveState({ state, verifier: pair?.verifier ?? null, provider, org, locale, user, redirectUri, pick, installation: null });
-    // GitHub (só por GitHub App): a tela do GitHub de escolher a conta ou a
-    // organização (e os repositórios), sempre; a autorização da pessoa vem na
-    // volta.
-    if (provider === "github") {
+    if (install) {
       const slug = githubAppSlug();
       return slug ? { ok: true, data: githubInstallUrl(slug, state) } : unavailable;
     }
@@ -155,7 +169,7 @@ async function connectionOf(org: string, provider: GitProvider) {
  * navegador, ou noutra aba) invalida o que ficou no cookie. */
 async function withToken<T>(
   org: string, provider: GitProvider,
-  run: (token: string, connection: { account: string; namespace: string | null; installation?: number }) => Promise<ActionResult<T>>,
+  run: (token: string, connection: { account: string; namespace: string | null }) => Promise<ActionResult<T>>,
 ): Promise<ActionResult<T>> {
   if (!isGitProvider(provider)) return forbidden;
   const user = await ownerOf(org);
@@ -164,7 +178,7 @@ async function withToken<T>(
   if (!connection) return { ok: false, error: { key: "org.gitNotConnected" } };
   if (!stored || stored.account !== connection.account) return expired;
   try {
-    return await run(stored.token, { ...connection, installation: stored.installation });
+    return await run(stored.token, connection);
   } catch (error) {
     if (error instanceof GitExpired) return expired;
     console.error("git", provider, error);
@@ -198,7 +212,7 @@ export async function chooseGitNamespace(org: string, provider: GitProvider, nam
 export async function listGitRepositories(org: string, provider: GitProvider, query: string) {
   return withToken<{ repositories: GitRepository[]; truncated: boolean }>(org, provider, async (token, connection) => {
     if (!connection.namespace) return namespaceMissing;
-    return { ok: true, data: await listRepositories(provider, token, typeof query === "string" ? query.slice(0, 100) : "", connection.namespace, connection.account, connection.installation) };
+    return { ok: true, data: await listRepositories(provider, token, typeof query === "string" ? query.slice(0, 100) : "", connection.namespace, connection.account) };
   });
 }
 

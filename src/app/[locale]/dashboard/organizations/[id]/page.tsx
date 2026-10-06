@@ -28,7 +28,7 @@ export default async function OrganizationPage({ params, searchParams }: PagePro
   const query = await searchParams;
   const tab = TABS.find((known) => known === query.tab) ?? "members";
   const kind = OUTCOMES.find((known) => known === query.git);
-  const outcome = kind ? { kind, provider: typeof query.provider === "string" ? query.provider : null, pick: query.pick === "1" } : null;
+  const outcome = kind ? { kind, provider: typeof query.provider === "string" ? query.provider : null, pick: query.pick === "1", chosen: query.chosen === "1" } : null;
   const access = await requireAccess(locale, `/dashboard/organizations/${id}`);
   const t = await getT(locale);
   // O id vem do endereço: um texto que não é uuid nem chega ao banco.

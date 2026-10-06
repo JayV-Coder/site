@@ -23,7 +23,7 @@ export type GitOutcome = "connected" | "denied" | "requested" | "forbidden" | "f
  * membro lê esta lista e clona com o acesso git da própria pessoa. Os outros
  * papéis só veem. */
 export function RepositoriesSection({ detail, outcome }: {
-  detail: OrganizationDetail; outcome: { kind: GitOutcome; provider: string | null; pick: boolean } | null;
+  detail: OrganizationDetail; outcome: { kind: GitOutcome; provider: string | null; pick: boolean; chosen?: boolean } | null;
 }) {
   const t = useT();
   const locale = useLocale();
@@ -50,11 +50,10 @@ export function RepositoriesSection({ detail, outcome }: {
     const name = provider ? PROVIDER_NAMES[provider] : "";
     if (outcome.kind === "connected") {
       notify(t("site.org.git.done", { provider: name }));
-      // Depois de cada entrada no provedor, a escolha: no GitHub (GitHub App)
-      // ela já foi feita na tela do GitHub; nos outros, o diálogo abre na
-      // escolha da organização do provedor.
+      // Depois de cada entrada no provedor, a escolha da organização do
+      // provedor; no GitHub, só quando ela não veio da tela de instalar.
       if (provider && outcome.pick) {
-        setChangingNamespace(provider !== "github");
+        setChangingNamespace(!outcome.chosen);
         setPicking(provider);
       }
     } else if (outcome.kind === "denied") report({ key: "site.org.git.denied", params: { provider: name } });
@@ -209,7 +208,7 @@ export function RepositoriesSection({ detail, outcome }: {
       </SettingsSection>
 
       {owner && picking && (
-        <RepositoryPicker org={org.id} initial={picking} connections={detail.connections} changeNamespace={changingNamespace} namespaceFromProvider={(provider) => provider === "github"}
+        <RepositoryPicker org={org.id} initial={picking} connections={detail.connections} changeNamespace={changingNamespace}
           linked={detail.repositories.map((repository) => repository.repoKey)}
           onReconnect={(provider) => connect(provider, true)}
           onClose={(changed) => {
