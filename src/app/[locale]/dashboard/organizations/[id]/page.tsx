@@ -10,7 +10,7 @@ import { loadOrganization } from "../data";
 import { OrganizationBoard, type OrganizationTab } from "./OrganizationBoard";
 import type { GitOutcome } from "./RepositoriesSection";
 
-const TABS: OrganizationTab[] = ["members", "repositories", "policy", "mcp", "skills", "settings"];
+const TABS: OrganizationTab[] = ["members", "repositories", "policy", "permissions", "mcp", "skills", "settings"];
 const OUTCOMES: GitOutcome[] = ["connected", "denied", "requested", "forbidden", "failed"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/dashboard/organizations/[id]">): Promise<Metadata> {
