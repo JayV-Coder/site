@@ -48,24 +48,35 @@ export interface GitState {
   pick: boolean;
 }
 
-/** Os tokens do owner, um por provedor, de quem entrou. Vivem só no cookie
- * cifrado (uma hora), nunca no banco: servem para listar e conferir os
- * repositórios na hora de associar. */
+/** Os tokens do owner, um por organização e provedor (`<org>:<provedor>`):
+ * cada organização usa a conta que foi conectada nela, sem trocar a das
+ * outras. Vivem só no cookie cifrado (uma hora), nunca no banco: servem para
+ * listar e conferir os repositórios na hora de associar. */
 export interface GitTokens {
   user: string;
-  tokens: Partial<Record<GitProvider, { token: string; account: string; expiresAt: number }>>;
+  tokens: Record<string, { token: string; account: string; expiresAt: number }>;
 }
 
-/** O token deste provedor, se for de quem entrou e ainda valer. */
-export function tokenOf(jar: GitTokens | null, user: string, provider: GitProvider, now = Date.now()) {
-  const entry = jar && jar.user === user ? jar.tokens[provider] : undefined;
+/** Quantos tokens o cookie guarda: os mais velhos saem primeiro, para ele não
+ * passar do tamanho que o navegador aceita. */
+export const JAR_MAX = 12;
+
+const slot = (org: string, provider: GitProvider) => `${org}:${provider}`;
+
+/** O token desta organização e provedor, se for de quem entrou e ainda valer. */
+export function tokenOf(jar: GitTokens | null, user: string, org: string, provider: GitProvider, now = Date.now()) {
+  const entry = jar && jar.user === user ? jar.tokens?.[slot(org, provider)] : undefined;
   return entry && entry.expiresAt > now ? entry : null;
 }
 
-/** O pote com este token; o de outra pessoa (mesmo navegador) é descartado. */
-export function withToken(jar: GitTokens | null, user: string, provider: GitProvider, entry: GitTokens["tokens"][GitProvider] | null): GitTokens {
-  const tokens = { ...(jar && jar.user === user ? jar.tokens : {}) };
-  if (entry) tokens[provider] = entry;
-  else delete tokens[provider];
+/** O pote com este token; o de outra pessoa (mesmo navegador) é descartado,
+ * os vencidos saem e, cheio, sai o mais antigo. */
+export function withToken(jar: GitTokens | null, user: string, org: string, provider: GitProvider, entry: GitTokens["tokens"][string] | null, now = Date.now()): GitTokens {
+  const kept = Object.entries(jar && jar.user === user ? jar.tokens ?? {} : {})
+    .filter(([key, value]) => key !== slot(org, provider) && key.includes(":") && value.expiresAt > now)
+    .sort(([, a], [, b]) => b.expiresAt - a.expiresAt)
+    .slice(0, entry ? JAR_MAX - 1 : JAR_MAX);
+  const tokens = Object.fromEntries(kept);
+  if (entry) tokens[slot(org, provider)] = entry;
   return { user, tokens };
 }

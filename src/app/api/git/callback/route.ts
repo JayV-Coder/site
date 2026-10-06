@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
       return back(typeof failure !== "string" && failure.key === "org.forbidden" ? "forbidden" : "failed");
     }
     const secure = saved.redirectUri.startsWith("https://");
-    return back("connected", tokensCookie(request.cookies.get(TOKENS_COOKIE)?.value, saved.user, saved.provider, { token, account }, secure));
+    return back("connected", tokensCookie(request.cookies.get(TOKENS_COOKIE)?.value, saved.user, saved.org, saved.provider, { token, account }, secure));
   } catch (error) {
     console.error("git callback", saved.provider, error);
     return back("failed");

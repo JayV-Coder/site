@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { authorizeUrl, cleanPath, fromBitbucket, fromGithub, fromGitlab, linkPayload, matches, pathOk, repoKey } from "./providers";
-import { sameText, seal, tokenOf, unseal, withToken, type GitTokens } from "./seal";
+import { JAR_MAX, sameText, seal, tokenOf, unseal, withToken, type GitTokens } from "./seal";
 
 describe("git provider login", () => {
   it("sends the redirect and the scope GitHub and GitLab need", () => {
@@ -10,6 +10,7 @@ describe("git provider login", () => {
     expect(github.searchParams.get("scope")).toBe("repo read:org");
     expect(github.searchParams.get("state")).toBe("st");
     expect(github.searchParams.has("code_challenge")).toBe(false);
+    expect(github.searchParams.get("prompt")).toBe("select_account");
 
     const gitlab = new URL(authorizeUrl("gitlab", "id-2", "https://site.test/api/git/callback", "st", "challenge"));
     expect(gitlab.searchParams.get("scope")).toBe("read_api");
@@ -110,19 +111,32 @@ describe("sealed cookies", () => {
 describe("token jar", () => {
   const entry = { token: "t", account: "acme", expiresAt: 2_000 };
 
-  it("gives the token only to its owner, before it expires", () => {
-    const jar: GitTokens = { user: "u1", tokens: { github: entry } };
-    expect(tokenOf(jar, "u1", "github", 1_000)).toEqual(entry);
-    expect(tokenOf(jar, "u1", "github", 2_000)).toBeNull();
-    expect(tokenOf(jar, "u2", "github", 1_000)).toBeNull();
-    expect(tokenOf(jar, "u1", "gitlab", 1_000)).toBeNull();
-    expect(tokenOf(null, "u1", "github", 1_000)).toBeNull();
+  it("gives the token only to its owner, for that organization, before it expires", () => {
+    const jar: GitTokens = { user: "u1", tokens: { "org-x:github": entry } };
+    expect(tokenOf(jar, "u1", "org-x", "github", 1_000)).toEqual(entry);
+    expect(tokenOf(jar, "u1", "org-y", "github", 1_000)).toBeNull();
+    expect(tokenOf(jar, "u1", "org-x", "github", 2_000)).toBeNull();
+    expect(tokenOf(jar, "u2", "org-x", "github", 1_000)).toBeNull();
+    expect(tokenOf(jar, "u1", "org-x", "gitlab", 1_000)).toBeNull();
+    expect(tokenOf(null, "u1", "org-x", "github", 1_000)).toBeNull();
   });
 
-  it("drops someone else's tokens when another person connects", () => {
-    const jar: GitTokens = { user: "u1", tokens: { github: entry } };
-    expect(withToken(jar, "u2", "gitlab", entry)).toEqual({ user: "u2", tokens: { gitlab: entry } });
-    expect(withToken(jar, "u1", "gitlab", entry).tokens).toEqual({ github: entry, gitlab: entry });
-    expect(withToken(jar, "u1", "github", null).tokens).toEqual({});
+  it("keeps each organization's account when another one connects", () => {
+    const other = { token: "t2", account: "acme-y", expiresAt: 2_000 };
+    const jar = withToken({ user: "u1", tokens: { "org-x:github": entry } }, "u1", "org-y", "github", other, 1_000);
+    expect(tokenOf(jar, "u1", "org-x", "github", 1_000)?.account).toBe("acme");
+    expect(tokenOf(jar, "u1", "org-y", "github", 1_000)?.account).toBe("acme-y");
+    expect(withToken(jar, "u1", "org-x", "github", null, 1_000).tokens).toEqual({ "org-y:github": other });
+  });
+
+  it("drops someone else's, expired, old-format and the oldest tokens", () => {
+    const jar: GitTokens = { user: "u1", tokens: { github: entry, "org-x:gitlab": { ...entry, expiresAt: 500 } } };
+    expect(withToken(jar, "u2", "org-x", "gitlab", entry, 1_000)).toEqual({ user: "u2", tokens: { "org-x:gitlab": entry } });
+    expect(withToken(jar, "u1", "org-z", "github", entry, 1_000).tokens).toEqual({ "org-z:github": entry });
+    let full: GitTokens = { user: "u1", tokens: {} };
+    for (let index = 0; index < JAR_MAX + 3; index++) full = withToken(full, "u1", `org-${index}`, "github", { ...entry, expiresAt: 2_000 + index }, 1_000);
+    expect(Object.keys(full.tokens)).toHaveLength(JAR_MAX);
+    expect(tokenOf(full, "u1", "org-0", "github", 1_000)).toBeNull();
+    expect(tokenOf(full, "u1", `org-${JAR_MAX + 2}`, "github", 1_000)).not.toBeNull();
   });
 });
