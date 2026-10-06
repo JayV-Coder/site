@@ -4,11 +4,11 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import {
-  authorizeUrl, cleanNamespace, inNamespace, isGitProvider, LINK_MAX, linkPayload, namespaceOk, OAUTH, pathOk, type GitNamespace, type GitProvider, type GitRepository,
+  authorizeUrl, cleanNamespace, githubInstallUrl, inNamespace, isGitProvider, LINK_MAX, linkPayload, namespaceOk, OAUTH, pathOk, type GitNamespace, type GitProvider, type GitRepository,
 } from "@/modules/git/providers";
 import { randomText } from "@/modules/git/seal";
 import {
-  GitExpired, getRepository, gitClient, listNamespaces, listRepositories, pkcePair, requestOrigin, saveState, storedToken, tokensCookie, TOKENS_COOKIE,
+  GitExpired, getRepository, githubAppSlug, gitClient, listNamespaces, listRepositories, pkcePair, requestOrigin, saveState, storedToken, tokensCookie, TOKENS_COOKIE,
 } from "@/modules/git/server";
 import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
@@ -108,6 +108,17 @@ const unavailable = { ok: false, error: { key: "org.gitUnavailable" } } as const
  * de instalar não serve de começo: numa conta ou organização onde o app já
  * está instalado, o GitHub abre as configurações da instalação e não volta. */
 export async function startGitConnection(org: string, provider: GitProvider, locale: string, pick = false): Promise<ActionResult<string>> {
+  return beginGit(org, provider, locale, pick, false);
+}
+
+/** Instalar o GitHub App em outra conta ou organização: a tela do GitHub de
+ * escolher onde (e quais repositórios). Abre numa aba nova; a volta pela
+ * Setup URL termina a conexão ali, e esta aba relê a lista ao voltar. */
+export async function startGithubInstall(org: string, locale: string): Promise<ActionResult<string>> {
+  return beginGit(org, "github", locale, true, true);
+}
+
+async function beginGit(org: string, provider: GitProvider, locale: string, pick: boolean, install: boolean): Promise<ActionResult<string>> {
   // O idioma vira o começo do endereço da volta: só um idioma de verdade.
   if (!isGitProvider(provider) || !looksLikeLocale(locale)) return forbidden;
   const client = gitClient(provider);
@@ -119,6 +130,10 @@ export async function startGitConnection(org: string, provider: GitProvider, loc
     const state = randomText(24);
     const pair = OAUTH[provider].pkce ? pkcePair() : null;
     await saveState({ state, verifier: pair?.verifier ?? null, provider, org, locale, user, redirectUri, pick, installation: null });
+    if (install) {
+      const slug = githubAppSlug();
+      return slug ? { ok: true, data: githubInstallUrl(slug, state) } : unavailable;
+    }
     return { ok: true, data: authorizeUrl(provider, client.id, redirectUri, state, pair?.challenge) };
   } catch (error) {
     console.error("git start", error);

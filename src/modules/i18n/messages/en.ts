@@ -513,6 +513,8 @@ export const en = {
   "site.org.git.namespace.personal": "Personal account",
   "site.org.git.namespace.loading": "Loading organizations…",
   "site.org.git.namespace.empty": "This account has no organization to choose.",
+  "site.org.git.namespace.install": "Install the GitHub App on another account or organization",
+  "site.org.git.namespace.installHint": "GitHub opens in a new tab. After installing, come back to this tab and the list updates.",
   "site.org.git.namespace.saved": "This organization now uses {namespace} on {provider}.",
   "site.org.repos.description": "Members see these repositories on the organization page of the JayV app and clone them into their organization folder, with their own git access.",
   "site.org.repos.add": "Add repositories",

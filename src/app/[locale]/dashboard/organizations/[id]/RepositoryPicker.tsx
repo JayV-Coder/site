@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Building2Icon, CheckIcon, GlobeIcon, LockIcon, SearchIcon, UserRoundIcon } from "lucide-react";
+import { Building2Icon, CheckIcon, ExternalLinkIcon, GlobeIcon, LockIcon, SearchIcon, UserRoundIcon } from "lucide-react";
 import { EmptyText, LoadingNote, PROVIDER_NAMES, ProviderIcon } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { LINK_MAX, repoKey, type GitNamespace, type GitProvider, type GitRepository } from "@/modules/git/providers";
 import { useFeedback } from "@/modules/feedback";
-import { useT, type Key, type Text } from "@/modules/i18n";
+import { useLocale, useT, type Key, type Text } from "@/modules/i18n";
 import { cn } from "@/lib/utils";
-import { chooseGitNamespace, linkGitRepositories, listGitNamespaces, listGitRepositories } from "../actions";
+import { chooseGitNamespace, linkGitRepositories, listGitNamespaces, listGitRepositories, startGithubInstall } from "../actions";
 import type { GitConnection } from "../data";
 
 type Listing =
@@ -48,6 +48,7 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
   onClose: (changed: boolean) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
   const { notify, report } = useFeedback();
   const provider = initial;
   const [query, setQuery] = useState("");
@@ -64,6 +65,9 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
   const account = connection?.account ?? "";
   const namespace = chosen[provider] ?? connection?.namespace ?? null;
   const step = changing || !namespace ? "namespace" : "repos";
+  // Relê as organizações quando a pessoa volta da aba onde instalou o
+  // GitHub App em outra conta ou organização.
+  const [round, setRound] = useState(0);
   const name = PROVIDER_NAMES[provider];
 
   // As organizações do provedor que a conta alcança, no passo de escolher.
@@ -77,7 +81,31 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
       else setSpaces(expiredError(result.error) ? { state: "expired" } : { state: "failed", error: result.error });
     }).catch((error: unknown) => { if (live) setSpaces({ state: "failed", error: String(error) }); });
     return () => { live = false; };
-  }, [org, provider, step]);
+  }, [org, provider, step, round]);
+
+  useEffect(() => {
+    if (step !== "namespace" || provider !== "github") return;
+    const again = () => { if (document.visibilityState === "visible") setRound((value) => value + 1); };
+    document.addEventListener("visibilitychange", again);
+    return () => document.removeEventListener("visibilitychange", again);
+  }, [step, provider]);
+
+  // O GitHub App em outra conta ou organização: a tela do GitHub numa aba
+  // nova (aberta já no clique, para o navegador não bloquear), porque numa
+  // instalação que já existe o GitHub não volta para o site.
+  const install = () => startBusy(async () => {
+    const tab = window.open("", "_blank");
+    const result = await startGithubInstall(org, locale);
+    if (!result.ok) {
+      tab?.close();
+      report(result.error);
+      return;
+    }
+    if (tab) {
+      tab.opener = null;
+      tab.location.href = result.data;
+    } else window.location.assign(result.data);
+  });
 
   const pickNamespace = (value: string) => startBusy(async () => {
     const result = await chooseGitNamespace(org, provider, value);
@@ -188,6 +216,14 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
                 </ul>
               ))}
             </div>
+            {provider === "github" && (
+              <div className="grid min-w-0 gap-1.5">
+                <Button type="button" variant="outline" size="sm" className="h-auto w-full min-w-0 justify-start py-2 text-start whitespace-normal" disabled={busy} onClick={install}>
+                  <ExternalLinkIcon /><span className="min-w-0">{t("site.org.git.namespace.install")}</span>
+                </Button>
+                <p className="text-xs text-pretty text-muted-foreground">{t("site.org.git.namespace.installHint")}</p>
+              </div>
+            )}
             <DialogFooter>
               {namespace && changing && <Button type="button" variant="outline" disabled={busy} onClick={() => setChanging(false)}>{t("site.org.git.namespace.back")}</Button>}
               <Button type="button" variant="outline" disabled={busy} onClick={() => close(false)}>{t("common.cancel")}</Button>
