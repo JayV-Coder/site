@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authorizeUrl, cleanPath, fromBitbucket, fromGithub, fromGitlab, linkPayload, matches, pathOk, repoKey } from "./providers";
+import { authorizeUrl, cleanNamespace, cleanPath, inNamespace, namespaceOk, fromBitbucket, fromGithub, fromGitlab, linkPayload, matches, pathOk, repoKey } from "./providers";
 import { JAR_MAX, sameText, seal, tokenOf, unseal, withToken, type GitTokens } from "./seal";
 
 describe("git provider login", () => {
@@ -35,6 +35,19 @@ describe("repository paths", () => {
     expect(pathOk("acme/api.git")).toBe(false);
     expect(pathOk("acme/my api")).toBe(false);
     expect(repoKey("bitbucket", "team/web")).toBe("bitbucket.org/team/web");
+  });
+});
+
+describe("provider organizations", () => {
+  it("follow the database rule and keep each organization apart", () => {
+    expect(cleanNamespace(" Acme/ ")).toBe("acme");
+    expect(namespaceOk("acme")).toBe(true);
+    expect(namespaceOk("group/sub")).toBe(true);
+    expect(namespaceOk("a b")).toBe(false);
+    expect(inNamespace("acme/api", "acme")).toBe(true);
+    expect(inNamespace("acme-old/api", "acme")).toBe(false);
+    expect(inNamespace("group/sub/app", "group/sub")).toBe(true);
+    expect(inNamespace("group/other/app", "group/sub")).toBe(false);
   });
 });
 

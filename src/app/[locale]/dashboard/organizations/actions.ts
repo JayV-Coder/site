@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
-import { authorizeUrl, isGitProvider, LINK_MAX, linkPayload, OAUTH, pathOk, type GitProvider, type GitRepository } from "@/modules/git/providers";
+import {
+  authorizeUrl, cleanNamespace, inNamespace, isGitProvider, LINK_MAX, linkPayload, namespaceOk, OAUTH, pathOk, type GitNamespace, type GitProvider, type GitRepository,
+} from "@/modules/git/providers";
 import { randomText } from "@/modules/git/seal";
 import {
-  GitExpired, getRepository, gitClient, listRepositories, pkcePair, requestOrigin, saveState, storedToken, tokensCookie, TOKENS_COOKIE,
+  GitExpired, getRepository, gitClient, listNamespaces, listRepositories, pkcePair, requestOrigin, saveState, storedToken, tokensCookie, TOKENS_COOKIE,
 } from "@/modules/git/server";
 import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
@@ -132,14 +134,27 @@ export async function disconnectGit(org: string, provider: GitProvider) {
   return result;
 }
 
-async function withToken<T>(org: string, provider: GitProvider, run: (token: string) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+/** A conexão desta organização com o provedor, como o banco a guarda: a
+ * conta e a organização do provedor escolhida (nula até o owner escolher). */
+async function connectionOf(org: string, provider: GitProvider) {
+  const supabase = await userSupabase();
+  if (!supabase) return null;
+  const { data } = await supabase.from("organization_git_connections").select("account, namespace").eq("org_id", org).eq("provider", provider).maybeSingle();
+  return data ? { account: data.account as string, namespace: (data.namespace as string | null) ?? null } : null;
+}
+
+/** Roda com o token desta organização. O token só vale se for da conta que
+ * está conectada nela agora: uma reconexão com outra conta (em outro
+ * navegador, ou noutra aba) invalida o que ficou no cookie. */
+async function withToken<T>(org: string, provider: GitProvider, run: (token: string, connection: { account: string; namespace: string | null }) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   if (!isGitProvider(provider)) return forbidden;
   const user = await ownerOf(org);
   if (!user) return forbidden;
-  const stored = await storedToken(user, org, provider);
-  if (!stored) return expired;
+  const [stored, connection] = await Promise.all([storedToken(user, org, provider), connectionOf(org, provider)]);
+  if (!connection) return { ok: false, error: { key: "org.gitNotConnected" } };
+  if (!stored || stored.account !== connection.account) return expired;
   try {
-    return await run(stored.token);
+    return await run(stored.token, connection);
   } catch (error) {
     if (error instanceof GitExpired) return expired;
     console.error("git", provider, error);
@@ -147,30 +162,56 @@ async function withToken<T>(org: string, provider: GitProvider, run: (token: str
   }
 }
 
-/** A lista do provedor, para o owner escolher. */
-export async function listGitRepositories(org: string, provider: GitProvider, query: string) {
-  return withToken<{ repositories: GitRepository[]; truncated: boolean }>(org, provider, async (token) => ({
-    ok: true, data: await listRepositories(provider, token, typeof query === "string" ? query.slice(0, 100) : ""),
+const namespaceMissing = { ok: false, error: { key: "org.gitNamespaceMissing" } } as const;
+
+/** As organizações do provedor que a conta conectada alcança, para o owner
+ * escolher a desta organização do JayV. */
+export async function listGitNamespaces(org: string, provider: GitProvider) {
+  return withToken<GitNamespace[]>(org, provider, async (token, connection) => ({
+    ok: true, data: await listNamespaces(provider, token, connection.account),
   }));
 }
 
+/** Prende esta organização do JayV a uma organização do provedor, depois de
+ * conferir que a conta conectada a alcança. */
+export async function chooseGitNamespace(org: string, provider: GitProvider, namespace: string) {
+  const wanted = typeof namespace === "string" ? cleanNamespace(namespace) : "";
+  if (!namespaceOk(wanted)) return { ok: false, error: { key: "org.repoInvalid" } } as const;
+  return withToken<null>(org, provider, async (token, connection) => {
+    const reachable = await listNamespaces(provider, token, connection.account);
+    if (!reachable.some((known) => known.name === wanted)) return forbidden;
+    return call<null>("org_choose_git_namespace", { org, provider, namespace: wanted });
+  });
+}
+
+/** A lista da organização do provedor escolhida, para o owner marcar. */
+export async function listGitRepositories(org: string, provider: GitProvider, query: string) {
+  return withToken<{ repositories: GitRepository[]; truncated: boolean }>(org, provider, async (token, connection) => {
+    if (!connection.namespace) return namespaceMissing;
+    return { ok: true, data: await listRepositories(provider, token, typeof query === "string" ? query.slice(0, 100) : "", connection.namespace, connection.account) };
+  });
+}
+
 /** Associa os escolhidos. Cada um é lido de novo no provedor com o token: só
- * entra o que a conta conectada alcança, com os dados que o provedor dá (o
- * navegador manda só os caminhos). Devolve quantos entraram e os que o
- * provedor não mostrou. */
+ * entra o que a conta conectada alcança e que é da organização do provedor
+ * desta organização do JayV, com os dados que o provedor dá (o navegador
+ * manda só os caminhos). Devolve quantos entraram e os que ficaram de fora. */
 export async function linkGitRepositories(org: string, provider: GitProvider, paths: string[]) {
   const wanted = Array.isArray(paths) ? [...new Set(paths)] : [];
   if (wanted.length === 0 || wanted.length > LINK_MAX || !wanted.every((path) => typeof path === "string" && pathOk(path))) {
     return { ok: false, error: { key: "org.repoInvalid" } } as const;
   }
-  return withToken<{ linked: number; missing: string[] }>(org, provider, async (token) => {
+  return withToken<{ linked: number; missing: string[] }>(org, provider, async (token, connection) => {
+    const namespace = connection.namespace;
+    if (!namespace) return namespaceMissing;
     const found: GitRepository[] = [];
-    const missing: string[] = [];
+    const missing: string[] = wanted.filter((path) => !inNamespace(path, namespace));
+    const inside = wanted.filter((path) => inNamespace(path, namespace));
     // Dez de cada vez, para não estourar o limite do provedor.
-    for (let start = 0; start < wanted.length; start += 10) {
-      const batch = wanted.slice(start, start + 10);
+    for (let start = 0; start < inside.length; start += 10) {
+      const batch = inside.slice(start, start + 10);
       const results = await Promise.all(batch.map((path) => getRepository(provider, token, path)));
-      results.forEach((repository, index) => (repository ? found.push(repository) : missing.push(batch[index])));
+      results.forEach((repository, index) => (repository && inNamespace(repository.path, namespace) ? found.push(repository) : missing.push(batch[index])));
     }
     if (found.length === 0) return { ok: true, data: { linked: 0, missing } };
     const result = await call<number>("org_link_repositories", { org, provider, repositories: found.map(linkPayload) });

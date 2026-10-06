@@ -77,6 +77,20 @@ export const pathOk = (path: string) => PATH_RULE.test(path) && !path.endsWith("
 
 export const repoKey = (provider: GitProvider, path: string) => `${GIT_HOSTS[provider]}/${path}`;
 
+/** A organização do provedor a que uma organização do JayV fica presa: a
+ * conta pessoal ou uma organização do GitHub, um grupo do GitLab (com os
+ * subgrupos, `grupo/sub`) ou um workspace do Bitbucket. `name` é o dono no
+ * caminho dos repositórios, a mesma regra do banco. */
+export interface GitNamespace { name: string; label: string; personal: boolean }
+
+export const cleanNamespace = (raw: string) => raw.trim().replace(/^\/+|\/+$/g, "").toLowerCase();
+
+export const namespaceOk = (name: string) => /^[a-z0-9._-]+(\/[a-z0-9._-]+)*$/.test(name) && name.length <= 200;
+
+/** O repositório é da organização do provedor (e não de uma com nome que só
+ * começa igual, `acme-old` para `acme`). */
+export const inNamespace = (path: string, namespace: string) => path.startsWith(`${namespace}/`);
+
 type Raw = Record<string, unknown>;
 
 const text = (value: unknown, max: number) => (typeof value === "string" && value.trim() ? value.trim().slice(0, max) : null);
