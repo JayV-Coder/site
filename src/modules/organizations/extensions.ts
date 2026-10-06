@@ -4,9 +4,9 @@
 
 export type McpTransport = "stdio" | "http";
 
-/** Os agentes que recebem MCP pela linha de comando; o Cursor lê o próprio
- * arquivo de configuração e fica de fora. */
-export const MCP_AGENTS = ["claude", "codex", "copilot"] as const;
+/** Todos os agentes recebem os servidores, cada um do jeito que sabe (e só
+ * com o "Aprovar servidores MCP" dele ligado no app). */
+export const MCP_AGENTS = ["claude", "codex", "copilot", "cursor", "kilo", "openrouter", "litellm"] as const;
 export type McpAgent = (typeof MCP_AGENTS)[number];
 
 export interface OrgMcpServer {

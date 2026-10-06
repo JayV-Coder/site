@@ -7,15 +7,17 @@ export type Permission = "allow" | "ask" | "deny";
 export const AGENT_LABELS: Record<AgentId, string> = { claude: "Claude Code", codex: "Codex", copilot: "GitHub Copilot", cursor: "Cursor", kilo: "Kilo Code", openrouter: "OpenRouter", litellm: "LiteLLM" };
 
 /** Os mecanismos que cada agente liga sem perguntar (`AGENT_MECHANISMS` do
- * app); o texto de cada um vem do i18n (`mechanism.<nome>`). */
+ * app); o texto de cada um vem do i18n (`mechanism.<nome>`). O `mcp` é o
+ * "Aprovar servidores MCP", que todo agente tem: bloqueado, nenhum servidor
+ * MCP chega ao agente nos projetos da organização. */
 export const AGENT_MECHANISMS: Record<AgentId, string[]> = {
-  claude: ["webSearch", "webFetch", "shell"],
-  codex: ["webSearch"],
-  copilot: ["webFetch", "shell", "githubTools"],
-  cursor: [],
-  kilo: [],
-  openrouter: [],
-  litellm: [],
+  claude: ["webSearch", "webFetch", "shell", "mcp"],
+  codex: ["webSearch", "mcp"],
+  copilot: ["webFetch", "shell", "githubTools", "mcp"],
+  cursor: ["mcp"],
+  kilo: ["mcp"],
+  openrouter: ["mcp"],
+  litellm: ["mcp"],
 };
 
 /** `agents` nulo é "todos os agentes". */

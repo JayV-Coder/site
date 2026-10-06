@@ -19,7 +19,7 @@ describe("servidores MCP", () => {
   });
 
   it("grava só o que o transporte usa", () => {
-    const payload = mcpPayload({ ...blankServer(), name: " a ", transport: "http", url: " https://x.example ", command: "stale", env: { A: "1" }, agents: ["claude", "cursor"] });
+    const payload = mcpPayload({ ...blankServer(), name: " a ", transport: "http", url: " https://x.example ", command: "stale", env: { A: "1" }, agents: ["claude", "unknown"] });
     expect(payload).toMatchObject({ name: "a", url: "https://x.example", command: "", env: {}, agents: ["claude"] });
   });
 
