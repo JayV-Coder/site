@@ -13,6 +13,7 @@ import {
 import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
 import { mcpPayload, mcpProblems, skillProblems, SKILL_BODY_MAX, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
+import { COMMAND_RULES_MAX, rulesInvalid, ruleLines } from "@/modules/organizations/commands";
 import { policyOk, policyPayload, type LlmPolicy } from "@/modules/organizations/policy";
 import { INVITE_ROLES, orgFailure, slugOk, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
@@ -55,6 +56,13 @@ export async function savePolicy(org: string, repository: string | null, policy:
 
 export async function clearPolicy(org: string, repository: string | null) {
   return call<null>("clear_llm_policy", { org, repository });
+}
+
+/** As regras de comandos bloqueados da organização (`repository` nulo) ou de um repositório. */
+export async function saveCommandRules(org: string, repository: string | null, rules: string[]) {
+  const clean = ruleLines(rules.join("\n"));
+  if (rulesInvalid(clean) || clean.length > COMMAND_RULES_MAX) return { ok: false, error: { key: "policy.invalid" } } as const;
+  return call<null>("set_command_rules", { org, repository, rules: clean });
 }
 
 /** Servidores MCP e skills da organização: owner e maintainer gravam; os

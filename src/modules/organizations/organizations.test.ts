@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyPolicy, policyLines, policyOk, policyPayload, policyProblems, storedPolicy } from "./policy";
+import { inCatalog, ruleBlocks, ruleLines, rulesInvalid, storedCommandRules } from "./commands";
 import { canDelete, canManage, orgFailure, slugify, slugOk } from "./rules";
 
 describe("organization rules", () => {
@@ -58,5 +59,39 @@ describe("llm policy", () => {
     expect(policyLines("a/**\n\n  b/**  \na/**")).toEqual(["a/**", "b/**"]);
     const stored = storedPolicy({ repository_id: null, agents: ["codex"], deny: ["*.pem"], min_shell: "deny", min_write: "maybe", safe_agents: true });
     expect(stored).toMatchObject({ repositoryId: null, agents: ["codex"], deny: ["*.pem"], blocked_models: [], min_shell: "deny", min_write: "allow", safe_agents: true, redact_secrets: false });
+  });
+});
+
+describe("command permissions", () => {
+  it("blocks a command by word prefix", () => {
+    expect(ruleBlocks("git", "git push origin main")).toBe(true);
+    expect(ruleBlocks("git push", "git push --force")).toBe(true);
+    expect(ruleBlocks("git push", "git pull")).toBe(false);
+    expect(ruleBlocks("git", "gitk")).toBe(false);
+    expect(ruleBlocks("npm publish", "npm")).toBe(false);
+  });
+
+  it("checks the database rule format", () => {
+    expect(rulesInvalid(["git", "git push", "terraform destroy", "docker compose up"])).toBe(false);
+    for (const rule of ["git; rm", "a b c d", "-rf", "", "git  push "]) expect(rulesInvalid([rule]), rule).toBe(true);
+    expect(rulesInvalid(Array.from({ length: 201 }, (_, index) => `tool${index}`))).toBe(true);
+  });
+
+  it("splits what the catalog shows from free-text rules", () => {
+    expect(inCatalog("git")).toBe(true);
+    expect(inCatalog("git push")).toBe(true);
+    expect(inCatalog("git frobnicate")).toBe(false);
+    expect(inCatalog("terraform destroy")).toBe(true);
+    expect(inCatalog("make test")).toBe(false);
+    expect(inCatalog("helm install")).toBe(false);
+  });
+
+  it("cleans the lines of the free-text field", () => {
+    expect(ruleLines(" git push \n\ngit push\nnpm publish")).toEqual(["git push", "npm publish"]);
+  });
+
+  it("reads a stored row", () => {
+    expect(storedCommandRules({ repository_id: "r1", blocked: ["git push"] })).toEqual({ repositoryId: "r1", blocked: ["git push"] });
+    expect(storedCommandRules({ repository_id: null })).toEqual({ repositoryId: null, blocked: [] });
   });
 });
