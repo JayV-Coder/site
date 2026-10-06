@@ -112,6 +112,16 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
 
   const close = (didChange: boolean) => onClose(didChange || changed);
 
+  // Os da lista que ainda podem ser marcados (os que já estão na organização
+  // ficam de fora); "Selecionar todos" marca até o limite de uma vez.
+  const selectable = listing.state === "ready"
+    ? listing.repositories.filter((repository) => !linked.includes(repoKey(repository.provider, repository.path))).map((repository) => repository.path)
+    : [];
+  const allSelected = selectable.length > 0 && selectable.slice(0, LINK_MAX).every((path) => selected.includes(path));
+  const selectAll = (on: boolean) => setSelected((current) => (on
+    ? [...new Set([...current, ...selectable])].slice(0, LINK_MAX)
+    : current.filter((path) => !selectable.includes(path))));
+
   const toggle = (path: string, on: boolean) => setSelected((current) => (on ? [...current, path].slice(0, LINK_MAX) : current.filter((item) => item !== path)));
 
   const submit = () => startBusy(async () => {
@@ -206,6 +216,14 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
           {listing.state === "failed" && failure(listing.error)}
           {listing.state === "expired" && reconnect}
           {listing.state === "ready" && (listing.repositories.length === 0 ? <EmptyText className="p-4">{t("site.org.repos.pick.empty")}</EmptyText> : (
+            <>
+            {selectable.length > 0 && (
+              <label htmlFor="pick-all" className="sticky top-0 z-10 flex cursor-pointer items-center gap-3 border-b border-border/70 bg-card px-3 py-2.5 hover:bg-secondary/60">
+                <Checkbox id="pick-all" checked={allSelected} disabled={busy} onCheckedChange={(checked) => selectAll(checked === true)} />
+                <span className="min-w-0 flex-1 text-sm font-medium">{t("site.org.repos.pick.selectAll")}</span>
+                {selectable.length > LINK_MAX && <span className="text-xs text-muted-foreground">{t("site.org.repos.pick.limit", { max: LINK_MAX })}</span>}
+              </label>
+            )}
             <ul className="divide-y divide-border/70">
               {listing.repositories.map((repository) => {
                 const already = linked.includes(repoKey(repository.provider, repository.path));
@@ -231,6 +249,7 @@ export function RepositoryPicker({ org, initial, connections, linked, changeName
                 );
               })}
             </ul>
+            </>
           ))}
         </div>
         {listing.state === "ready" && listing.truncated && <p className="text-xs text-muted-foreground">{t("site.org.repos.pick.truncated")}</p>}

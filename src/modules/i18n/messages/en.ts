@@ -531,6 +531,8 @@ export const en = {
   "site.org.repos.pick.added": "In the organization",
   "site.org.repos.pick.truncated": "Showing the most recently updated. Search to find the others.",
   "site.org.repos.pick.expired": "The {provider} session on this site has expired. Connect again to list the repositories.",
+  "site.org.repos.pick.selectAll": "Select all",
+  "site.org.repos.pick.limit": "Up to {max} at a time",
   "site.org.repos.pick.submit": "Add selected ({count})",
   "site.org.repos.pick.linked": { one: "{count} repository added.", other: "{count} repositories added." },
   "site.org.repos.pick.missing": "{provider} did not show these with the connected account: {paths}.",
