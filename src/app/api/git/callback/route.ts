@@ -1,19 +1,29 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/auth";
-import { sameText } from "@/modules/git/seal";
-import { accountName, exchangeCode, readState, requestOrigin, STATE_COOKIE, tokensCookie, TOKENS_COOKIE } from "@/modules/git/server";
+import { authorizeUrl } from "@/modules/git/providers";
+import { randomText, sameText } from "@/modules/git/seal";
+import {
+  accountName, exchangeCode, githubAppSlug, githubInstallation, gitClient, readState, requestOrigin, STATE_COOKIE, stateCookie, tokensCookie, TOKENS_COOKIE,
+} from "@/modules/git/server";
 import { looksLikeLocale } from "@/modules/i18n/render";
 import { orgFailure } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
 
-type Outcome = "connected" | "denied" | "forbidden" | "failed";
+type Outcome = "connected" | "denied" | "requested" | "forbidden" | "failed";
 
-/** A volta do provedor git (o mesmo endereço nos três apps OAuth). Confere o
- * `state` com o cookie e a pessoa com a sessão, troca o código pelo token,
- * grava no banco qual conta foi conectada (`org_connect_git`, só o owner) e
- * guarda o token só no cookie cifrado. A organização abre na aba de
- * repositórios com o resultado em `git`. */
+/** A volta do provedor git (o mesmo endereço nos três apps OAuth e na Setup
+ * URL do GitHub App). Confere o `state` com o cookie e a pessoa com a sessão,
+ * troca o código pelo token, grava no banco qual conta foi conectada
+ * (`org_connect_git`, só o owner) e guarda o token só no cookie cifrado. A
+ * organização abre na aba de repositórios com o resultado em `git`.
+ *
+ * GitHub App, em dois passos: a tela do GitHub (conta ou organização e quais
+ * repositórios) volta aqui com `installation_id`; a rota guarda a instalação
+ * no cookie e pede a autorização da pessoa, que volta com o `code`. A
+ * instalação só vale se a pessoa a alcança, e o dono dela (conta ou
+ * organização) vira a organização do provedor desta organização do JayV. */
 export async function GET(request: NextRequest) {
+  const params = request.nextUrl.searchParams;
   const sealed = readState(request.cookies.get(STATE_COOKIE)?.value);
   // O cookie é cifrado, mas o endereço da volta só sai de um idioma e de uma
   // organização com formato válido.
@@ -38,26 +48,57 @@ export async function GET(request: NextRequest) {
     return response;
   };
 
-  const state = request.nextUrl.searchParams.get("state") ?? "";
-  if (!saved || !state || !sameText(state, saved.state)) return back("failed");
+  if (!saved) return back("failed");
   const session = await auth();
   if (!session?.user.id || session.user.id !== saved.user) return back("failed");
-  if (request.nextUrl.searchParams.get("error")) return back("denied");
-  const code = request.nextUrl.searchParams.get("code");
+  const code = params.get("code");
+  const state = params.get("state") ?? "";
+  const appSlug = saved.provider === "github" ? githubAppSlug() : null;
+  const fromInstall = !!params.get("installation_id") && !sameText(state, saved.state);
+
+  // GitHub App, primeiro passo: voltou da tela de instalação. A instalação
+  // fica no cookie e a pessoa autoriza o app; o `state` novo é conferido na
+  // volta com o código. O id não é confiável ainda: é conferido com o token.
+  // Um código que veio da instalação sem o nosso `state` (o app pedindo a
+  // autorização durante a instalação) é descartado: a autorização é pedida
+  // de novo, com o `state` conferido.
+  if (appSlug && (!code || fromInstall)) {
+    if (params.get("setup_action") === "request") return back("requested");
+    const installation = Number(params.get("installation_id"));
+    const client = gitClient("github");
+    if (!Number.isSafeInteger(installation) || installation <= 0 || !client) return back(params.get("error") ? "denied" : "failed");
+    const next = { ...saved, state: randomText(24), installation };
+    const response = NextResponse.redirect(authorizeUrl("github", client.id, saved.redirectUri, next.state));
+    const cookie = stateCookie(next);
+    response.cookies.set(cookie.name, cookie.value, cookie.options);
+    return response;
+  }
+
+  if (!state || !sameText(state, saved.state)) return back("failed");
+  if (params.get("error")) return back("denied");
   if (!code) return back("failed");
 
   try {
     const token = await exchangeCode(saved.provider, code, saved.redirectUri, saved.verifier);
     const account = await accountName(saved.provider, token);
+    // Com o GitHub App, a instalação escolhida na tela do GitHub (a guardada
+    // no primeiro passo, ou a que veio junto com o código).
+    const installation = appSlug ? saved.installation || Number(params.get("installation_id")) || null : null;
+    const owner = installation ? await githubInstallation(token, installation) : null;
+    if (appSlug && !owner) return back("failed");
     const supabase = await userSupabase();
     if (!supabase) return back("failed");
-    const { error } = await supabase.rpc("org_connect_git", { org: saved.org, provider: saved.provider, account });
-    if (error) {
-      const failure = orgFailure(error);
+    const connected = await supabase.rpc("org_connect_git", { org: saved.org, provider: saved.provider, account });
+    const chosen = connected.error || !owner
+      ? connected
+      : await supabase.rpc("org_choose_git_namespace", { org: saved.org, provider: saved.provider, namespace: owner.namespace });
+    if (chosen.error) {
+      const failure = orgFailure(chosen.error);
       return back(typeof failure !== "string" && failure.key === "org.forbidden" ? "forbidden" : "failed");
     }
     const secure = saved.redirectUri.startsWith("https://");
-    return back("connected", tokensCookie(request.cookies.get(TOKENS_COOKIE)?.value, saved.user, saved.org, saved.provider, { token, account }, secure));
+    const entry = { token, account, ...(installation ? { installation } : {}) };
+    return back("connected", tokensCookie(request.cookies.get(TOKENS_COOKIE)?.value, saved.user, saved.org, saved.provider, entry, secure));
   } catch (error) {
     console.error("git callback", saved.provider, error);
     return back("failed");

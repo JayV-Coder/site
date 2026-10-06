@@ -15,7 +15,7 @@ import { disconnectGit, removeRepository, startGitConnection } from "../actions"
 import type { OrganizationDetail } from "../data";
 import { RepositoryPicker } from "./RepositoryPicker";
 
-export type GitOutcome = "connected" | "denied" | "forbidden" | "failed";
+export type GitOutcome = "connected" | "denied" | "requested" | "forbidden" | "failed";
 
 /** O provedor git e os repositórios da organização. O owner conecta o
  * GitHub, o GitLab ou o Bitbucket (o login abre no provedor e volta por
@@ -50,12 +50,19 @@ export function RepositoriesSection({ detail, outcome }: {
     const name = provider ? PROVIDER_NAMES[provider] : "";
     if (outcome.kind === "connected") {
       notify(t("site.org.git.done", { provider: name }));
-      if (provider && outcome.pick) setPicking(provider);
+      // Depois de cada entrada no provedor, a escolha: no GitHub App ela já
+      // foi feita na tela do GitHub; nos outros, o diálogo abre na escolha da
+      // organização do provedor.
+      if (provider && outcome.pick) {
+        setChangingNamespace(!(provider === "github" && detail.githubApp));
+        setPicking(provider);
+      }
     } else if (outcome.kind === "denied") report({ key: "site.org.git.denied", params: { provider: name } });
+    else if (outcome.kind === "requested") report({ key: "site.org.git.requested", params: { provider: name } });
     else if (outcome.kind === "forbidden") report({ key: "org.forbidden" });
     else report({ key: "site.org.git.failed", params: { provider: name } });
     router.replace(`${pathname}?tab=repositories`);
-  }, [outcome, notify, report, t, router, pathname]);
+  }, [outcome, notify, report, t, router, pathname, detail.githubApp]);
 
   const connect = (provider: GitProvider, pick = false) => startBusy(async () => {
     setRunning(`connect:${provider}`);
@@ -135,14 +142,11 @@ export function RepositoriesSection({ detail, outcome }: {
                 {owner && (
                   <div className="ms-auto flex flex-wrap gap-1">
                     {available && (
-                      <Button variant={connection ? "ghost" : "outline"} size="sm" loading={running === `connect:${provider}`} disabled={busy} onClick={() => connect(provider, true)}>
-                        {connection ? t("site.org.git.reconnect") : t("site.org.git.connect")}
-                      </Button>
-                    )}
-                    {connection && (
-                      <Button variant={connection.namespace ? "ghost" : "outline"} size="sm" disabled={busy}
-                        onClick={() => { setChangingNamespace(true); setPicking(provider); }}>
-                        {connection.namespace ? t("site.org.git.namespace.change") : t("site.org.git.namespace.choose")}
+                      // Cada clique passa de novo pela tela do provedor: a conta
+                      // ou a organização é escolhida lá (ou logo na volta), só
+                      // para esta organização do JayV.
+                      <Button variant={connection ? "default" : "outline"} size="sm" loading={running === `connect:${provider}`} disabled={busy} onClick={() => connect(provider, true)}>
+                        {connection ? <><PlusIcon />{t("site.org.repos.add")}</> : t("site.org.git.connect")}
                       </Button>
                     )}
                     {connection && (
@@ -160,10 +164,7 @@ export function RepositoriesSection({ detail, outcome }: {
         {!owner && <p className="text-xs text-muted-foreground">{t("site.org.git.ownerOnly")}</p>}
       </SettingsSection>
 
-      <SettingsSection title={t("org.repos.title")} description={t("site.org.repos.description")}
-        action={owner && connected.length > 0 ? (
-          <Button size="sm" disabled={busy} onClick={() => { setChangingNamespace(false); setPicking(connected[0]); }}><PlusIcon />{t("site.org.repos.add")}</Button>
-        ) : undefined}>
+      <SettingsSection title={t("org.repos.title")} description={t("site.org.repos.description")}>
         {owner && connected.length === 0 && <p className="text-xs text-muted-foreground">{t("site.org.repos.connectFirst")}</p>}
         {detail.repositories.length === 0 ? <EmptyText>{t("org.repos.empty")}</EmptyText> : (
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -208,7 +209,7 @@ export function RepositoriesSection({ detail, outcome }: {
       </SettingsSection>
 
       {owner && picking && (
-        <RepositoryPicker org={org.id} connected={connected} initial={picking} connections={detail.connections} changeNamespace={changingNamespace}
+        <RepositoryPicker org={org.id} initial={picking} connections={detail.connections} changeNamespace={changingNamespace} namespaceFromProvider={(provider) => provider === "github" && detail.githubApp}
           linked={detail.repositories.map((repository) => repository.repoKey)}
           onReconnect={(provider) => connect(provider, true)}
           onClose={(changed) => {

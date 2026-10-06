@@ -65,6 +65,11 @@ export function authorizeUrl(provider: GitProvider, clientId: string, redirectUr
   return `${endpoints.authorize}?${query}`;
 }
 
+/** A tela do GitHub de escolher onde instalar o GitHub App (a conta pessoal
+ * ou uma organização) e quais repositórios. O `state` volta na Setup URL. */
+export const githubInstallUrl = (slug: string, state: string) =>
+  `https://github.com/apps/${encodeURIComponent(slug)}/installations/select_target?state=${encodeURIComponent(state)}`;
+
 /** A mesma regra de `organization_repositories.path`: dois ou mais trechos de
  * `[a-z0-9._-]`, sem `.git` no fim. */
 export const PATH_RULE = /^[a-z0-9._-]+(\/[a-z0-9._-]+)+$/;

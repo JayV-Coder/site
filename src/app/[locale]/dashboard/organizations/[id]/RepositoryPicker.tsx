@@ -3,7 +3,6 @@
 import { useEffect, useState, useTransition } from "react";
 import { Building2Icon, CheckIcon, GlobeIcon, LockIcon, SearchIcon, UserRoundIcon } from "lucide-react";
 import { EmptyText, LoadingNote, PROVIDER_NAMES, ProviderIcon } from "@/components/atoms";
-import { SegmentedControl } from "@/components/molecules";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,20 +37,22 @@ const expiredError = (error: Text | string) => typeof error !== "string" && erro
  * para marcar. Tudo vai ao provedor pelo servidor, com o token desta
  * organização; sem token (venceu a hora), o botão entra de novo e a lista
  * reabre na volta. */
-export function RepositoryPicker({ org, connected, initial, connections, linked, changeNamespace = false, onReconnect, onClose }: {
+export function RepositoryPicker({ org, initial, connections, linked, changeNamespace = false, namespaceFromProvider = () => false, onReconnect, onClose }: {
   org: string;
-  connected: GitProvider[];
   initial: GitProvider;
   connections: GitConnection[];
   linked: string[];
   /** Abrir direto na escolha da organização do provedor. */
   changeNamespace?: boolean;
+  /** A organização deste provedor é escolhida na tela dele (GitHub App), não
+   * aqui: trocar é entrar de novo. */
+  namespaceFromProvider?: (provider: GitProvider) => boolean;
   onReconnect: (provider: GitProvider) => void;
   onClose: (changed: boolean) => void;
 }) {
   const t = useT();
   const { notify, report } = useFeedback();
-  const [provider, setProvider] = useState<GitProvider>(initial);
+  const provider = initial;
   const [query, setQuery] = useState("");
   const [listing, setListing] = useState<Listing>({ state: "loading" });
   const [selected, setSelected] = useState<string[]>([]);
@@ -65,7 +66,8 @@ export function RepositoryPicker({ org, connected, initial, connections, linked,
   const connection = connections.find((known) => known.provider === provider);
   const account = connection?.account ?? "";
   const namespace = chosen[provider] ?? connection?.namespace ?? null;
-  const step = changing || !namespace ? "namespace" : "repos";
+  const fromProvider = namespaceFromProvider(provider);
+  const step = !fromProvider && (changing || !namespace) ? "namespace" : "repos";
   const name = PROVIDER_NAMES[provider];
 
   // As organizações do provedor que a conta alcança, no passo de escolher.
@@ -112,12 +114,6 @@ export function RepositoryPicker({ org, connected, initial, connections, linked,
     return () => { live = false; clearTimeout(timer); };
   }, [org, provider, query, step, namespace]);
 
-  const choose = (next: GitProvider) => {
-    setProvider(next);
-    setSelected([]);
-    setChanging(false);
-  };
-
   const close = (didChange: boolean) => onClose(didChange || changed);
 
   const toggle = (path: string, on: boolean) => setSelected((current) => (on ? [...current, path].slice(0, LINK_MAX) : current.filter((item) => item !== path)));
@@ -157,10 +153,6 @@ export function RepositoryPicker({ org, connected, initial, connections, linked,
           </DialogDescription>
         </DialogHeader>
 
-        {connected.length > 1 && (
-          <SegmentedControl label={t("site.org.git.title")} value={provider} onChange={choose}
-            options={connected.map((value) => ({ value, label: PROVIDER_NAMES[value], icon: <ProviderIcon provider={value} className="size-3.5" /> }))} />
-        )}
 
         {step === "namespace" ? (
           <>
@@ -203,7 +195,9 @@ export function RepositoryPicker({ org, connected, initial, connections, linked,
             <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
               <Building2Icon className="size-3.5 shrink-0" /><span className="truncate font-mono">{namespace}</span>
             </span>
-            <Button type="button" variant="link" size="xs" disabled={busy} onClick={() => setChanging(true)}>{t("site.org.git.namespace.change")}</Button>
+            <Button type="button" variant="link" size="xs" disabled={busy} onClick={() => (fromProvider ? onReconnect(provider) : setChanging(true))}>
+              {t("site.org.git.namespace.change")}
+            </Button>
           </div>
           <div className="relative">
             <SearchIcon aria-hidden="true" className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

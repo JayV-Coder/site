@@ -39,7 +39,13 @@ se mudar de projeto, `NEXT_PUBLIC_SUPABASE_URL` /
 O provedor git das organizações (aba **Repositórios**) usa um app OAuth do
 próprio site em cada provedor, com o retorno em `https://<domínio>/api/git/callback`
 e as variáveis `GIT_<PROVEDOR>_CLIENT_ID` / `GIT_<PROVEDOR>_CLIENT_SECRET`
-(veja `.env.example`). Um provedor sem as duas aparece indisponível. O token
+(veja `.env.example`). Um provedor sem as duas aparece indisponível. No
+GitHub, prefira um GitHub App com `GIT_GITHUB_APP_SLUG`: cada clique em
+GitHub, em cada organização do JayV, abre a tela do GitHub de escolher a conta
+ou a organização e os repositórios (Setup URL e Callback URL apontando para
+`/api/git/callback`, com "Redirect on update" ligado). No GitLab e no
+Bitbucket, a organização (grupo ou workspace) é escolhida no site, logo depois
+de entrar. O token
 do owner fica só num cookie cifrado com o `AUTH_SECRET`, por uma hora, e
 nunca vai ao banco: serve para listar e conferir os repositórios na hora de
 associar.
