@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
-import { GIT_PROVIDERS, NORMALIZE, OAUTH, matches, type GitProvider, type GitRepository } from "./providers";
+import { cleanNamespace, GIT_PROVIDERS, inNamespace, matches, namespaceOk, NORMALIZE, OAUTH, type GitNamespace, type GitProvider, type GitRepository } from "./providers";
 import { randomText, seal, tokenOf, unseal, withToken, type GitState, type GitTokens } from "./seal";
 
 /** Cada provedor precisa de um app OAuth próprio do site (o login do JayV
@@ -129,47 +129,88 @@ export async function accountName(provider: GitProvider, token: string): Promise
 /** Quantas páginas de 100 a lista lê, no máximo. */
 const PAGES = 5;
 
-/** Os repositórios que a conta alcança, do mais mexido ao menos, filtrados
- * pela busca. `truncated` diz que havia mais do que as páginas lidas. */
-export async function listRepositories(provider: GitProvider, token: string, query: string): Promise<{ repositories: GitRepository[]; truncated: boolean }> {
+/** As organizações do provedor que a conta alcança — a conta pessoal e as
+ * organizações do GitHub, os grupos do GitLab ou os workspaces do
+ * Bitbucket —, para o owner prender a organização do JayV a uma delas. */
+export async function listNamespaces(provider: GitProvider, token: string, account: string): Promise<GitNamespace[]> {
+  const found: GitNamespace[] = [];
+  const add = (raw: unknown, label: unknown, personal: boolean) => {
+    const name = typeof raw === "string" ? cleanNamespace(raw) : "";
+    if (namespaceOk(name) && !found.some((known) => known.name === name)) {
+      found.push({ name, label: typeof label === "string" && label.trim() ? label.trim().slice(0, 100) : name, personal });
+    }
+  };
+  if (provider === "github") {
+    add(account, account, true);
+    for (let page = 1; page <= PAGES; page++) {
+      const rows = (await api<Record<string, unknown>[]>(provider, token, `https://api.github.com/user/orgs?per_page=100&page=${page}`))?.body ?? [];
+      rows.forEach((row) => add(row.login, row.login, false));
+      if (rows.length < 100) break;
+    }
+  } else if (provider === "gitlab") {
+    add(account, account, true);
+    for (let page = 1; page <= PAGES; page++) {
+      const result = await api<Record<string, unknown>[]>(provider, token, `https://gitlab.com/api/v4/groups?min_access_level=10&per_page=100&page=${page}`);
+      (result?.body ?? []).forEach((row) => add(row.full_path, row.full_name, false));
+      if (!result?.response.headers.get("x-next-page")) break;
+    }
+  } else {
+    let url: string | null = "https://api.bitbucket.org/2.0/user/permissions/workspaces?pagelen=100";
+    for (let page = 1; url && page <= PAGES; page++) {
+      const result = await api<{ values?: { workspace?: { slug?: unknown; name?: unknown } }[]; next?: string }>(provider, token, url);
+      (result?.body.values ?? []).forEach((row) => add(row.workspace?.slug, row.workspace?.name, false));
+      const next: unknown = result?.body.next;
+      url = typeof next === "string" && next.startsWith("https://api.bitbucket.org/") ? next : null;
+    }
+  }
+  return found;
+}
+
+/** Os repositórios da organização do provedor escolhida (`namespace`), do
+ * mais mexido ao menos, filtrados pela busca. Só entram os que estão nela:
+ * os de outras organizações que a mesma conta alcança ficam de fora.
+ * `truncated` diz que havia mais do que as páginas lidas. */
+export async function listRepositories(provider: GitProvider, token: string, query: string, namespace: string, account: string): Promise<{ repositories: GitRepository[]; truncated: boolean }> {
   const found: GitRepository[] = [];
   let truncated = false;
+  const space = encodeURIComponent(namespace);
+  const personal = namespace === cleanNamespace(account);
   if (provider === "github") {
+    const base = personal
+      ? "https://api.github.com/user/repos?affiliation=owner&sort=updated"
+      : `https://api.github.com/orgs/${space}/repos?type=all&sort=updated`;
     for (let page = 1; page <= PAGES; page++) {
-      const result = await api<Record<string, unknown>[]>(provider, token,
-        `https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`);
-      const rows = result?.body ?? [];
+      const rows = (await api<Record<string, unknown>[]>(provider, token, `${base}&per_page=100&page=${page}`))?.body ?? [];
       found.push(...rows.flatMap((row) => NORMALIZE.github(row) ?? []));
       truncated = rows.length === 100 && page === PAGES;
       if (rows.length < 100) break;
     }
-    return { repositories: found.filter((repository) => matches(repository, query)), truncated };
-  }
-  if (provider === "gitlab") {
+  } else if (provider === "gitlab") {
     // O GitLab busca no servidor.
     const search = query.trim() ? `&search=${encodeURIComponent(query.trim())}` : "";
+    const base = personal
+      ? `https://gitlab.com/api/v4/users/${space}/projects?order_by=last_activity_at`
+      : `https://gitlab.com/api/v4/groups/${space}/projects?include_subgroups=true&order_by=last_activity_at`;
     for (let page = 1; page <= PAGES; page++) {
-      const result = await api<Record<string, unknown>[]>(provider, token,
-        `https://gitlab.com/api/v4/projects?membership=true&per_page=100&page=${page}&order_by=last_activity_at${search}`);
-      const rows = result?.body ?? [];
-      found.push(...rows.flatMap((row) => NORMALIZE.gitlab(row) ?? []));
+      const result = await api<Record<string, unknown>[]>(provider, token, `${base}&per_page=100&page=${page}${search}`);
+      found.push(...(result?.body ?? []).flatMap((row) => NORMALIZE.gitlab(row) ?? []));
       const next = result?.response.headers.get("x-next-page");
       truncated = !!next && page === PAGES;
       if (!next) break;
     }
-    return { repositories: found, truncated };
+  } else {
+    const filter = query.trim() ? `&q=${encodeURIComponent(`full_name ~ "${query.trim().replace(/["\\]/g, "")}"`)}` : "";
+    let url: string | null = `https://api.bitbucket.org/2.0/repositories/${space}?role=member&pagelen=100&sort=-updated_on${filter}`;
+    for (let page = 1; url && page <= PAGES; page++) {
+      const result = await api<{ values?: Record<string, unknown>[]; next?: string }>(provider, token, url);
+      found.push(...(result?.body.values ?? []).flatMap((row) => NORMALIZE.bitbucket(row) ?? []));
+      // Só segue o `next` do próprio Bitbucket.
+      const next: unknown = result?.body.next;
+      url = typeof next === "string" && next.startsWith("https://api.bitbucket.org/") ? next : null;
+      truncated = !!url && page === PAGES;
+    }
   }
-  const filter = query.trim() ? `&q=${encodeURIComponent(`full_name ~ "${query.trim().replace(/["\\]/g, "")}"`)}` : "";
-  let url: string | null = `https://api.bitbucket.org/2.0/repositories?role=member&pagelen=100&sort=-updated_on${filter}`;
-  for (let page = 1; url && page <= PAGES; page++) {
-    const result = await api<{ values?: Record<string, unknown>[]; next?: string }>(provider, token, url);
-    found.push(...(result?.body.values ?? []).flatMap((row) => NORMALIZE.bitbucket(row) ?? []));
-    // Só segue o `next` do próprio Bitbucket.
-    const next: unknown = result?.body.next;
-    url = typeof next === "string" && next.startsWith("https://api.bitbucket.org/") ? next : null;
-    truncated = !!url && page === PAGES;
-  }
-  return { repositories: found, truncated };
+  return { repositories: found.filter((repository) => inNamespace(repository.path, namespace) && matches(repository, query)), truncated };
 }
 
 /** Um repositório pelo caminho, como a conta o vê; nulo se ela não alcança. */

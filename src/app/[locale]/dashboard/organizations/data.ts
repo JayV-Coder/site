@@ -22,7 +22,14 @@ export interface Repository {
 }
 
 /** A conta de um provedor que o owner conectou. */
-export interface GitConnection { provider: GitProvider; account: string; connectedAt: string }
+export interface GitConnection {
+  provider: GitProvider;
+  account: string;
+  connectedAt: string;
+  /** A organização do provedor a que esta organização está presa; nula até o
+   * owner escolher. */
+  namespace: string | null;
+}
 
 export interface OrganizationDetail {
   organization: Organization;
@@ -74,7 +81,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     supabase.from("organization_repositories")
       .select("id, repo_key, provider, path, default_branch, private, description, web_url, linked_via").eq("org_id", id).order("repo_key"),
     supabase.from("organization_llm_policies").select("*").eq("org_id", id),
-    supabase.from("organization_git_connections").select("provider, account, connected_at").eq("org_id", id),
+    supabase.from("organization_git_connections").select("provider, account, connected_at, namespace").eq("org_id", id),
   ]);
   for (const result of [invites, repositories, policies, connections]) if (result.error) throw new Error(result.error.message);
   return {
@@ -95,7 +102,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     }] : [])),
     policies: (policies.data ?? []).map((row) => storedPolicy(row as Row)),
     connections: ((connections.data ?? []) as Row[]).flatMap((row) => (isGitProvider(row.provider) ? [{
-      provider: row.provider, account: row.account as string, connectedAt: row.connected_at as string,
+      provider: row.provider, account: row.account as string, connectedAt: row.connected_at as string, namespace: (row.namespace as string) ?? null,
     }] : [])),
     providers: configuredProviders(),
   };

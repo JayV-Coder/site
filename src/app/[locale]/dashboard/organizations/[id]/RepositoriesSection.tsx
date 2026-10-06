@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ExternalLinkIcon, GitBranchIcon, GlobeIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Building2Icon, ExternalLinkIcon, GitBranchIcon, GlobeIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { EmptyText, PROVIDER_NAMES, ProviderIcon } from "@/components/atoms";
 import { ConfirmAction, SettingsSection } from "@/components/molecules";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,8 @@ export function RepositoriesSection({ detail, outcome }: {
   const [busy, startBusy] = useTransition();
   const [running, setRunning] = useState<string | null>(null);
   const [picking, setPicking] = useState<GitProvider | null>(null);
+  // Abrir o diálogo direto na escolha da organização do provedor.
+  const [changingNamespace, setChangingNamespace] = useState(false);
   const shown = useRef(false);
   const org = detail.organization;
   const owner = org.role === "owner";
@@ -116,13 +118,31 @@ export function RepositoriesSection({ detail, outcome }: {
                           : available ? t("site.org.git.notConnected") : t("site.org.git.unavailable")}
                       </span>
                     </p>
+                    {/* A organização do provedor a que esta organização do JayV
+                        está presa: só os repositórios dela entram aqui. */}
+                    {connection && (
+                      <p className={`mt-0.5 flex items-center gap-1.5 text-xs break-words ${connection.namespace ? "text-muted-foreground" : "text-warning"}`}>
+                        <Building2Icon className="size-3.5 shrink-0" />
+                        <span className="min-w-0">
+                          {connection.namespace
+                            ? t("site.org.git.namespace", { namespace: connection.namespace })
+                            : t("site.org.git.namespace.none", { provider: name })}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </div>
                 {owner && (
                   <div className="ms-auto flex flex-wrap gap-1">
                     {available && (
-                      <Button variant={connection ? "ghost" : "outline"} size="sm" loading={running === `connect:${provider}`} disabled={busy} onClick={() => connect(provider)}>
+                      <Button variant={connection ? "ghost" : "outline"} size="sm" loading={running === `connect:${provider}`} disabled={busy} onClick={() => connect(provider, true)}>
                         {connection ? t("site.org.git.reconnect") : t("site.org.git.connect")}
+                      </Button>
+                    )}
+                    {connection && (
+                      <Button variant={connection.namespace ? "ghost" : "outline"} size="sm" disabled={busy}
+                        onClick={() => { setChangingNamespace(true); setPicking(provider); }}>
+                        {connection.namespace ? t("site.org.git.namespace.change") : t("site.org.git.namespace.choose")}
                       </Button>
                     )}
                     {connection && (
@@ -142,7 +162,7 @@ export function RepositoriesSection({ detail, outcome }: {
 
       <SettingsSection title={t("org.repos.title")} description={t("site.org.repos.description")}
         action={owner && connected.length > 0 ? (
-          <Button size="sm" disabled={busy} onClick={() => setPicking(connected[0])}><PlusIcon />{t("site.org.repos.add")}</Button>
+          <Button size="sm" disabled={busy} onClick={() => { setChangingNamespace(false); setPicking(connected[0]); }}><PlusIcon />{t("site.org.repos.add")}</Button>
         ) : undefined}>
         {owner && connected.length === 0 && <p className="text-xs text-muted-foreground">{t("site.org.repos.connectFirst")}</p>}
         {detail.repositories.length === 0 ? <EmptyText>{t("org.repos.empty")}</EmptyText> : (
@@ -188,7 +208,7 @@ export function RepositoriesSection({ detail, outcome }: {
       </SettingsSection>
 
       {owner && picking && (
-        <RepositoryPicker org={org.id} connected={connected} initial={picking} connections={detail.connections}
+        <RepositoryPicker org={org.id} connected={connected} initial={picking} connections={detail.connections} changeNamespace={changingNamespace}
           linked={detail.repositories.map((repository) => repository.repoKey)}
           onReconnect={(provider) => connect(provider, true)}
           onClose={(changed) => {
