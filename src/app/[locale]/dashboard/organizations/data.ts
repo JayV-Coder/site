@@ -2,6 +2,7 @@ import "server-only";
 import { auth } from "@/auth";
 import { isGitProvider, type GitProvider } from "@/modules/git/providers";
 import { configuredProviders } from "@/modules/git/server";
+import { MCP_AGENTS, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
 import { storedPolicy, type StoredPolicy } from "@/modules/organizations/policy";
 import { canManage, isRole, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
@@ -38,6 +39,9 @@ export interface OrganizationDetail {
   /** A política da organização e as dos repositórios dela. */
   policies: StoredPolicy[];
   connections: GitConnection[];
+  /** Os servidores MCP da organização; só owner e maintainer os leem (levam segredos). */
+  mcpServers: OrgMcpServer[];
+  skills: OrgSkill[];
   /** Os provedores com o app configurado neste site (o GitHub, só pelo
    * GitHub App: a conta ou a organização é escolhida na tela do GitHub). */
   providers: GitProvider[];
@@ -50,6 +54,19 @@ const tally = (rows: { org_id: string }[] | null) => {
   for (const row of rows ?? []) counts[row.org_id] = (counts[row.org_id] ?? 0) + 1;
   return counts;
 };
+
+/** O servidor MCP como o banco o guarda (`config` é o `McpServer` do app). */
+function serverOf(row: Row): OrgMcpServer {
+  const config = (row.config ?? {}) as Record<string, unknown>;
+  const text = (value: unknown) => (typeof value === "string" ? value : "");
+  const pairs = (value: unknown) => (value && typeof value === "object" ? Object.fromEntries(Object.entries(value).map(([key, item]) => [key, String(item)])) : {});
+  const list = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
+  return {
+    name: text(config.name), transport: config.transport === "http" ? "http" : "stdio", command: text(config.command), args: list(config.args),
+    env: pairs(config.env), url: text(config.url), headers: pairs(config.headers),
+    agents: list(config.agents).filter((agent) => (MCP_AGENTS as readonly string[]).includes(agent)), enabled: row.enabled !== false,
+  };
+}
 
 /** As organizações de quem entrou, com o papel dele e as contagens — a mesma
  * leitura do `loadOrganizations` do app. O RLS só devolve as dele. */
@@ -77,14 +94,16 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
   const organization = (await loadOrganizations()).find((org) => org.id === id);
   const supabase = await userSupabase();
   if (!organization || !supabase) return null;
-  const [invites, repositories, policies, connections] = await Promise.all([
+  const [invites, repositories, policies, connections, mcpServers, skills] = await Promise.all([
     canManage(organization.role) ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
     supabase.from("organization_repositories")
       .select("id, repo_key, provider, path, default_branch, private, description, web_url, linked_via").eq("org_id", id).order("repo_key"),
     supabase.from("organization_llm_policies").select("*").eq("org_id", id),
     supabase.from("organization_git_connections").select("provider, account, connected_at, namespace").eq("org_id", id),
+    supabase.from("organization_mcp_servers").select("config, enabled").eq("org_id", id).order("name"),
+    supabase.from("organization_skills").select("name, description, body, enabled").eq("org_id", id).order("name"),
   ]);
-  for (const result of [invites, repositories, policies, connections]) if (result.error) throw new Error(result.error.message);
+  for (const result of [invites, repositories, policies, connections, mcpServers, skills]) if (result.error) throw new Error(result.error.message);
   return {
     organization,
     invites: ((invites.data ?? []) as Row[]).flatMap((row) => (isRole(row.role) ? [{
@@ -105,6 +124,10 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     connections: ((connections.data ?? []) as Row[]).flatMap((row) => (isGitProvider(row.provider) ? [{
       provider: row.provider, account: row.account as string, connectedAt: row.connected_at as string, namespace: (row.namespace as string) ?? null,
     }] : [])),
+    mcpServers: ((mcpServers.data ?? []) as Row[]).map((row) => serverOf(row)),
+    skills: ((skills.data ?? []) as Row[]).map((row) => ({
+      name: row.name as string, description: row.description as string, body: row.body as string, enabled: row.enabled !== false,
+    })),
     providers: configuredProviders(),
   };
 }

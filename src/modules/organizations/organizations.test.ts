@@ -27,6 +27,8 @@ describe("organization rules", () => {
   it("turns an organization RPC error into an i18n key", () => {
     expect(orgFailure({ message: "org.slugTaken" })).toEqual({ key: "org.slugTaken" });
     expect(orgFailure({ message: "policy.invalid" })).toEqual({ key: "policy.invalid" });
+    expect(orgFailure({ message: "mcp.limit" })).toEqual({ key: "site.org.mcp.limit" });
+    expect(orgFailure({ message: "skill.invalid" })).toEqual({ key: "site.org.skill.invalid" });
     expect(orgFailure({ message: "permission denied" })).toBe("permission denied");
   });
 });

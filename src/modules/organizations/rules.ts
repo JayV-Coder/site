@@ -25,8 +25,10 @@ export const canManage = (role: Role | undefined) => role === "owner" || role ==
 export const canDelete = (role: Role | undefined) => role === "owner";
 
 /** As RPCs de organização falham com uma chave do i18n (`org.forbidden`,
- * `policy.invalid`); o resto segue como motivo técnico. */
+ * `policy.invalid`); as de MCP e skills (`mcp.invalid`, `skill.limit`) têm a
+ * chave do site, com o prefixo `site.org.`. O resto segue como motivo técnico. */
 export function orgFailure(error: { message?: string }) {
   if (error.message && /^(org|policy)\.[A-Za-z]+$/.test(error.message)) return { key: error.message };
+  if (error.message && /^(mcp|skill)\.[A-Za-z]+$/.test(error.message)) return { key: `site.org.${error.message}` };
   return error.message ?? "unknown";
 }

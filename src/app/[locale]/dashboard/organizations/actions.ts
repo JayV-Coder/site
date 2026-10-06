@@ -12,6 +12,7 @@ import {
 } from "@/modules/git/server";
 import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
+import { mcpPayload, mcpProblems, skillProblems, SKILL_BODY_MAX, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
 import { policyOk, policyPayload, type LlmPolicy } from "@/modules/organizations/policy";
 import { INVITE_ROLES, orgFailure, slugOk, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
@@ -54,6 +55,26 @@ export async function savePolicy(org: string, repository: string | null, policy:
 
 export async function clearPolicy(org: string, repository: string | null) {
   return call<null>("clear_llm_policy", { org, repository });
+}
+
+/** Servidores MCP e skills da organização: owner e maintainer gravam; os
+ * membros recebem no app. O banco confere o papel e o formato de novo. */
+export async function saveMcpServer(org: string, server: OrgMcpServer) {
+  if (mcpProblems(server).length > 0) return { ok: false, error: { key: "site.org.mcp.invalid" } } as const;
+  return call<null>("set_org_mcp_server", { org, server: mcpPayload(server), enabled: server.enabled });
+}
+
+export async function removeMcpServer(org: string, name: string) {
+  return call<null>("remove_org_mcp_server", { org, server_name: name });
+}
+
+export async function saveSkill(org: string, skill: OrgSkill) {
+  if (skillProblems(skill).length > 0 || skill.body.length > SKILL_BODY_MAX) return { ok: false, error: { key: "site.org.skill.invalid" } } as const;
+  return call<null>("set_org_skill", { org, skill: skill.name, description: skill.description, body: skill.body, enabled: skill.enabled });
+}
+
+export async function removeSkill(org: string, name: string) {
+  return call<null>("remove_org_skill", { org, skill: name });
 }
 
 /** Renomear é de owner e maintainer; sair, de qualquer membro (o último
