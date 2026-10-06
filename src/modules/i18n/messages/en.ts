@@ -250,7 +250,7 @@ export const en = {
   "policy.agents.invalid": "Pick at least one agent.",
   "policy.models": "Blocked models",
   "policy.models.hint": "One per line, as agent/model (claude/opus).",
-  "policy.models.invalid": "Use agent/model, with the agent among claude, codex, copilot and cursor.",
+  "policy.models.invalid": "Use agent/model, with the agent among claude, codex, copilot, cursor, kilo, openrouter and litellm.",
   "policy.safe": "Turn off the unguarded modes",
   "policy.safe.hint": "No bypassPermissions in Claude Code, no danger-full-access in Codex, no all-tools access in Copilot and no --force in Cursor. Claude Code and Copilot also stop running commands without asking.",
   "policy.mechanisms": "Blocked mechanisms",
