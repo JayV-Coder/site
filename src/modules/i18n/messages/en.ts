@@ -165,6 +165,7 @@ export const en = {
   "mechanism.webFetch": "Open web pages",
   "mechanism.shell": "Run commands without asking",
   "mechanism.githubTools": "All GitHub tools",
+  "mechanism.mcp": "Approve MCP servers",
   "org.list.description": "Teams that share repositories. A project joins an organization when its git remote matches one of the organization's repositories.",
   "org.list.empty": "You are not in any organization yet. Create one or accept an invite.",
   "org.open": "Open",
