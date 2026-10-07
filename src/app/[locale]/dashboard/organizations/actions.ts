@@ -12,7 +12,8 @@ import {
 } from "@/modules/git/server";
 import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
-import { mcpPayload, mcpProblems, skillProblems, SKILL_BODY_MAX, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
+import { mcpPayload, mcpProblems, parseSkillFile, skillProblems, SKILL_DESCRIPTION_MAX, SKILL_BODY_MAX, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
+import { fetchSkillFile, searchHub, type Fetcher, type SkillHit } from "@/modules/organizations/skillsHub";
 import { COMMAND_RULES_MAX, rulesInvalid, ruleLines } from "@/modules/organizations/commands";
 import { policyOk, policyPayload, type LlmPolicy } from "@/modules/organizations/policy";
 import { INVITE_ROLES, orgFailure, slugOk, type Role } from "@/modules/organizations/rules";
@@ -79,6 +80,35 @@ export async function removeMcpServer(org: string, name: string) {
 export async function saveSkill(org: string, skill: OrgSkill) {
   if (skillProblems(skill).length > 0 || skill.body.length > SKILL_BODY_MAX) return { ok: false, error: { key: "site.org.skill.invalid" } } as const;
   return call<null>("set_org_skill", { org, skill: skill.name, description: skill.description, body: skill.body, enabled: skill.enabled });
+}
+
+/** A rede do skills.sh e do GitHub, com prazo e sem cache. */
+const hubFetch: Fetcher = (url) => fetch(url, { headers: { "User-Agent": "JayV", Accept: "application/json, text/plain" }, signal: AbortSignal.timeout(20_000), cache: "no-store" });
+
+/** Procura no skills.sh (só quem entrou). */
+export async function searchSkillHub(query: string): Promise<ActionResult<SkillHit[]>> {
+  if (!(await userSupabase())) return { ok: false, error: { key: "org.forbidden" } };
+  try {
+    return { ok: true, data: await searchHub(query, hubFetch) };
+  } catch {
+    return { ok: false, error: { key: "site.org.skills.hub.failed" } };
+  }
+}
+
+/** Instala para a organização a skill de um resultado do skills.sh: lê o
+ * `SKILL.md` do repositório e grava como qualquer skill da organização (o
+ * banco confere o papel). Só o `SKILL.md` vai: os outros arquivos dela não. */
+export async function installHubSkill(org: string, source: string, name: string): Promise<ActionResult<null>> {
+  let text: string | null;
+  try {
+    text = await fetchSkillFile(source, name, hubFetch, (file) => parseSkillFile(file)?.name ?? null);
+  } catch {
+    return { ok: false, error: { key: "site.org.skills.hub.failed" } };
+  }
+  if (!text) return { ok: false, error: { key: "site.org.skills.hub.notFound" } };
+  const parsed = parseSkillFile(text);
+  if (!parsed) return { ok: false, error: { key: "site.org.skill.invalid" } };
+  return saveSkill(org, { name: parsed.name, description: parsed.description.slice(0, SKILL_DESCRIPTION_MAX), body: parsed.body, enabled: true });
 }
 
 export async function removeSkill(org: string, name: string) {
