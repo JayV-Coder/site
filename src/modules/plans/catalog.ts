@@ -24,6 +24,12 @@ export const FEATURES = [
   "answerRecall",
   "leanCode",
   "symbolIndex",
+  "mcp",
+  "skills",
+  "skillsHub",
+  "kiloCode",
+  "gatewayProviders",
+  "conversationFind",
 ] as const;
 
 export type FeatureKey = (typeof FEATURES)[number];
