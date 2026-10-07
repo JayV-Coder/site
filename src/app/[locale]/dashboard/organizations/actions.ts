@@ -130,7 +130,7 @@ export async function deleteOrganization(org: string) {
   return call<null>("delete_organization", { org });
 }
 
-/** A busca do convite por `@usuário`. O e-mail nunca é buscado: dizer quem
+/** A busca do convite por `@usuário` ou nome de exibição. O e-mail nunca é buscado: dizer quem
  * tem conta seria vazar a lista. */
 export async function findUsers(query: string): Promise<FoundUser[]> {
   const supabase = await userSupabase();

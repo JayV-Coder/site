@@ -190,7 +190,7 @@ export const en = {
   "org.invite.role": "Role",
   "org.invite.send": "Invite",
   "org.invite.sent": "Invite sent to {target}.",
-  "org.invite.hint": "Type at least 2 characters of the username to search.",
+  "org.invite.hint": "Type at least 2 characters of the username or name to search.",
   "org.invite.emailNote": "JayV does not send an email: let the person know. The invite appears once they sign in with this confirmed email.",
   "org.invite.expires": "expires {date}",
   "org.invite.revoke": "Revoke",
