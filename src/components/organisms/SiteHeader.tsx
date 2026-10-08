@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { currentViewer } from "@/modules/auth/viewer";
 import { getT } from "@/modules/i18n/server";
 import { signOutAction } from "@/app/[locale]/actions";
+import { NotificationBell } from "./notifications/NotificationBell";
 import { MobileNav, type NavLink } from "./MobileNav";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
@@ -37,6 +38,7 @@ export async function SiteHeader({ locale }: { locale: string }) {
             {links.map((item) => <Link key={item.href} className={link} href={item.href}>{item.label}</Link>)}
           </nav>
           <ThemeToggle />
+          {viewer && <NotificationBell />}
           {viewer ? (
             <UserMenu name={viewer.name} email={viewer.email} photo={viewer.photo} signOut={signOutAction.bind(null, locale)} />
           ) : (
