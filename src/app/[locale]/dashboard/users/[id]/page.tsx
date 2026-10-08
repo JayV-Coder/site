@@ -10,7 +10,7 @@ import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
 import { requireAccess } from "../../access";
 import { DashboardShell } from "../../DashboardShell";
-import { isBanned, loadUser } from "../data";
+import { isBanned, loadUser, loadUserEnvironments } from "../data";
 import { UserActions } from "./UserActions";
 import { UserProfileEditor } from "./UserProfileEditor";
 
@@ -56,6 +56,7 @@ export default async function UserPage({ params }: PageProps<"/[locale]/dashboar
   const t = await getT(locale);
   const session = await auth();
   const user = access.admin && /^[0-9a-f-]{36}$/i.test(id) ? await loadUser(id) : null;
+  const environments = user ? await loadUserEnvironments(id) : [];
   const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(iso)) : "—");
   const number = (value: number) => new Intl.NumberFormat(locale).format(value);
   const money = (value: number) => new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
@@ -154,6 +155,19 @@ export default async function UserPage({ params }: PageProps<"/[locale]/dashboar
             [t("site.users.field.cost30d"), money(user.usage.cost30d)],
             [t("site.users.field.costTotal"), money(user.usage.costTotal)],
           ]} />
+        </SettingsSection>
+
+        <SettingsSection title={t("site.users.section.environments")} description={t("site.users.environmentsNote")}>
+          <ul className="grid gap-2">
+            {environments.map((environment) => (
+              <li key={environment.id} className="grid gap-1 rounded-md border border-border/60 px-3 py-2.5">
+                <span className="truncate text-sm font-medium">{environment.name ?? t("site.users.environment.personal")}</span>
+                <span className="text-xs text-muted-foreground">
+                  {[`${t("site.users.field.projects")}: ${number(environment.projects)}`, `${t("site.users.field.chats")}: ${number(environment.chats)}`, `${t("site.users.field.calls30d")}: ${number(environment.calls30d)}`, `${t("site.users.field.tokens30d")}: ${number(environment.tokens30d)}`, `${t("site.users.field.cost30d")}: ${money(environment.cost30d)}`].join(" · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
         </SettingsSection>
 
         <SettingsSection title={t("nav.organizations")}>
