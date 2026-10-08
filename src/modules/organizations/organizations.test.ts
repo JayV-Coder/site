@@ -1,7 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { emptyPolicy, policyLines, policyOk, policyPayload, policyProblems, storedPolicy } from "./policy";
 import { inCatalog, ruleBlocks, ruleLines, rulesInvalid, storedCommandRules } from "./commands";
-import { canDelete, canManage, orgFailure, slugify, slugOk } from "./rules";
+import { canChangeRoles, canDelete, canManage, canRemove, orgFailure, slugify, slugOk } from "./rules";
+
+describe("member management rules", () => {
+  it("only the owner changes roles; a maintainer removes only members", () => {
+    expect(canChangeRoles("owner")).toBe(true);
+    expect(canChangeRoles("maintainer")).toBe(false);
+    expect(canRemove("owner", "maintainer")).toBe(true);
+    expect(canRemove("maintainer", "member")).toBe(true);
+    expect(canRemove("maintainer", "maintainer")).toBe(false);
+    expect(canRemove("member", "member")).toBe(false);
+  });
+});
 
 describe("organization rules", () => {
   it("suggests a slug from the name", () => {

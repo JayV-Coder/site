@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/modules/i18n";
 import type { OrganizationDetail } from "../data";
 import { InviteSection } from "./InviteSection";
+import { MembersSection } from "./MembersSection";
 import { McpSection } from "./McpSection";
 import { PermissionsSection } from "./PermissionsSection";
 import { PolicySection } from "./PolicySection";
@@ -32,7 +33,7 @@ export function OrganizationBoard({ detail, tab, outcome }: {
         <TabsTrigger value="settings" title={t("org.tab.settings")} aria-label={t("org.tab.settings")} className="flex-none gap-2.5 px-3 py-2"><SettingsIcon /><span className="hidden @lg:inline">{t("org.tab.settings")}</span></TabsTrigger>
       </TabsList>
       <div className="min-w-0 flex-1">
-        <TabsContent value="members"><InviteSection detail={detail} /></TabsContent>
+        <TabsContent value="members" className="grid gap-5"><MembersSection detail={detail} /><InviteSection detail={detail} /></TabsContent>
         <TabsContent value="repositories"><RepositoriesSection detail={detail} outcome={outcome} /></TabsContent>
         <TabsContent value="policy"><PolicySection detail={detail} /></TabsContent>
         <TabsContent value="permissions"><PermissionsSection detail={detail} /></TabsContent>

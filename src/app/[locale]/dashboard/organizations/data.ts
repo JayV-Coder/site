@@ -9,6 +9,7 @@ import { canManage, isRole, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
 
 export interface Organization { id: string; name: string; slug: string; role: Role; members: number; repositories: number }
+export interface Member { userId: string; username: string; displayName: string; avatarUrl: string | null; role: Role; self: boolean }
 export interface PendingInvite { id: string; username: string | null; email: string | null; role: Role; expiresAt: string }
 export interface Repository {
   id: string;
@@ -35,6 +36,8 @@ export interface GitConnection {
 
 export interface OrganizationDetail {
   organization: Organization;
+  /** Quem já está na organização, owner incluso; os convites pendentes vão à parte. */
+  members: Member[];
   invites: PendingInvite[];
   repositories: Repository[];
   /** A política da organização e as dos repositórios dela. */
@@ -97,7 +100,8 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
   const organization = (await loadOrganizations()).find((org) => org.id === id);
   const supabase = await userSupabase();
   if (!organization || !supabase) return null;
-  const [invites, repositories, policies, commandRules, connections, mcpServers, skills] = await Promise.all([
+  const [members, invites, repositories, policies, commandRules, connections, mcpServers, skills] = await Promise.all([
+    supabase.rpc("organization_members_view", { org: id }),
     canManage(organization.role) ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
     supabase.from("organization_repositories")
       .select("id, repo_key, provider, path, default_branch, private, description, web_url, linked_via").eq("org_id", id).order("repo_key"),
@@ -108,9 +112,14 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     supabase.from("organization_mcp_servers").select("config, enabled").eq("org_id", id).order("name"),
     supabase.from("organization_skills").select("name, description, body, enabled").eq("org_id", id).order("name"),
   ]);
-  for (const result of [invites, repositories, policies, connections, mcpServers, skills]) if (result.error) throw new Error(result.error.message);
+  for (const result of [members, invites, repositories, policies, connections, mcpServers, skills]) if (result.error) throw new Error(result.error.message);
+  const me = (await auth())?.user.id;
   return {
     organization,
+    members: ((members.data ?? []) as Row[]).flatMap((row) => (isRole(row.role) ? [{
+      userId: row.user_id as string, username: row.username as string, displayName: (row.display_name as string) || (row.username as string),
+      avatarUrl: (row.avatar_url as string) ?? null, role: row.role, self: row.user_id === me,
+    }] : [])),
     invites: ((invites.data ?? []) as Row[]).flatMap((row) => (isRole(row.role) ? [{
       id: row.id as string, username: (row.username as string) ?? null, email: (row.email as string) ?? null, role: row.role, expiresAt: row.expires_at as string,
     }] : [])),
