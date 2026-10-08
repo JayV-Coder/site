@@ -21,6 +21,12 @@ export function slugify(name: string) {
 /** Convidar e mudar a política é de owner e maintainer. */
 export const canManage = (role: Role | undefined) => role === "owner" || role === "maintainer";
 
+/** Mudar o papel dos outros é do owner. */
+export const canChangeRoles = (role: Role | undefined) => role === "owner";
+
+/** Remover: o owner tira qualquer um; o maintainer, só membro (como as RPCs). */
+export const canRemove = (mine: Role | undefined, theirs: Role) => mine === "owner" || (mine === "maintainer" && theirs === "member");
+
 /** Excluir a organização é só do owner. */
 export const canDelete = (role: Role | undefined) => role === "owner";
 

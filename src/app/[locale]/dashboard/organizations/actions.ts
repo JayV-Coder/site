@@ -46,6 +46,14 @@ export async function inviteMember(org: string, target: string, role: Role) {
   return call<string>("invite_member", { org, target: target.trim(), role });
 }
 
+export async function setMemberRole(org: string, member: string, role: Role) {
+  return call<null>("set_member_role", { org, member, role });
+}
+
+export async function removeMember(org: string, member: string) {
+  return call<null>("remove_member", { org, member });
+}
+
 export async function revokeInvite(invite: string) {
   return call<null>("revoke_invite", { invite });
 }
