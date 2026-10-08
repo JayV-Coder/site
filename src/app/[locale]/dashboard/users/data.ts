@@ -125,3 +125,18 @@ export async function loadUser(id: string): Promise<UserDetail | null> {
     audit: list(row.audit).map((item) => ({ action: String(item.action), admin: String(item.admin ?? ""), createdAt: String(item.created_at), detail: (item.detail ?? {}) as Record<string, unknown> })),
   };
 }
+
+/** O que a conta tem num ambiente: o pessoal (`id` "personal") ou uma organização. */
+export interface UserEnvironment { id: string; name: string | null; projects: number; chats: number; calls30d: number; tokens30d: number; cost30d: number }
+
+/** A conta por ambiente (`admin_user_environments()`); vazia quando não é admin. */
+export async function loadUserEnvironments(id: string): Promise<UserEnvironment[]> {
+  const supabase = await userSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("admin_user_environments", { target: id });
+  if (error || !Array.isArray(data)) return [];
+  return (data as Row[]).map((row) => ({
+    id: String(row.id), name: text(row.name), projects: Number(row.projects ?? 0), chats: Number(row.chats ?? 0),
+    calls30d: Number(row.calls_30d ?? 0), tokens30d: Number(row.tokens_30d ?? 0), cost30d: Number(row.cost_30d ?? 0),
+  }));
+}
