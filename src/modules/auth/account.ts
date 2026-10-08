@@ -60,6 +60,14 @@ export async function sendReauthentication(token: string) {
 
 export interface TotpEnrollment { factorId: string; qrCode: string; secret: string }
 
+/** O Supabase devolve o SVG como `data:image/svg+xml;utf-8,<svg…>`, sem
+ * codificar: o `#` das cores corta o endereço e o navegador não desenha a
+ * imagem. Aqui o SVG sai codificado, num data URI que o <img> aceita. */
+export function qrDataUri(qrCode: string): string {
+  const svg = qrCode.includes("<svg") ? qrCode.slice(qrCode.indexOf("<svg")) : decodeURIComponent(qrCode.replace(/^data:[^,]*,/, ""));
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
 /** Cadastra o app autenticador. Um cadastro anterior que não chegou ao
  * primeiro código sai antes, para não acumular fatores pela metade. O QR code
  * já vem pronto do Supabase, como imagem SVG. */
@@ -71,7 +79,7 @@ export async function enrollTotp(token: string): Promise<TotpEnrollment> {
   const enrolled = await authJson<{ id: string; totp: { qr_code: string; secret: string } }>(
     await supabaseAuth("factors", { method: "POST", token, body: JSON.stringify({ factor_type: "totp", issuer: "JayV" }) }),
   );
-  return { factorId: enrolled.id, qrCode: enrolled.totp.qr_code, secret: enrolled.totp.secret };
+  return { factorId: enrolled.id, qrCode: qrDataUri(enrolled.totp.qr_code), secret: enrolled.totp.secret };
 }
 
 export async function removeFactor(token: string, factorId: string) {
