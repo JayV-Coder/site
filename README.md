@@ -1,7 +1,9 @@
 # JayV — site
 
-O site do JayV: a página de downloads, o cadastro, o login e a Administração
-do sistema (feature flags e planos do Stripe), que antes moravam no app.
+O site do JayV: a página de downloads, o cadastro, o login, o painel (que abre
+no Dashboard, com o uso do app da conta e, para o admin, o do sistema inteiro)
+e a Administração do sistema (feature flags e planos do Stripe), que antes
+moravam no app.
 
 - **Next.js 16** (App Router, TypeScript) num servidor Node.
 - **NextAuth v5** guarda a sessão num cookie cifrado. O login acontece pelo

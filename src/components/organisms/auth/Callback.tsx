@@ -27,7 +27,7 @@ export function Callback() {
   const [state, setState] = useState<"working" | "secondFactor" | "failed">("working");
   const [email, setEmail] = useState<string | null>(null);
   const started = useRef(false);
-  const next = safeNext(query.get("next"), href("/"));
+  const next = safeNext(query.get("next"), href("/dashboard"));
 
   useEffect(() => {
     // O modo estrito do React roda o efeito duas vezes; o código só vale uma.

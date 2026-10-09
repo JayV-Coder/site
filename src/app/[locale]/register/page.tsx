@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { RegisterForm } from "@/components/organisms/auth/RegisterForm";
 import { SitePage } from "@/components/organisms/SitePage";
-import { safeNext } from "@/modules/auth/next";
+import { landingPath, safeNext } from "@/modules/auth/next";
 import { getT } from "@/modules/i18n/server";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/register">): Promise<Metadata> {
@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/register
 export default async function RegisterPage({ params, searchParams }: PageProps<"/[locale]/register">) {
   const { locale } = await params;
   const query = await searchParams;
-  const next = safeNext(typeof query.next === "string" ? query.next : null, `/${locale}`);
+  const next = safeNext(typeof query.next === "string" ? query.next : null, landingPath(locale));
   const session = await auth();
   if (session?.accessToken) redirect(next);
   return <SitePage locale={locale}><RegisterForm next={next} /></SitePage>;

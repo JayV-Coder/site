@@ -82,7 +82,7 @@ export function LoginForm({ next, notice }: { next: string; notice?: string }) {
       {!reset && <ProviderButtons next={next} disabled={busy} />}
       {reset
         ? <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setMode("signIn")}>{t("auth.backToSignIn")}</button>
-        : <Link href={`${href("/register")}${next !== href("/") ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-center text-xs text-muted-foreground hover:text-foreground">{t("auth.toSignUp")}</Link>}
+        : <Link href={`${href("/register")}${next !== href("/dashboard") ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-center text-xs text-muted-foreground hover:text-foreground">{t("auth.toSignUp")}</Link>}
     </AuthShell>
   );
 }
