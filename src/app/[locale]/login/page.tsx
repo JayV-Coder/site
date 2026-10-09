@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LoginForm } from "@/components/organisms/auth/LoginForm";
 import { SitePage } from "@/components/organisms/SitePage";
-import { safeNext } from "@/modules/auth/next";
+import { landingPath, safeNext } from "@/modules/auth/next";
 import { getT } from "@/modules/i18n/server";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/login">): Promise<Metadata> {
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/login">)
 export default async function LoginPage({ params, searchParams }: PageProps<"/[locale]/login">) {
   const { locale } = await params;
   const query = await searchParams;
-  const next = safeNext(typeof query.next === "string" ? query.next : null, `/${locale}`);
+  const next = safeNext(typeof query.next === "string" ? query.next : null, landingPath(locale));
   const session = await auth();
   if (session?.accessToken) redirect(next);
   const t = await getT(locale);

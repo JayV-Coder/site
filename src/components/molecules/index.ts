@@ -1,15 +1,18 @@
 export { BackLink } from "./BackLink";
 export { CheckList } from "./CheckList";
 export { ConfirmAction } from "./ConfirmAction";
+export { DailyBars, type DailyPoint } from "./DailyBars";
 export { DateParts } from "./DateParts";
 export { FormField } from "./FormField";
 export { LanguageSelect } from "./LanguageSelect";
+export { LinkSegments } from "./LinkSegments";
 export { OptionSelect, type Option } from "./OptionSelect";
 export { PageHeading } from "./PageHeading";
 export { PasswordRules } from "./PasswordRules";
 export { ProviderButton } from "./ProviderButton";
 export { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 export { SettingsSection } from "./SettingsSection";
+export { StatTile } from "./StatTile";
 export { SubmitButton } from "./SubmitButton";
 export { ThemeSelect } from "./ThemeSelect";
 export { ToggleRow } from "./ToggleRow";

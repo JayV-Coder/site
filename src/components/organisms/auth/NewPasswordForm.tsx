@@ -49,7 +49,7 @@ export function NewPasswordForm() {
       const { error } = await browserSupabase().auth.updateUser({ password });
       if (error) throw authFailure(error);
       notify(t("auth.newPassword.saved"));
-      await handoff(href("/"));
+      await handoff(href("/dashboard"));
     } catch (error) {
       report(error);
     } finally {

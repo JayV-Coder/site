@@ -1,23 +1,25 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Building2Icon, ShieldCheckIcon, UserRoundIcon, UsersIcon } from "lucide-react";
+import { Building2Icon, LayoutDashboardIcon, ShieldCheckIcon, UserRoundIcon, UsersIcon } from "lucide-react";
 import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import { getT } from "@/modules/i18n/server";
 import type { Access } from "./access";
 import { CurrentInView } from "./CurrentInView";
 
-export type DashboardSection = "account" | "organizations" | "users" | "admin";
+export type DashboardSection = "overview" | "account" | "organizations" | "users" | "admin";
 
 /** A moldura do painel: as seções à esquerda (no celular, uma faixa que
- * rola de lado, de ponta a ponta) e a página ao lado. A conta é de todo mundo; Usuários e Administração só
- * aparecem para o admin do sistema. */
+ * rola de lado, de ponta a ponta) e a página ao lado. O Dashboard e a conta
+ * são de todo mundo; Usuários e Administração só aparecem para o admin do
+ * sistema. */
 export async function DashboardShell({ locale, access, current, children }: {
   locale: string; access: Access; current: DashboardSection; children: ReactNode;
 }) {
   const t = await getT(locale);
   const base = `/${locale}/dashboard`;
   const sections = [
+    { id: "overview" as const, href: base, label: t("site.dashboard.title"), Icon: LayoutDashboardIcon, shown: true },
     { id: "account" as const, href: `${base}/account`, label: t("site.account.title"), Icon: UserRoundIcon, shown: true },
     { id: "organizations" as const, href: `${base}/organizations`, label: t("nav.organizations"), Icon: Building2Icon, shown: true },
     { id: "users" as const, href: `${base}/users`, label: t("site.users.title"), Icon: UsersIcon, shown: access.admin },
