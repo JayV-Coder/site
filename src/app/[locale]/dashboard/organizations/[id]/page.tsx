@@ -4,13 +4,14 @@ import { BackLink, PageHeading } from "@/components/molecules";
 import { Badge } from "@/components/ui/badge";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
+import { canManage } from "@/modules/organizations/rules";
 import { requireAccess } from "../../access";
 import { DashboardShell } from "../../DashboardShell";
 import { loadOrganization } from "../data";
 import { OrganizationBoard, type OrganizationTab } from "./OrganizationBoard";
 import type { GitOutcome } from "./RepositoriesSection";
 
-const TABS: OrganizationTab[] = ["members", "repositories", "policy", "permissions", "mcp", "skills", "settings"];
+const TABS: OrganizationTab[] = ["members", "projects", "repositories", "policy", "permissions", "mcp", "skills", "settings"];
 const OUTCOMES: GitOutcome[] = ["connected", "denied", "requested", "forbidden", "failed"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/dashboard/organizations/[id]">): Promise<Metadata> {
@@ -19,20 +20,24 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/dashboar
   return { title: `${t("nav.organizations")} · JayV`, robots: { index: false } };
 }
 
-/** Uma organização no painel: o convite de membros, os repositórios (pelo
- * provedor git do owner) e a política de LLM. O resto (papéis, projetos,
- * estatísticas e o clone dos repositórios) continua no app. `?tab=` abre uma
- * aba; `?git=` é a volta do provedor (`/api/git/callback`). */
+/** Uma organização no painel: membros e convites, os projetos (owner e
+ * maintainer veem e excluem os de todos os membros), os repositórios (pelo
+ * provedor git do owner), a política de LLM, as permissões, MCP, skills e as
+ * configurações. O clone dos repositórios, os chats e as estatísticas
+ * continuam no app. `?tab=` abre uma aba; `?git=` é a volta do provedor
+ * (`/api/git/callback`). */
 export default async function OrganizationPage({ params, searchParams }: PageProps<"/[locale]/dashboard/organizations/[id]">) {
   const { locale, id } = await params;
   const query = await searchParams;
-  const tab = TABS.find((known) => known === query.tab) ?? "members";
+  const wanted = TABS.find((known) => known === query.tab) ?? "members";
   const kind = OUTCOMES.find((known) => known === query.git);
   const outcome = kind ? { kind, provider: typeof query.provider === "string" ? query.provider : null, pick: query.pick === "1", chosen: query.chosen === "1" } : null;
   const access = await requireAccess(locale, `/dashboard/organizations/${id}`);
   const t = await getT(locale);
   // O id vem do endereço: um texto que não é uuid nem chega ao banco.
   const detail = /^[0-9a-f-]{36}$/i.test(id) ? await loadOrganization(id) : null;
+  // A aba Projetos é só de quem gere: o membro que chega por `?tab=projects` cai em Membros.
+  const tab = wanted === "projects" && !canManage(detail?.organization.role) ? "members" : wanted;
   const back = <BackLink href={`/${locale}/dashboard/organizations`}>{t("org.back")}</BackLink>;
 
   return (

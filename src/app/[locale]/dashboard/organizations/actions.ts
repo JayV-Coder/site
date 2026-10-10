@@ -310,6 +310,14 @@ export async function linkGitRepositories(org: string, provider: GitProvider, pa
   });
 }
 
+/** Exclui o projeto de um repositório no app de todos os membros que o têm,
+ * com os chats; o repositório fica na organização. Owner e maintainer: o
+ * banco confere o papel. Devolve quantos projetos foram excluídos. */
+export async function deleteOrgProject(org: string, repository: string) {
+  if (!UUID.test(org) || !UUID.test(repository)) return forbidden;
+  return call<number>("delete_org_project", { org, repository });
+}
+
 /** Tirar um repositório da organização (só o owner). */
 export async function removeRepository(repository: string) {
   if (!UUID.test(repository)) return forbidden;
