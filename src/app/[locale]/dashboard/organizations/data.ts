@@ -5,6 +5,7 @@ import { configuredProviders } from "@/modules/git/server";
 import { MCP_AGENTS, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
 import { storedCommandRules, type StoredCommandRules } from "@/modules/organizations/commands";
 import { storedPolicy, type StoredPolicy } from "@/modules/organizations/policy";
+import { orgProjectsOf, type OrgProject } from "@/modules/organizations/projects";
 import { canManage, isRole, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
 
@@ -48,6 +49,9 @@ export interface OrganizationDetail {
   /** Os servidores MCP da organização; só owner e maintainer os leem (levam segredos). */
   mcpServers: OrgMcpServer[];
   skills: OrgSkill[];
+  /** Os repositórios que algum membro tem como projeto no app (`org_projects`);
+   * só owner e maintainer os leem. Nulo quando o banco não respondeu. */
+  projects: OrgProject[] | null;
   /** Os provedores com o app configurado neste site (o GitHub, só pelo
    * GitHub App: a conta ou a organização é escolhida na tela do GitHub). */
   providers: GitProvider[];
@@ -100,9 +104,10 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
   const organization = (await loadOrganizations()).find((org) => org.id === id);
   const supabase = await userSupabase();
   if (!organization || !supabase) return null;
-  const [members, invites, repositories, policies, commandRules, connections, mcpServers, skills] = await Promise.all([
+  const manages = canManage(organization.role);
+  const [members, invites, repositories, policies, commandRules, connections, mcpServers, skills, projects] = await Promise.all([
     supabase.rpc("organization_members_view", { org: id }),
-    canManage(organization.role) ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
+    manages ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
     supabase.from("organization_repositories")
       .select("id, repo_key, provider, path, default_branch, private, description, web_url, linked_via").eq("org_id", id).order("repo_key"),
     supabase.from("organization_llm_policies").select("*").eq("org_id", id),
@@ -111,7 +116,11 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     supabase.from("organization_git_connections").select("provider, account, connected_at, namespace").eq("org_id", id),
     supabase.from("organization_mcp_servers").select("config, enabled").eq("org_id", id).order("name"),
     supabase.from("organization_skills").select("name, description, body, enabled").eq("org_id", id).order("name"),
+    manages ? supabase.rpc("org_projects", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
   ]);
+  // Sem a lista dos projetos (a migração ainda não chegou), o resto da página
+  // continua de pé e a aba avisa.
+  if (projects.error) console.error("org_projects", projects.error.message);
   for (const result of [members, invites, repositories, policies, connections, mcpServers, skills]) if (result.error) throw new Error(result.error.message);
   const me = (await auth())?.user.id;
   return {
@@ -143,6 +152,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     skills: ((skills.data ?? []) as Row[]).map((row) => ({
       name: row.name as string, description: row.description as string, body: row.body as string, enabled: row.enabled !== false,
     })),
+    projects: projects.error ? null : orgProjectsOf(projects.data),
     providers: configuredProviders(),
   };
 }

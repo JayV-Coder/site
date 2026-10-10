@@ -27,7 +27,7 @@ export default async function OrganizationsPage({ params }: PageProps<"/[locale]
 
   return (
     <DashboardShell locale={locale} access={access} current="organizations">
-      <PageHeading eyebrow={t("site.dashboard.title")} title={t("nav.organizations")} description={t("site.dashboard.organizations")} />
+      <PageHeading eyebrow={t("site.dashboard.title")} title={t("nav.organizations")} description={t("site.dashboard.organizations.intro")} />
       {!allowed ? <EmptyText>{t("site.dashboard.locked")}</EmptyText> : (
         <div className="grid gap-6">
           <NewOrganizationForm />

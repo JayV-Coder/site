@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyPolicy, policyLines, policyOk, policyPayload, policyProblems, storedPolicy } from "./policy";
 import { inCatalog, ruleBlocks, ruleLines, rulesInvalid, storedCommandRules } from "./commands";
+import { orgProjectsOf } from "./projects";
 import { canChangeRoles, canDelete, canManage, canRemove, orgFailure, slugify, slugOk } from "./rules";
 
 describe("member management rules", () => {
@@ -38,6 +39,7 @@ describe("organization rules", () => {
 
   it("turns an organization RPC error into an i18n key", () => {
     expect(orgFailure({ message: "org.slugTaken" })).toEqual({ key: "org.slugTaken" });
+    expect(orgFailure({ message: "org.repoGone" })).toEqual({ key: "org.repoGone" });
     expect(orgFailure({ message: "policy.invalid" })).toEqual({ key: "policy.invalid" });
     expect(orgFailure({ message: "mcp.limit" })).toEqual({ key: "site.org.mcp.limit" });
     expect(orgFailure({ message: "skill.invalid" })).toEqual({ key: "site.org.skill.invalid" });
@@ -104,5 +106,26 @@ describe("command permissions", () => {
   it("reads a stored row", () => {
     expect(storedCommandRules({ repository_id: "r1", blocked: ["git push"] })).toEqual({ repositoryId: "r1", blocked: ["git push"] });
     expect(storedCommandRules({ repository_id: null })).toEqual({ repositoryId: null, blocked: [] });
+  });
+});
+
+describe("organization projects", () => {
+  const row = {
+    repository_id: "r1", provider: "github", path: "acme/api", repo_key: "github.com/acme/api", web_url: null,
+    members: 3, chats: "12", last_activity: "2026-10-05T12:30:00+00:00",
+  };
+
+  it("reads the rows of org_projects, with counts that may come as text", () => {
+    expect(orgProjectsOf([row])).toEqual([{
+      repositoryId: "r1", provider: "github", path: "acme/api", repoKey: "github.com/acme/api", webUrl: null,
+      members: 3, chats: 12, lastActivity: "2026-10-05T12:30:00+00:00",
+    }]);
+  });
+
+  it("drops rows it cannot show and dates it cannot read", () => {
+    expect(orgProjectsOf([{ ...row, provider: "svn" }, { ...row, repository_id: null }, { ...row, path: "" }])).toEqual([]);
+    expect(orgProjectsOf([{ ...row, last_activity: null, chats: null, members: "x" }])[0]).toMatchObject({ lastActivity: null, chats: 0, members: 0 });
+    expect(orgProjectsOf([{ ...row, last_activity: "sem data" }])[0].lastActivity).toBeNull();
+    expect(orgProjectsOf(null)).toEqual([]);
   });
 });
