@@ -8,6 +8,8 @@ export interface Access {
   admin: boolean;
   /** O plano (e o admin) deixam usar organizações, como o menu do app. */
   organizations: boolean;
+  /** O plano deixa criar mods (`customMods`), como a aba Mods do app. */
+  mods: boolean;
 }
 
 /** O que quem entrou pode abrir no painel, pelo `my_features()` — o mesmo que
@@ -16,9 +18,10 @@ export const loadAccess = cache(async (): Promise<Access | null> => {
   const supabase = await userSupabase();
   if (!supabase) return null;
   const { data, error } = await supabase.rpc("my_features");
-  if (error) return { admin: false, organizations: false };
+  if (error) return { admin: false, organizations: false, mods: false };
   const me = data as { admin?: boolean; features?: string[] } | null;
-  return { admin: me?.admin === true, organizations: (me?.features ?? []).includes("organizations") };
+  const features = me?.features ?? [];
+  return { admin: me?.admin === true, organizations: features.includes("organizations"), mods: features.includes("customMods") };
 });
 
 /** O painel pede login: quem não entrou vai ao login e volta para `path`. */

@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Building2Icon, LayoutDashboardIcon, ShieldCheckIcon, UserRoundIcon, UsersIcon } from "lucide-react";
+import { Building2Icon, LayoutDashboardIcon, PuzzleIcon, ShieldCheckIcon, UserRoundIcon, UsersIcon } from "lucide-react";
 import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import { getT } from "@/modules/i18n/server";
 import type { Access } from "./access";
 import { CurrentInView } from "./CurrentInView";
 
-export type DashboardSection = "overview" | "account" | "organizations" | "users" | "admin";
+export type DashboardSection = "overview" | "account" | "organizations" | "mods" | "users" | "admin";
 
 /** A moldura do painel: as seções à esquerda (no celular, uma faixa que
  * rola de lado, de ponta a ponta) e a página ao lado. O Dashboard e a conta
@@ -22,6 +22,7 @@ export async function DashboardShell({ locale, access, current, children }: {
     { id: "overview" as const, href: base, label: t("site.dashboard.title"), Icon: LayoutDashboardIcon, shown: true },
     { id: "account" as const, href: `${base}/account`, label: t("site.account.title"), Icon: UserRoundIcon, shown: true },
     { id: "organizations" as const, href: `${base}/organizations`, label: t("nav.organizations"), Icon: Building2Icon, shown: true },
+    { id: "mods" as const, href: `${base}/mods`, label: t("site.mods.title"), Icon: PuzzleIcon, shown: true },
     { id: "users" as const, href: `${base}/users`, label: t("site.users.title"), Icon: UsersIcon, shown: access.admin },
     { id: "admin" as const, href: `${base}/admin`, label: t("nav.admin"), Icon: ShieldCheckIcon, shown: access.admin },
   ].filter((section) => section.shown);
