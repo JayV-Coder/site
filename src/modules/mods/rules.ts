@@ -1,37 +1,59 @@
 import type { Key } from "@/modules/i18n/types";
 
 /** Os mods do JayV moram no repositório `JayV-Coder/jayv-coder-mods`; o site
- * lê o catálogo pela função `mods` do Supabase. O mod que a pessoa cria aqui é
+ * lê o catálogo pela função `mods` do Supabase. Instalar, ligar, desligar e
+ * desinstalar um mod do catálogo é o estado do ambiente (`./state`). O mod que
+ * a pessoa cria aqui é
  * uma linha da configuração sincronizada dela (`llm_agents`, com o id
  * `mod-<nome>`), no ambiente escolhido: o app a recebe na próxima volta do
  * sync, como se ela tivesse criado lá. As regras são as do app
  * (`src/modules/settings/mods.ts` e `mods::custom` no núcleo). */
 
-export type ModKind = "llm" | "feature" | "template";
-
-export type ModTemplate =
+/** Um agente que um mod do catálogo traz (o ponto `agents`): a definição de
+ * um mod criado, sem o que é da máquina. Instalado, vira o agente
+ * `mod-<id do mod>` (`-2`, `-3`… para os seguintes). */
+export type ModAgent =
   | { kind: "api"; protocol: "openai" | "anthropic"; baseUrl: string; keyRequired: boolean; models?: string[] }
   | { kind: "cli"; command: string; args: string[]; planArgs?: string[]; edits?: boolean; models?: string[] };
 
-/** Um mod como o catálogo o descreve. Os textos vêm nos dez idiomas. */
+/** O que um mod traz a cada ponto de extensão do app, pela chave do ponto. */
+export interface ModContributions {
+  llmEngines?: string[];
+  features?: string[];
+  agents?: ModAgent[];
+  [point: string]: unknown;
+}
+
+/** Um mod como o catálogo genérico o descreve: um pacote com nome, versão e
+ * autor, que traz alguma coisa a um ou mais pontos de extensão do app. Os
+ * textos vêm nos dez idiomas. */
 export interface ModManifest {
   id: string;
-  kind: ModKind;
+  version?: string;
   category: string;
   plan: string | null;
-  defaultOn?: boolean;
   minApp?: string;
+  /** Instalado, e ligado, no login de quem ainda não o tem. */
+  preinstalled?: boolean;
+  /** Os mods de que ele precisa instalados e ligados. */
+  requires?: string[];
+  author?: string;
   docs?: string;
   homepage?: string;
   title: Record<string, string>;
   summary: Record<string, string>;
-  template?: ModTemplate;
+  contributes: ModContributions;
 }
 
 export interface Catalog { schema: number; mods: ModManifest[] }
 
-/** O formato do catálogo que o site entende. */
-export const CATALOG_SCHEMA = 1;
+/** O formato do catálogo genérico, e o antigo, que o site ainda lê (a função
+ * de antes dele). */
+export const CATALOG_SCHEMA = 2;
+export const LEGACY_SCHEMA = 1;
+
+/** Os pontos de extensão que o site sabe mostrar. */
+export const KNOWN_POINTS = ["llmEngines", "features", "agents"] as const;
 
 /** O prefixo dos mods criados: nenhum motor do app começa assim. */
 export const CUSTOM_PREFIX = "mod-";
@@ -42,20 +64,54 @@ const ARGS_MAX = 64;
 const ARG_MAX = 1000;
 export const MODEL = /^[A-Za-z0-9._:/@[\]-]{1,120}$/;
 
-/** O catálogo como desceu, só com o que o site sabe mostrar: o formato certo e
- * os mods com id, tipo e textos. Nulo quando nem isso dá para ler. */
-export function readCatalog(value: unknown): Catalog | null {
-  if (typeof value !== "object" || value === null) return null;
-  const { schema, mods } = value as { schema?: unknown; mods?: unknown };
-  if (schema !== CATALOG_SCHEMA || !Array.isArray(mods)) return null;
-  const kept = mods.filter((mod): mod is ModManifest => {
-    if (typeof mod !== "object" || mod === null) return false;
-    const item = mod as Partial<ModManifest>;
-    return typeof item.id === "string" && (item.kind === "llm" || item.kind === "feature" || item.kind === "template")
-      && typeof item.title === "object" && item.title !== null && typeof item.summary === "object" && item.summary !== null;
-  });
-  return { schema, mods: kept };
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+const ID = /^[a-z][A-Za-z0-9-]{1,39}$/;
+
+/** Um mod do formato antigo (`kind` e o id do motor, ou o mod pronto) como um
+ * mod genérico, como o app o lê. */
+function fromLegacy(mod: Record<string, unknown>): ModManifest | null {
+  const id = mod.id as string;
+  const contributes: ModContributions | null = mod.kind === "llm" ? { llmEngines: [id] }
+    : mod.kind === "feature" ? { features: [id] }
+    : mod.kind === "template" && isObject(mod.template) ? { agents: [mod.template as ModAgent] }
+    : null;
+  if (!contributes) return null;
+  const preinstalled = mod.kind === "llm" || (mod.kind === "feature" && mod.defaultOn !== false);
+  const { kind: _kind, defaultOn: _defaultOn, template: _template, ...rest } = mod;
+  return { ...(rest as Omit<ModManifest, "contributes">), preinstalled, contributes };
 }
+
+/** O catálogo como desceu, só com o que o site sabe mostrar: um dos dois
+ * formatos e os mods com id, textos e o que trazem; o antigo vira o genérico.
+ * Nulo quando nem isso dá para ler. */
+export function readCatalog(value: unknown): Catalog | null {
+  if (!isObject(value)) return null;
+  const { schema, mods } = value as { schema?: unknown; mods?: unknown };
+  if ((schema !== CATALOG_SCHEMA && schema !== LEGACY_SCHEMA) || !Array.isArray(mods)) return null;
+  const seen = new Set<string>();
+  const kept: ModManifest[] = [];
+  for (const mod of mods) {
+    if (!isObject(mod) || typeof mod.id !== "string" || !ID.test(mod.id) || !isObject(mod.title) || !isObject(mod.summary)) continue;
+    const manifest = schema === CATALOG_SCHEMA ? (isObject(mod.contributes) && Object.keys(mod.contributes).length > 0 ? mod as unknown as ModManifest : null) : fromLegacy(mod);
+    if (!manifest || seen.has(manifest.id)) continue;
+    seen.add(manifest.id);
+    kept.push(manifest);
+  }
+  return { schema: CATALOG_SCHEMA, mods: kept };
+}
+
+/** Os pontos que o mod usa. */
+export const pointsOf = (manifest: ModManifest) => Object.keys(manifest.contributes ?? {});
+
+/** Os agentes que o mod traz. */
+export const modAgents = (manifest: ModManifest): ModAgent[] => (Array.isArray(manifest.contributes?.agents) ? manifest.contributes.agents : []);
+
+/** O id do agente que a entrada `index` do mod vira: o mesmo do app. */
+export const modAgentId = (modId: string, index: number) => (index === 0 ? `${CUSTOM_PREFIX}${modId}` : `${CUSTOM_PREFIX}${modId}-${index + 1}`);
+
+/** Os ids de agente que os mods do catálogo usam: um mod criado aqui não pode
+ * ficar com nenhum deles. */
+export const reservedAgentIds = (catalog: Catalog | null) => (catalog?.mods ?? []).flatMap((manifest) => modAgents(manifest).map((_agent, index) => modAgentId(manifest.id, index)));
 
 /** O texto de um mod no idioma da página: o do idioma, o da língua (`pt` para
  * `pt-BR`), o inglês ou o primeiro que houver. */
@@ -123,9 +179,6 @@ export function modId(name: string, taken: readonly string[]): string {
   for (let n = 2; taken.includes(id); n++) id = `${CUSTOM_PREFIX}${base}-${n}`;
   return id;
 }
-
-/** O id do mod pronto instalado: o mesmo que o app usa (`templateAgentId`). */
-export const templateAgentId = (manifest: Pick<ModManifest, "id">) => `${CUSTOM_PREFIX}${manifest.id}`;
 
 /** O que a pessoa escreve no formulário. As linhas vão como foram digitadas. */
 export interface ModDraft {
@@ -203,17 +256,6 @@ export function draftOf(options: Record<string, unknown>, command: string): ModD
     keyRequired: options.keyRequired === true,
     model: "",
   };
-}
-
-/** O formulário a partir de um mod pronto do catálogo. */
-export function draftOfTemplate(manifest: ModManifest, locale: string): ModDraft | null {
-  const template = manifest.template;
-  if (!template) return null;
-  const name = modText(manifest.title, locale).slice(0, NAME_MAX);
-  if (template.kind === "api") {
-    return { ...EMPTY_DRAFT, name, kind: "api", protocol: template.protocol, baseUrl: template.baseUrl, keyRequired: template.keyRequired, model: template.models?.[0] ?? "" };
-  }
-  return { ...EMPTY_DRAFT, name, kind: "cli", command: template.command, args: joinLine(template.args), planArgs: joinLine(template.planArgs ?? []), edits: template.edits ?? false, model: template.models?.[0] ?? "" };
 }
 
 /** O ambiente pedido pela página: o pessoal ou o id de uma organização. */

@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 import type { Text } from "@/modules/i18n/types";
 import {
-  CUSTOM_PREFIX, draftOf, draftOfTemplate, draftProblems, environmentOk, MAX_MODS, modId, optionsOf, templateAgentId, type ModDraft,
+  CUSTOM_PREFIX, draftOf, draftProblems, environmentOk, MAX_MODS, modId, optionsOf, reservedAgentIds, type ModDraft,
 } from "@/modules/mods/rules";
+import { changed, effectiveState, LEGACY_KEY, legacyStates, STATE_KEY, type ModChange } from "@/modules/mods/state";
 import { modCatalog } from "@/modules/mods/server";
 import { userSupabase } from "@/modules/supabase/server";
 import { loadAccess } from "../access";
 import { loadOrganizations } from "../organizations/data";
+import { loadModState } from "./data";
 
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: Text | string };
 
@@ -25,12 +27,14 @@ async function environmentOf(environment: string) {
   return (await loadOrganizations()).some((organization) => organization.id === environment);
 }
 
-/** Tudo que grava passa por aqui: com sessão, com o recurso no plano e num
- * ambiente de quem entrou. */
-async function writer(environment: string): Promise<{ error: { ok: false; error: Text } } | { supabase: Supabase }> {
+/** Tudo que grava passa por aqui: com sessão, num ambiente de quem entrou e,
+ * para os mods que a pessoa cria (`own`), com o recurso no plano. Instalar,
+ * ligar e desligar os mods do catálogo é de todo mundo: o plano de cada mod o
+ * app aplica. */
+async function writer(environment: string, own = true): Promise<{ error: { ok: false; error: Text } } | { supabase: Supabase }> {
   const [supabase, access] = await Promise.all([userSupabase(), loadAccess()]);
   if (!supabase || !access) return { error: refused("site.session.failed") };
-  if (!access.mods && !access.admin) return { error: refused("mods.empty.locked") };
+  if (own && !access.mods && !access.admin) return { error: refused("mods.empty.locked") };
   if (!(await environmentOf(environment))) return { error: refused("site.mods.environment.unknown") };
   return { supabase };
 }
@@ -94,10 +98,9 @@ export async function saveMod(environment: string, id: string | null, draft: Mod
     if (id === null) {
       if (Object.keys(draftProblems(draft)).length > 0) return refused("site.mods.invalid");
       if (active.length >= MAX_MODS) return refused("mods.tooMany", { max: String(MAX_MODS) });
-      // O id não repete um mod do ambiente nem o de um mod pronto do catálogo,
-      // que vira `mod-<id>` quando instalado.
-      const catalog = await modCatalog();
-      const reserved = (catalog?.mods ?? []).filter((mod) => mod.kind === "template").map(templateAgentId);
+      // O id não repete um mod do ambiente nem o agente de um mod do
+      // catálogo, que vira `mod-<id>` quando instalado.
+      const reserved = reservedAgentIds(await modCatalog());
       return await create(supabase, environment, modId(draft.name, [...active.map((row) => row.id as string), ...reserved]), draft);
     }
     const current = active.find((row) => row.id === id);
@@ -134,20 +137,24 @@ export async function deleteMod(environment: string, id: string): Promise<Action
   return { ok: true, data: undefined };
 }
 
-/** Instala um mod pronto do catálogo como um mod de quem entrou, com o id
- * `mod-<id do catálogo>` — o mesmo do botão Instalar do app. */
-export async function installTemplate(environment: string, templateId: string, locale: string): Promise<ActionResult<string>> {
-  const gate = await writer(environment);
+/** Instala, liga, desliga ou desinstala um mod do catálogo no ambiente: grava
+ * o estado dos mods (`installedMods`) e a linha do app 0.94 tirada dele. Cada
+ * máquina roda o resto na próxima volta do sync — os agentes que um mod traz
+ * são criados e apagados pelo app. */
+export async function changeMod(environment: string, change: ModChange): Promise<ActionResult> {
+  const gate = await writer(environment, false);
   if ("error" in gate) return gate.error;
-  const manifest = (await modCatalog())?.mods.find((mod) => mod.kind === "template" && mod.id === templateId);
-  const draft = manifest ? draftOfTemplate(manifest, locale) : null;
-  if (!manifest || !draft) return refused("site.mods.notFound");
   try {
-    const active = await activeIds(gate.supabase, environment);
-    const id = templateAgentId(manifest);
-    if (active.some((row) => row.id === id)) return refused("site.mods.alreadyInstalled");
-    if (active.length >= MAX_MODS) return refused("mods.tooMany", { max: String(MAX_MODS) });
-    return await create(gate.supabase, environment, id, draft);
+    const [catalog, saved] = await Promise.all([modCatalog(), loadModState(environment)]);
+    if (!catalog || !saved) return refused("site.mods.catalog.unavailable");
+    const at = now();
+    const next = changed(effectiveState(saved.stored, catalog, saved.legacy), catalog, change, at);
+    if (!next) return refused("site.mods.notFound");
+    const row = (key: string, value: unknown) => ({ environment_id: environment, key, value: JSON.stringify(value), updated_at: at, row_updated_at: at, row_deleted_at: null });
+    const { error } = await gate.supabase.from("account_settings").upsert([row(STATE_KEY, next), row(LEGACY_KEY, legacyStates(next, catalog))], { onConflict: "user_id,environment_id,key" });
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/[locale]/dashboard/mods", "page");
+    return { ok: true, data: undefined };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "unknown" };
   }
