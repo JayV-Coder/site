@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { DownloadIcon, ExternalLinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { EmptyText } from "@/components/atoms";
 import { ConfirmAction, FormField, OptionSelect, SegmentedControl, SettingsSection, ToggleRow } from "@/components/molecules";
 import { Badge } from "@/components/ui/badge";
@@ -11,21 +12,28 @@ import { Input } from "@/components/ui/input";
 import { useFeedback } from "@/modules/feedback";
 import { useLocale, useT, type Key } from "@/modules/i18n";
 import {
-  draftOf, draftProblems, EMPTY_DRAFT, MAX_MODS, modText, NAME_MAX, templateAgentId, type Catalog, type ModDraft, type ModManifest,
+  draftOf, draftProblems, EMPTY_DRAFT, KNOWN_POINTS, MAX_MODS, modText, NAME_MAX, pointsOf, reservedAgentIds, type Catalog, type ModDraft, type ModManifest,
 } from "@/modules/mods/rules";
+import { activeMods, type InstalledMods, type ModChange } from "@/modules/mods/state";
 import type { StoredMod } from "./data";
-import { deleteMod, installTemplate, saveMod } from "./actions";
+import { changeMod, deleteMod, saveMod } from "./actions";
 
 /** O formulário aberto: um mod novo (`id` nulo) ou um que já existe. */
 type Editing = { id: string | null; draft: ModDraft };
 
-/** Os mods de quem entrou no ambiente escolhido e o catálogo. Cada gravação vai
- * direto para a configuração sincronizada: o app recebe na próxima volta do
+/** O nome de um ponto de extensão; o que o site não conhece é "outro". */
+const pointLabel = (point: string): Key => ((KNOWN_POINTS as readonly string[]).includes(point) ? `mods.point.${point}` : "mods.point.other") as Key;
+
+/** Os mods do ambiente escolhido: os do catálogo — instalar, ligar, desligar e
+ * desinstalar, como a aba Mods do app — e os que a pessoa cria. Cada gravação
+ * vai direto para a configuração sincronizada: o app recebe na próxima volta do
  * sync. A chave de API e os modelos ficam no app, na aba do mod. */
-export function ModsBoard({ environment, environments, catalog, mods, canCreate, startCreating }: {
+export function ModsBoard({ environment, environments, catalog, state, mods, canCreate, startCreating }: {
   environment: string;
   environments: { id: string; name: string }[];
   catalog: Catalog | null;
+  /** O estado dos mods do catálogo no ambiente; nulo, o banco não respondeu. */
+  state: InstalledMods | null;
   mods: StoredMod[] | null;
   canCreate: boolean;
   startCreating: boolean;
@@ -38,8 +46,12 @@ export function ModsBoard({ environment, environments, catalog, mods, canCreate,
   const [editing, setEditing] = useState<Editing | null>(startCreating && canCreate ? { id: null, draft: EMPTY_DRAFT } : null);
   const [touched, setTouched] = useState(false);
   const [busy, startBusy] = useTransition();
-  const list = mods ?? [];
-  const full = list.length >= MAX_MODS;
+  // Os agentes dos mods do catálogo são do app: aqui ficam só os que a pessoa
+  // criou.
+  const reserved = new Set(reservedAgentIds(catalog));
+  const list = (mods ?? []).filter((mod) => !reserved.has(mod.id));
+  const full = (mods ?? []).length >= MAX_MODS;
+  const active = state ? activeMods(state, catalog) : new Set<string>();
   const nameOf = (mod: StoredMod) => (typeof mod.options.name === "string" && mod.options.name.trim()) || mod.id.slice(4);
 
   const run = <T,>(action: () => Promise<{ ok: true; data: T } | { ok: false; error: unknown }>, done: (data: T) => string, after?: () => void) => startBusy(async () => {
@@ -68,8 +80,13 @@ export function ModsBoard({ environment, environments, catalog, mods, canCreate,
     run(() => saveMod(environment, id, draft), () => t(id ? "site.mods.saved" : "site.mods.created", { name: draft.name.trim() }), close);
   };
 
-  const byKind = (kind: ModManifest["kind"]) => (catalog?.mods ?? []).filter((mod) => mod.kind === kind);
-  const installed = (manifest: ModManifest) => list.some((mod) => mod.id === templateAgentId(manifest));
+  const change = (manifest: ModManifest, action: ModChange["action"]) => {
+    const name = modText(manifest.title, locale);
+    run(() => changeMod(environment, { id: manifest.id, action }), () => t(`site.mods.changed.${action}` as Key, { name }));
+  };
+  const installedMods = (catalog?.mods ?? []).filter((manifest) => state?.mods[manifest.id]);
+  const available = (catalog?.mods ?? []).filter((manifest) => !state?.mods[manifest.id]);
+  const titleOf = (id: string) => { const manifest = catalog?.mods.find((item) => item.id === id); return manifest ? modText(manifest.title, locale) : id; };
 
   const form = editing && (() => {
     const { draft } = editing;
@@ -128,15 +145,25 @@ export function ModsBoard({ environment, environments, catalog, mods, canCreate,
     );
   })();
 
-  const catalogRow = (manifest: ModManifest, action?: React.ReactNode) => (
-    <li key={`${manifest.kind}-${manifest.id}`} className="flex flex-wrap items-start gap-3 rounded-md border border-border px-3 py-2.5">
+  const catalogRow = (manifest: ModManifest, action: React.ReactNode, lead?: React.ReactNode) => (
+    <li key={manifest.id} className="flex flex-wrap items-start gap-3 rounded-md border border-border px-3 py-2.5">
+      {lead}
       {/* O texto pede pelo menos 14rem: no celular, o botão desce para baixo dele. */}
       <div className="grid min-w-0 flex-1 basis-56 gap-0.5">
         <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
           <span className="break-words">{modText(manifest.title, locale)}</span>
-          {manifest.template && <Badge variant="outline">{t(manifest.template.kind === "api" ? "mods.kind.api" : "mods.kind.cli")}</Badge>}
+          {manifest.version && <Badge variant="outline" className="font-mono">{t("mods.version", { version: manifest.version })}</Badge>}
+          {pointsOf(manifest).map((point) => <Badge key={point} variant="secondary">{t(pointLabel(point))}</Badge>)}
+          {state?.mods[manifest.id]?.enabled && !active.has(manifest.id) && (manifest.requires ?? []).length > 0 && (
+            <Badge variant="warning">{t("mods.requires.missing", { names: (manifest.requires ?? []).map(titleOf).join(", ") })}</Badge>
+          )}
         </span>
         <span className="text-xs leading-snug text-muted-foreground">{modText(manifest.summary, locale)}</span>
+        {(manifest.author || (manifest.requires ?? []).length > 0) && (
+          <span className="text-xs text-muted-foreground">
+            {[manifest.author ? t("mods.by", { author: manifest.author }) : null, (manifest.requires ?? []).length > 0 ? t("mods.requires", { names: (manifest.requires ?? []).map(titleOf).join(", ") }) : null].filter(Boolean).join(" · ")}
+          </span>
+        )}
         {manifest.homepage && (
           <a href={manifest.homepage} target="_blank" rel="noreferrer" className="flex w-fit items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
             {t("site.mods.homepage")}<ExternalLinkIcon aria-hidden="true" className="size-3" />
@@ -145,6 +172,33 @@ export function ModsBoard({ environment, environments, catalog, mods, canCreate,
       </div>
       {action}
     </li>
+  );
+
+  const installedRow = (manifest: ModManifest) => {
+    const name = modText(manifest.title, locale);
+    const on = state?.mods[manifest.id]?.enabled ?? false;
+    const needing = installedMods.filter((other) => (other.requires ?? []).includes(manifest.id)).map((other) => modText(other.title, locale));
+    return catalogRow(
+      manifest,
+      <ConfirmAction
+        title={t("mods.uninstall.title", { name })}
+        description={[t("site.mods.uninstall.description"), needing.length > 0 ? t("mods.uninstall.dependents", { names: needing.join(", ") }) : ""].filter(Boolean).join(" ")}
+        confirm={t("mods.uninstall")}
+        onConfirm={() => change(manifest, "uninstall")}
+      >
+        <Button variant="ghost" size="icon-sm" aria-label={t("mods.uninstall.named", { name })} title={t("mods.uninstall.named", { name })} disabled={busy}>
+          <Trash2Icon aria-hidden="true" />
+        </Button>
+      </ConfirmAction>,
+      <Switch checked={on} disabled={busy} aria-label={t("mods.enabled", { name })} className="mt-0.5" onCheckedChange={(next) => change(manifest, next ? "enable" : "disable")} />,
+    );
+  };
+
+  const availableRow = (manifest: ModManifest) => catalogRow(
+    manifest,
+    <Button variant="outline" size="sm" disabled={busy || state === null} onClick={() => change(manifest, "install")}>
+      <DownloadIcon aria-hidden="true" />{t("mods.install")}
+    </Button>,
   );
 
   return (
@@ -203,30 +257,19 @@ export function ModsBoard({ environment, environments, catalog, mods, canCreate,
       {form}
 
       <SettingsSection title={t("site.mods.catalog.title")} description={t("site.mods.catalog.description")}>
-        {catalog === null ? <EmptyText>{t("site.mods.catalog.unavailable")}</EmptyText> : (
+        {catalog === null ? <EmptyText>{t("site.mods.catalog.unavailable")}</EmptyText> : state === null ? <EmptyText>{t("site.mods.unavailable")}</EmptyText> : (
           <div className="grid gap-5">
-            {byKind("template").length > 0 && (
-              <section className="grid gap-2">
-                <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{t("mods.templates")}</h4>
-                <ul className="grid gap-2">
-                  {byKind("template").map((manifest) => catalogRow(manifest, installed(manifest)
-                    ? <Badge variant="secondary">{t("mods.installed")}</Badge>
-                    : (
-                      <Button variant="outline" size="sm" disabled={!canCreate || full || busy}
-                        onClick={() => run(() => installTemplate(environment, manifest.id, locale), () => t("site.mods.installedNotice", { name: modText(manifest.title, locale) }))}>
-                        <DownloadIcon aria-hidden="true" />{t("mods.install")}
-                      </Button>
-                    )))}
-                </ul>
-              </section>
-            )}
             <section className="grid gap-2">
-              <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{t("site.mods.catalog.llm")}</h4>
-              <ul className="grid gap-2">{byKind("llm").map((manifest) => catalogRow(manifest))}</ul>
+              <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{t("mods.installedTitle")}</h4>
+              {installedMods.length === 0
+                ? <EmptyText>{t("mods.installedEmpty")}</EmptyText>
+                : <ul className="grid gap-2 @3xl:grid-cols-2">{installedMods.map(installedRow)}</ul>}
             </section>
             <section className="grid gap-2">
-              <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{t("mods.features.title")}</h4>
-              <ul className="grid gap-2 @3xl:grid-cols-2">{byKind("feature").map((manifest) => catalogRow(manifest))}</ul>
+              <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{t("mods.available")}</h4>
+              {available.length === 0
+                ? <EmptyText>{t("mods.availableEmpty")}</EmptyText>
+                : <ul className="grid gap-2 @3xl:grid-cols-2">{available.map(availableRow)}</ul>}
             </section>
           </div>
         )}

@@ -1,5 +1,6 @@
 import "server-only";
 import { CUSTOM_PREFIX } from "@/modules/mods/rules";
+import { LEGACY_KEY, readLegacy, readState, STATE_KEY, type InstalledMods } from "@/modules/mods/state";
 import { userSupabase } from "@/modules/supabase/server";
 
 /** Um mod de quem entrou, como a configuração sincronizada dele o guarda
@@ -51,4 +52,19 @@ export async function loadMods(environment: string): Promise<StoredMod[] | null>
     models: counts[row.id as string] ?? 0,
     updatedAt: (row.updated_at as string) ?? "",
   })).sort((a, b) => String(a.options.name ?? a.id).localeCompare(String(b.options.name ?? b.id)) || a.id.localeCompare(b.id));
+}
+
+/** O que o ambiente gravou dos mods do catálogo: o estado (nulo, nada gravado
+ * ainda) e as escolhas do app 0.94. Nulo quando o banco não respondeu. */
+export async function loadModState(environment: string): Promise<{ stored: InstalledMods | null; legacy: Record<string, boolean> } | null> {
+  const supabase = await userSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase.from("account_settings").select("key, value")
+    .eq("environment_id", environment).in("key", [STATE_KEY, LEGACY_KEY]).is("row_deleted_at", null);
+  if (error) {
+    console.error("mods state", error);
+    return null;
+  }
+  const value = (key: string) => (data ?? []).find((row) => row.key === key)?.value;
+  return { stored: readState(value(STATE_KEY)), legacy: readLegacy(value(LEGACY_KEY)) };
 }

@@ -1,20 +1,41 @@
 import { describe, expect, it } from "vitest";
 import {
-  draftOf, draftOfTemplate, draftProblems, EMPTY_DRAFT, environmentOk, joinLine, lineProblem, modId, modText, optionsOf, readCatalog, splitLine, templateAgentId, type ModManifest,
+  draftOf, draftProblems, EMPTY_DRAFT, environmentOk, joinLine, lineProblem, modAgentId, modId, modText, optionsOf, readCatalog, reservedAgentIds, splitLine, type ModManifest,
 } from "./rules";
 
 const texts = (en: string, pt?: string) => ({ en, ...(pt ? { "pt-BR": pt } : {}) });
+const api = { kind: "api" as const, protocol: "openai" as const, baseUrl: "http://localhost:11434/v1", keyRequired: false, models: [] };
 const ollama: ModManifest = {
-  id: "ollama", kind: "template", category: "agents", plan: "customMods", minApp: "0.94.0", title: texts("Ollama"), summary: texts("Local models."),
-  template: { kind: "api", protocol: "openai", baseUrl: "http://localhost:11434/v1", keyRequired: false, models: [] },
+  id: "ollama", version: "1.0.0", category: "agents", plan: "customMods", minApp: "0.94.0", preinstalled: true, title: texts("Ollama"), summary: texts("Local models."),
+  contributes: { agents: [api] },
 };
 
 describe("the catalog", () => {
-  it("keeps the mods the site can show and refuses another format", () => {
-    const catalog = readCatalog({ schema: 1, mods: [ollama, { id: "x" }, { id: "stats", kind: "feature", title: texts("Statistics"), summary: texts("Charts.") }, null] });
-    expect(catalog?.mods.map((mod) => mod.id)).toEqual(["ollama", "stats"]);
-    expect(readCatalog({ schema: 2, mods: [] })).toBeNull();
+  it("reads the generic format and keeps only mods that bring something", () => {
+    const catalog = readCatalog({ schema: 2, mods: [ollama, { id: "x" }, { id: "empty", title: texts("E"), summary: texts("E"), contributes: {} }, { ...ollama }, null] });
+    expect(catalog?.mods.map((mod) => mod.id)).toEqual(["ollama"]);
+    expect(readCatalog({ schema: 3, mods: [] })).toBeNull();
     expect(readCatalog("x")).toBeNull();
+  });
+
+  it("reads the old format as the generic one, like the app", () => {
+    const catalog = readCatalog({ schema: 1, mods: [
+      { id: "ollama", kind: "template", category: "agents", plan: "customMods", title: texts("Ollama"), summary: texts("Local."), template: api },
+      { id: "stats", kind: "feature", defaultOn: false, category: "project", plan: "stats", title: texts("Statistics"), summary: texts("Charts.") },
+      { id: "claude", kind: "llm", category: "agents", plan: null, title: texts("Claude Code"), summary: texts("Agent.") },
+      { id: "x", kind: "plugin", title: texts("X"), summary: texts("X") },
+    ] });
+    expect(catalog?.schema).toBe(2);
+    expect(catalog?.mods.map((mod) => [mod.id, mod.contributes, mod.preinstalled])).toEqual([
+      ["ollama", { agents: [api] }, false], ["stats", { features: ["stats"] }, false], ["claude", { llmEngines: ["claude"] }, true],
+    ]);
+    expect(catalog?.mods[1]).not.toHaveProperty("kind");
+  });
+
+  it("names the agents of each mod like the app", () => {
+    expect(modAgentId("local", 0)).toBe("mod-local");
+    expect(modAgentId("local", 2)).toBe("mod-local-3");
+    expect(reservedAgentIds({ schema: 2, mods: [ollama, { ...ollama, id: "pair", contributes: { agents: [api, api] } }] })).toEqual(["mod-ollama", "mod-pair", "mod-pair-2"]);
   });
 
   it("speaks the language of the page, the closest one or English", () => {
@@ -37,7 +58,7 @@ describe("a mod created on the site", () => {
 
   it("gets an id that repeats neither a mod of the environment nor a ready-made one", () => {
     expect(modId("Meu Modelo Local!", [])).toBe("mod-meu-modelo-local");
-    expect(modId("Ollama", [templateAgentId(ollama)])).toBe("mod-ollama-2");
+    expect(modId("Ollama", reservedAgentIds({ schema: 2, mods: [ollama] }))).toBe("mod-ollama-2");
     expect(modId("***", [])).toBe("mod-mod");
   });
 
@@ -58,11 +79,6 @@ describe("a mod created on the site", () => {
     expect(optionsOf({ ...draft, protocol: "anthropic" }, { approveMcps: true }).approveMcps).toBe(false);
     const cli = optionsOf({ ...EMPTY_DRAFT, name: "Writer", command: "writer", args: "--model {model} {prompt}" });
     expect(draftOf(cli, "writer")).toEqual({ ...EMPTY_DRAFT, name: "Writer", command: "writer", args: "--model {model} {prompt}" });
-  });
-
-  it("starts from a ready-made mod of the catalog", () => {
-    expect(draftOfTemplate(ollama, "pt-BR")).toEqual({ ...EMPTY_DRAFT, name: "Ollama", kind: "api", baseUrl: "http://localhost:11434/v1" });
-    expect(draftOfTemplate({ ...ollama, template: undefined }, "en")).toBeNull();
   });
 
   it("goes only to the personal environment or an organization id", () => {

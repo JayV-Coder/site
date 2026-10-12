@@ -6,7 +6,8 @@ import { modCatalog } from "@/modules/mods/server";
 import { requireAccess } from "../access";
 import { DashboardShell } from "../DashboardShell";
 import { loadOrganizations } from "../organizations/data";
-import { loadMods } from "./data";
+import { effectiveState } from "@/modules/mods/state";
+import { loadMods, loadModState } from "./data";
 import { ModsBoard } from "./ModsBoard";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/dashboard/mods">): Promise<Metadata> {
@@ -16,8 +17,9 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/dashboar
 }
 
 /** Os mods: o catálogo do repositório `jayv-coder-mods` (lido pela função
- * `mods` do Supabase) e os mods de quem entrou em cada ambiente — criar,
- * editar, excluir e instalar os prontos, que saíram do app para cá. O app abre
+ * `mods` do Supabase) — instalar, ligar, desligar e desinstalar em cada
+ * ambiente, como a aba Mods do app — e os mods que a pessoa cria: criar, editar
+ * e excluir. O app abre
  * esta página com o ambiente aberto nele (`?environment=`) e, no "Criar mod",
  * com o formulário aberto (`?create=1`). */
 export default async function ModsPage({ params, searchParams }: PageProps<"/[locale]/dashboard/mods">) {
@@ -29,7 +31,10 @@ export default async function ModsPage({ params, searchParams }: PageProps<"/[lo
   const asked = typeof query.environment === "string" ? query.environment : "personal";
   // Um ambiente que não é de quem entrou vira o pessoal.
   const environment = environmentOk(asked) && (asked === "personal" || organizations.some((organization) => organization.id === asked)) ? asked : "personal";
-  const [catalog, mods] = await Promise.all([modCatalog(), loadMods(environment)]);
+  const [catalog, mods, saved] = await Promise.all([modCatalog(), loadMods(environment), loadModState(environment)]);
+  // O estado como o app o vê: o gravado mais os mods de fábrica que o
+  // ambiente ainda não tem (o app os instala no login).
+  const state = saved ? effectiveState(saved.stored, catalog, saved.legacy) : null;
 
   return (
     <DashboardShell locale={locale} access={access} current="mods">
@@ -38,6 +43,7 @@ export default async function ModsPage({ params, searchParams }: PageProps<"/[lo
         environment={environment}
         environments={[{ id: "personal", name: t("site.mods.environment.personal") }, ...organizations.map((organization) => ({ id: organization.id, name: organization.name }))]}
         catalog={catalog}
+        state={state}
         mods={mods}
         canCreate={access.mods || access.admin}
         startCreating={query.create === "1"}
