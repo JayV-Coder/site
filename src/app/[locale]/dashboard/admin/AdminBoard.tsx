@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeedback } from "@/modules/feedback";
 import { useT, type Key } from "@/modules/i18n";
 import { blankPlan, modeOf, withDefault, withMode, type FeatureMode, type FeatureRow, type Plan } from "@/modules/plans/catalog";
-import { deletePlan, savePlan, setFeatureEnabled, type ActionResult } from "./actions";
+import { deletePlan, savePlan, setFeatureEnabled, syncPlan, type ActionResult, type SaveResult } from "./actions";
 
 /** A administração do sistema, trazida do app: liga e desliga cada recurso
  * para todo mundo e monta os planos (preço do Stripe e recursos de cada um).
@@ -95,13 +95,18 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
   const price = draft.priceCents === null ? "" : (draft.priceCents / 100).toString();
   const paid = !draft.isDefault;
 
-  const run = (action: () => Promise<ActionResult>, done: string) => startBusy(async () => {
+  const run = (action: () => Promise<ActionResult | SaveResult>, done: string) => startBusy(async () => {
     const result = await action();
     if (!result.ok) {
       report(result.error);
       return;
     }
-    notify(done);
+    // O plano foi salvo; o envio ao Stripe pode ter falhado à parte.
+    if ("sync" in result && !result.sync.ok) {
+      report(t("site.admin.plan.stripe.savedNotSent", { plan: draft.name, reason: t(result.sync.error.key as Key, result.sync.error.params) }));
+    } else {
+      notify("sync" in result ? t("site.admin.plan.stripe.sent", { plan: draft.name }) : done);
+    }
     onDone?.();
     router.refresh();
   });
@@ -114,6 +119,9 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
         <div className="flex items-center gap-2">
           {draft.isDefault && <Badge variant="accent">{t("admin.plan.defaultBadge")}</Badge>}
           {!draft.active && <Badge variant="secondary">{t("admin.plan.inactiveBadge")}</Badge>}
+          {!fresh && (plan.stripeSyncedAt
+            ? <Badge variant="accent">{t("site.admin.plan.stripe.inStripe")}</Badge>
+            : <Badge variant="secondary">{t("site.admin.plan.stripe.pending")}</Badge>)}
         </div>
       )}
     >
@@ -143,12 +151,14 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
                 onChange={(billingInterval) => edit({ billingInterval })}
               />
             </FormField>
-            <FormField label={t("admin.plan.stripePrice")} htmlFor={id("stripe")} hint={t("admin.plan.stripePriceHint")} wide>
-              <Input id={id("stripe")} value={draft.stripePriceId ?? ""} placeholder="price_..." onChange={(event) => edit({ stripePriceId: event.target.value.trim() || null })} />
-            </FormField>
           </>
         )}
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        {draft.isDefault ? t("site.admin.plan.stripe.free") : t("site.admin.plan.stripe.hint")}
+        {plan.stripeProductId && <span className="ml-1 font-mono">{plan.stripeProductId}{plan.stripePriceId ? ` · ${plan.stripePriceId}` : ""}</span>}
+      </p>
 
       <div className="grid gap-2 @xl:grid-cols-2">
         <ToggleRow id={id("active")} label={t("admin.plan.active")} hint={t("admin.plan.activeHint")} checked={draft.active} disabled={draft.isDefault} onChange={(active) => edit({ active })} />
@@ -214,6 +224,9 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
               <Button variant="ghost" disabled={busy}>{t("admin.plan.delete")}</Button>
             </ConfirmAction>
           )}
+        {!fresh && !dirty && !plan.stripeSyncedAt && (
+          <Button variant="outline" loading={busy} onClick={() => run(() => syncPlan(plan.key), t("site.admin.plan.stripe.sent", { plan: plan.name }))}>{t("site.admin.plan.stripe.sync")}</Button>
+        )}
         {!fresh && dirty && <Button variant="ghost" onClick={() => setDraft(plan)}>{t("settings.discard")}</Button>}
         <Button loading={busy} disabled={!dirty || !draft.key || !draft.name.trim()} onClick={() => run(() => savePlan(draft), t("admin.plan.saved", { plan: draft.name }))}>{t("settings.save")}</Button>
       </div>
