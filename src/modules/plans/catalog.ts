@@ -53,7 +53,12 @@ export interface Plan {
   position: number;
   active: boolean;
   isDefault: boolean;
+  /** Os ids no Stripe: quem os grava é a função `billing`, não o formulário. */
+  stripeProductId: string | null;
   stripePriceId: string | null;
+  /** Quando o Stripe recebeu o plano pela última vez; nulo, ainda não ou o
+   * admin mexeu depois. */
+  stripeSyncedAt: string | null;
   priceCents: number | null;
   currency: string | null;
   billingInterval: "month" | "year" | null;
@@ -69,7 +74,7 @@ export interface FeatureRow { key: FeatureKey; enabled: boolean; position: numbe
 /** Plano novo: o núcleo já travado. */
 export const blankPlan = (position: number): Plan => ({
   key: "", name: "", description: "", position, active: true, isDefault: false,
-  stripePriceId: null, priceCents: null, currency: "brl", billingInterval: "month",
+  stripeProductId: null, stripePriceId: null, stripeSyncedAt: null, priceCents: null, currency: "brl", billingInterval: "month",
   features: CORE_FEATURES.map((key) => ({ key, mode: "locked", defaultOn: true })),
   jevDailyLimit: null, maxConcurrentTurns: 1,
 });

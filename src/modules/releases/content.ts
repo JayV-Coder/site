@@ -21,7 +21,7 @@ export interface Manual { version: string | null; updatedAt: string | null; feat
 
 /** As categorias que a página conhece, na ordem em que aparecem. Uma
  * categoria nova do app, que o site ainda não conhece, cai em "other". */
-export const CATEGORIES = ["start", "chat", "agents", "gate", "privacy", "project", "team", "account", "app", "other"] as const;
+export const CATEGORIES = ["start", "chat", "agents", "mods", "gate", "privacy", "project", "team", "account", "app", "other"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const COMMAND_KINDS: CommandKind[] = ["chat", "shortcut", "cli"];

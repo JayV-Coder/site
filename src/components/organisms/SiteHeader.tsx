@@ -22,6 +22,7 @@ export async function SiteHeader({ locale }: { locale: string }) {
   const links: NavLink[] = [
     { href: `${home}#features`, label: t("site.nav.features") },
     { href: `${home}#downloads`, label: t("site.nav.downloads") },
+    { href: `${home}/plans`, label: t("site.nav.plans") },
     { href: `${home}/docs`, label: t("site.nav.docs") },
     { href: `${home}/releases`, label: t("site.nav.releases") },
   ];
