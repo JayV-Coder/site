@@ -35,6 +35,9 @@ export interface ModManifest {
   minApp?: string;
   /** Instalado, e ligado, no login de quem ainda não o tem. */
   preinstalled?: boolean;
+  /** Essencial: fica sempre instalado e ligado; ninguém o desliga nem o
+   * desinstala (o plano continua mandando no que ele traz). */
+  required?: boolean;
   /** Os mods de que ele precisa instalados e ligados. */
   requires?: string[];
   author?: string;

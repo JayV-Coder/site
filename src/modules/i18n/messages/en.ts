@@ -1008,6 +1008,8 @@ export const en = {
   "mods.uninstall.named": "Uninstall {name}",
   "mods.uninstall.title": "Uninstall {name}?",
   "mods.uninstall.dependents": "{names} need it and stop until you install it again.",
+  "mods.required": "Essential",
+  "mods.required.hint": "JayV needs this mod: it stays installed and on. Your plan still decides what it brings.",
   "site.mods.title": "Mods",
   "site.mods.intro": "Mods add to JayV, like mods in a game: LLM engines, features and agents, each with a version and an author, from the JayV mods repository. Here you install, turn on, turn off and uninstall them in each environment, and create your own — another command-line program or an API compatible with OpenAI or Anthropic. Everything is saved with the settings of the environment and reaches the app on the next sync.",
   "site.mods.environment": "Environment",
