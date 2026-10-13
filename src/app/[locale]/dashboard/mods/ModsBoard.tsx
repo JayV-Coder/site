@@ -176,11 +176,13 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
 
   const installedRow = (manifest: ModManifest) => {
     const name = modText(manifest.title, locale);
-    const on = state?.mods[manifest.id]?.enabled ?? false;
+    // O essencial não se desliga nem se desinstala.
+    const required = manifest.required === true;
+    const on = required || (state?.mods[manifest.id]?.enabled ?? false);
     const needing = installedMods.filter((other) => (other.requires ?? []).includes(manifest.id)).map((other) => modText(other.title, locale));
     return catalogRow(
       manifest,
-      <ConfirmAction
+      required ? <Badge variant="outline" title={t("mods.required.hint")}>{t("mods.required")}</Badge> : <ConfirmAction
         title={t("mods.uninstall.title", { name })}
         description={[t("site.mods.uninstall.description"), needing.length > 0 ? t("mods.uninstall.dependents", { names: needing.join(", ") }) : ""].filter(Boolean).join(" ")}
         confirm={t("mods.uninstall")}
@@ -190,7 +192,7 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
           <Trash2Icon aria-hidden="true" />
         </Button>
       </ConfirmAction>,
-      <Switch checked={on} disabled={busy} aria-label={t("mods.enabled", { name })} className="mt-0.5" onCheckedChange={(next) => change(manifest, next ? "enable" : "disable")} />,
+      <Switch checked={on} disabled={busy || required} title={required ? t("mods.required.hint") : undefined} aria-label={t("mods.enabled", { name })} className="mt-0.5" onCheckedChange={(next) => change(manifest, next ? "enable" : "disable")} />,
     );
   };
 

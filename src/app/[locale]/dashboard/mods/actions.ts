@@ -5,7 +5,7 @@ import type { Text } from "@/modules/i18n/types";
 import {
   CUSTOM_PREFIX, draftOf, draftProblems, environmentOk, MAX_MODS, modId, optionsOf, reservedAgentIds, type ModDraft,
 } from "@/modules/mods/rules";
-import { changed, effectiveState, LEGACY_KEY, legacyStates, STATE_KEY, type ModChange } from "@/modules/mods/state";
+import { changed, effectiveState, isRequired, LEGACY_KEY, legacyStates, STATE_KEY, type ModChange } from "@/modules/mods/state";
 import { modCatalog } from "@/modules/mods/server";
 import { userSupabase } from "@/modules/supabase/server";
 import { loadAccess } from "../access";
@@ -148,6 +148,7 @@ export async function changeMod(environment: string, change: ModChange): Promise
     const [catalog, saved] = await Promise.all([modCatalog(), loadModState(environment)]);
     if (!catalog || !saved) return refused("site.mods.catalog.unavailable");
     const at = now();
+    if (isRequired(catalog, change.id) && (change.action === "disable" || change.action === "uninstall")) return refused("mods.required.hint");
     const next = changed(effectiveState(saved.stored, catalog, saved.legacy), catalog, change, at);
     if (!next) return refused("site.mods.notFound");
     const row = (key: string, value: unknown) => ({ environment_id: environment, key, value: JSON.stringify(value), updated_at: at, row_updated_at: at, row_deleted_at: null });

@@ -67,9 +67,22 @@ export function withRequirements(state: InstalledMods, catalog: Catalog | null):
   return { mods, removed: [...removed] };
 }
 
+/** O estado com os mods essenciais instalados e ligados, seja o que for que se
+ * gravou: ninguém os desliga nem os desinstala (`resolve::with_required` do
+ * app). */
+export function withRequired(state: InstalledMods, catalog: Catalog | null): InstalledMods {
+  const mods = { ...state.mods };
+  const required = (catalog?.mods ?? []).filter((manifest) => manifest.required === true);
+  for (const manifest of required) mods[manifest.id] = mods[manifest.id] ? { ...mods[manifest.id], enabled: true } : { enabled: true, version: manifest.version ?? null };
+  return { mods, removed: state.removed.filter((id) => !required.some((manifest) => manifest.id === id)) };
+}
+
+/** O mod do catálogo é essencial. */
+export const isRequired = (catalog: Catalog | null, id: string) => byId(catalog).get(id)?.required === true;
+
 /** O estado que conta, como o app o calcula: o gravado e os mods de fábrica
- * que o ambiente não tem nem desinstalou; sem nada gravado, as escolhas do app
- * 0.94 valem. */
+ * que o ambiente não tem nem desinstalou, com os essenciais sempre ligados;
+ * sem nada gravado, as escolhas do app 0.94 valem. */
 export function effectiveState(stored: InstalledMods | null, catalog: Catalog | null, legacy: Record<string, boolean>): InstalledMods {
   const state: InstalledMods = stored
     ? { mods: { ...stored.mods }, removed: [...stored.removed] }
@@ -78,7 +91,7 @@ export function effectiveState(stored: InstalledMods | null, catalog: Catalog | 
     if (!manifest.preinstalled || state.mods[manifest.id] || state.removed.includes(manifest.id)) continue;
     state.mods[manifest.id] = { enabled: true, version: manifest.version ?? null };
   }
-  return withRequirements(state, catalog);
+  return withRequirements(withRequired(state, catalog), catalog);
 }
 
 /** Uma mudança pedida pela página. */
@@ -87,9 +100,10 @@ export type ModChange = { id: string; action: "install" | "uninstall" | "enable"
 /** O estado depois da mudança. Instalar e ligar puxam as dependências;
  * desinstalar um mod de fábrica o guarda entre os removidos, para não voltar
  * sozinho. Nulo quando a mudança não faz sentido (o mod não está no catálogo,
- * ou não está instalado). */
+ * não está instalado, ou é essencial e a mudança o desligaria). */
 export function changed(state: InstalledMods, catalog: Catalog | null, change: ModChange, now: string): InstalledMods | null {
   const manifest = byId(catalog).get(change.id);
+  if (manifest?.required && (change.action === "disable" || change.action === "uninstall")) return null;
   const current = state.mods[change.id];
   switch (change.action) {
     case "install":

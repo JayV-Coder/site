@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Catalog, ModManifest } from "./rules";
-import { activeMods, changed, effectiveState, legacyStates, readLegacy, readState } from "./state";
+import { activeMods, changed, effectiveState, isRequired, legacyStates, readLegacy, readState } from "./state";
 
 const texts = (en: string) => ({ en });
 const mod = (id: string, contributes: ModManifest["contributes"], patch: Partial<ModManifest> = {}): ModManifest =>
@@ -40,6 +40,18 @@ describe("the mods of an environment", () => {
     expect(changed(gone, CATALOG, { id: "claude", action: "disable" }, NOW)).toBeNull();
     expect(changed(gone, CATALOG, { id: "ghost", action: "install" }, NOW)).toBeNull();
     expect(on(changed(gone, CATALOG, { id: "stats", action: "disable" }, NOW)!)).toEqual({ "review-kit": true, stats: false });
+  });
+
+  it("keeps the essential mods installed and on, whatever was saved", () => {
+    const catalog: Catalog = { schema: 2, mods: [...CATALOG.mods.map((manifest) => (manifest.id === "stats" ? { ...manifest, required: true } : manifest))] };
+    expect(isRequired(catalog, "stats")).toBe(true);
+    const state = effectiveState({ mods: { stats: { enabled: false } }, removed: [] }, catalog, {});
+    expect(state.mods.stats.enabled).toBe(true);
+    expect(on(effectiveState({ mods: {}, removed: ["stats", "claude"] }, catalog, {}))).toEqual({ stats: true, mcp: true });
+    expect(effectiveState(null, catalog, { stats: false }).mods.stats.enabled).toBe(true);
+    expect(changed(state, catalog, { id: "stats", action: "disable" }, NOW)).toBeNull();
+    expect(changed(state, catalog, { id: "stats", action: "uninstall" }, NOW)).toBeNull();
+    expect(changed(state, catalog, { id: "claude", action: "uninstall" }, NOW)?.removed).toContain("claude");
   });
 
   it("knows what is active and writes the line of the old app", () => {
