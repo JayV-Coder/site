@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeedback } from "@/modules/feedback";
 import { useT, type Key } from "@/modules/i18n";
-import { blankPlan, modeOf, withDefault, withMode, type FeatureMode, type FeatureRow, type Plan } from "@/modules/plans/catalog";
+import { blankPlan, EXTRA_CURRENCIES, modeOf, parseCountries, withDefault, withMode, type ExtraPrice, type FeatureMode, type FeatureRow, type Plan } from "@/modules/plans/catalog";
 import { deletePlan, savePlan, setFeatureEnabled, syncPlan, type ActionResult, type SaveResult } from "./actions";
 
 /** A administração do sistema, trazida do app: liga e desliga cada recurso
@@ -155,6 +155,33 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
         )}
       </div>
 
+      {paid && (
+        <fieldset className="grid gap-3">
+          <legend className="mb-1 text-xs text-muted-foreground">{t("site.admin.plan.prices.title")}</legend>
+          <p className="text-xs text-muted-foreground">{t("site.admin.plan.prices.hint")}</p>
+          {draft.extraPrices.map((item, index) => (
+            <ExtraPriceRow
+              key={item.currency}
+              item={item}
+              base={draft.currency}
+              taken={draft.extraPrices.map((other) => other.currency)}
+              idPrefix={id(`extra-${item.currency}`)}
+              onChange={(next) => edit({ extraPrices: draft.extraPrices.map((other, at) => (at === index ? next : other)) })}
+              onRemove={() => edit({ extraPrices: draft.extraPrices.filter((_, at) => at !== index) })}
+            />
+          ))}
+          {(() => {
+            const free = EXTRA_CURRENCIES.find((code) => code !== draft.currency && !draft.extraPrices.some((other) => other.currency === code));
+            return free && (
+              <Button type="button" variant="outline" size="sm" className="justify-self-start"
+                onClick={() => edit({ extraPrices: [...draft.extraPrices, { currency: free, priceCents: null, countries: [] }] })}>
+                {t("site.admin.plan.prices.add")}
+              </Button>
+            );
+          })()}
+        </fieldset>
+      )}
+
       <p className="text-xs text-muted-foreground">
         {draft.isDefault ? t("site.admin.plan.stripe.free") : t("site.admin.plan.stripe.hint")}
         {plan.stripeProductId && <span className="ml-1 font-mono">{plan.stripeProductId}{plan.stripePriceId ? ` · ${plan.stripePriceId}` : ""}</span>}
@@ -231,5 +258,32 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
         <Button loading={busy} disabled={!dirty || !draft.key || !draft.name.trim()} onClick={() => run(() => savePlan(draft), t("admin.plan.saved", { plan: draft.name }))}>{t("settings.save")}</Button>
       </div>
     </SettingsSection>
+  );
+}
+
+/** Uma moeda extra do plano: moeda, valor e os países a que vale. */
+function ExtraPriceRow({ item, base, taken, idPrefix, onChange, onRemove }: {
+  item: ExtraPrice; base: string | null; taken: string[]; idPrefix: string; onChange: (next: ExtraPrice) => void; onRemove: () => void;
+}) {
+  const t = useT();
+  // O texto fica aqui: "us, c" ainda não é uma lista de países.
+  const [countries, setCountries] = useState(item.countries.join(", "));
+  const options = EXTRA_CURRENCIES.filter((code) => code === item.currency || (code !== base && !taken.includes(code)))
+    .map((code) => ({ value: code, label: code.toUpperCase() }));
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] items-end gap-3">
+      <FormField label={t("site.admin.plan.prices.currency")} htmlFor={`${idPrefix}-currency`}>
+        <OptionSelect id={`${idPrefix}-currency`} value={item.currency} options={options} onChange={(currency) => onChange({ ...item, currency })} />
+      </FormField>
+      <FormField label={t("site.admin.plan.prices.amount")} htmlFor={`${idPrefix}-amount`}>
+        <Input id={`${idPrefix}-amount`} type="number" min={0} step="0.01" value={item.priceCents === null ? "" : (item.priceCents / 100).toString()}
+          onChange={(event) => onChange({ ...item, priceCents: event.target.value === "" ? null : Math.round(Number(event.target.value) * 100) })} />
+      </FormField>
+      <FormField label={t("site.admin.plan.prices.countries")} htmlFor={`${idPrefix}-countries`} wide>
+        <Input id={`${idPrefix}-countries`} value={countries} placeholder="US, CA"
+          onChange={(event) => { setCountries(event.target.value); onChange({ ...item, countries: parseCountries(event.target.value) }); }} />
+      </FormField>
+      <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={onRemove}>{t("site.admin.plan.prices.remove")}</Button>
+    </div>
   );
 }
