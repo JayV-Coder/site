@@ -93,7 +93,7 @@ export default async function PlansPage({ params, searchParams }: PageProps<"/[l
             })}
           </ul>
         )}
-        <p className="mt-6 max-w-[70ch] text-xs leading-relaxed text-muted-foreground">{t("site.plans.core")} {t("site.plans.how")}</p>
+        <p className="mt-6 max-w-[70ch] text-xs leading-relaxed text-muted-foreground">{t("site.plans.how")}</p>
       </div>
     </SitePage>
   );

@@ -12,15 +12,15 @@ describe("plans catalog", () => {
     expect(adminFailure({ message: "permission denied for table plans" })).toBe("permission denied for table plans");
   });
 
-  it("a new plan starts with the core locked", () => {
+  it("a new plan starts with the core locked, as a starting point", () => {
     const plan = blankPlan(10);
-    for (const key of CORE_FEATURES) expect(modeOf(plan, { key, core: true })).toBe("locked");
+    for (const key of CORE_FEATURES) expect(modeOf(plan, { key })).toBe("locked");
     expect(plan.maxConcurrentTurns).toBe(1);
     expect(plan.jevDailyLimit).toBeNull();
   });
 
-  it("moves a feature between off, optional and required, but never the core", () => {
-    const stats = { key: "stats" as const, core: false };
+  it("moves any feature between off, optional and required, the core included", () => {
+    const stats = { key: "stats" as const };
     let plan = withMode(blankPlan(0), stats, "optional");
     expect(modeOf(plan, stats)).toBe("optional");
     plan = withDefault(plan, "stats", false);
@@ -28,12 +28,14 @@ describe("plans catalog", () => {
     expect(plan.features.find((item) => item.key === "stats")).toEqual({ key: "stats", mode: "locked", defaultOn: false });
     plan = withMode(plan, stats, "off");
     expect(modeOf(plan, stats)).toBe("off");
-    const core = { key: "secretRedaction" as const, core: true };
-    expect(withMode(plan, core, "off")).toBe(plan);
+    const core = { key: "secretRedaction" as const };
+    plan = withMode(blankPlan(0), core, "off");
+    expect(modeOf(plan, core)).toBe("off");
+    expect(plan.features.some((item) => item.key === "secretRedaction")).toBe(false);
   });
 
   it("sends the features as the RPC reads them", () => {
-    const plan = withDefault(withMode(blankPlan(0), { key: "planFirst" as const, core: false }, "optional"), "planFirst", false);
+    const plan = withDefault(withMode(blankPlan(0), { key: "planFirst" as const }, "optional"), "planFirst", false);
     expect(featuresPayload(plan)).toContainEqual({ key: "planFirst", mode: "optional", default_on: false });
     expect(featuresPayload(plan)).toContainEqual({ key: "agentSessions", mode: "locked", default_on: true });
   });

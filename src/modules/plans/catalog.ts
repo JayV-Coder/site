@@ -36,8 +36,9 @@ export type FeatureKey = (typeof FEATURES)[number];
 
 export const isFeature = (key: string): key is FeatureKey => (FEATURES as readonly string[]).includes(key);
 
-/** O núcleo: em todo plano, travado; o admin não o desliga. A mesma lista da
- * migração `core_features` — o banco é quem garante, a lista só desenha. */
+/** O núcleo: o que um plano novo já traz, travado. É só o ponto de partida: o
+ * admin pode tirar, deixar opcional ou desligar qualquer um. A mesma lista da
+ * migração `core_features` (`features.core`). */
 export const CORE_FEATURES: readonly FeatureKey[] = ["entryGate", "exitGate", "secretRedaction", "sensitiveFiles", "agentSessions", "contextCache", "adaptiveRouting"];
 
 /** Como um recurso entra no plano: fora dele, opcional (quem usa liga e
@@ -90,14 +91,12 @@ export const blankPlan = (position: number): Plan => ({
 });
 
 /** O modo do recurso no plano. O núcleo é sempre obrigatório. */
-export function modeOf(plan: Pick<Plan, "features">, feature: Pick<FeatureRow, "key" | "core">): FeatureMode {
-  if (feature.core) return "locked";
+export function modeOf(plan: Pick<Plan, "features">, feature: Pick<FeatureRow, "key">): FeatureMode {
   return plan.features.find((item) => item.key === feature.key)?.mode ?? "off";
 }
 
 /** O plano com o recurso no modo escolhido; o núcleo não sai do obrigatório. */
-export function withMode(plan: Plan, feature: Pick<FeatureRow, "key" | "core">, mode: FeatureMode): Plan {
-  if (feature.core) return plan;
+export function withMode(plan: Plan, feature: Pick<FeatureRow, "key">, mode: FeatureMode): Plan {
   const others = plan.features.filter((item) => item.key !== feature.key);
   if (mode === "off") return { ...plan, features: others };
   const current = plan.features.find((item) => item.key === feature.key);

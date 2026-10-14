@@ -12,8 +12,7 @@ export interface PublicPlan {
   interval: "month" | "year" | null;
   /** As moedas em que o plano é vendido (a padrão primeiro); vazio no gratuito. */
   currencies: string[];
-  /** Os recursos do plano que o site sabe descrever, sem o núcleo (que vem em
-   * todo plano e tem uma frase só). */
+  /** Os recursos do plano que o site sabe descrever. */
   features: FeatureKey[];
 }
 
@@ -32,7 +31,7 @@ export async function publicPlans(country?: string | null, currency?: string | n
     });
     if (!response.ok) return null;
     const rows = (await response.json()) as Row[];
-    return rows.map((row) => ({ ...row, currencies: row.currencies ?? [], features: row.features.filter((feature) => !feature.core && isFeature(feature.key)).map((feature) => feature.key as FeatureKey) }));
+    return rows.map((row) => ({ ...row, currencies: row.currencies ?? [], features: row.features.filter((feature) => isFeature(feature.key)).map((feature) => feature.key as FeatureKey) }));
   } catch (error) {
     console.error("plans", error);
     return null;

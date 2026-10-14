@@ -519,7 +519,7 @@ export const en = {
   "site.callback.failed": "This link didn't work. Request a new one or sign in again.",
   "site.session.failed": "Couldn't open your session on the site. Try again.",
   "site.admin.signIn": "Sign in with the system administrator account to open this page.",
-  "site.admin.feature.core": "Core feature: on in every plan, can't be turned off",
+  "site.admin.feature.core": "Core feature: starts in every plan, but you can turn it off",
   "site.admin.feature.mode.off": "Not included",
   "site.admin.feature.mode.optional": "Optional",
   "site.admin.feature.mode.locked": "Required",
