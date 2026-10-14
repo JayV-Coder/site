@@ -14,6 +14,7 @@ import { looksLikeLocale } from "@/modules/i18n/render";
 import type { Text } from "@/modules/i18n/types";
 import { mcpPayload, mcpProblems, parseSkillFile, skillProblems, SKILL_DESCRIPTION_MAX, SKILL_BODY_MAX, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
 import { fetchSkillFile, searchHub, type Fetcher, type SkillHit } from "@/modules/organizations/skillsHub";
+import { chatKindsOf } from "@/modules/organizations/chatPermissions";
 import { COMMAND_RULES_MAX, rulesInvalid, ruleLines } from "@/modules/organizations/commands";
 import { policyOk, policyPayload, type LlmPolicy } from "@/modules/organizations/policy";
 import { INVITE_ROLES, orgFailure, slugOk, type Role } from "@/modules/organizations/rules";
@@ -72,6 +73,13 @@ export async function saveCommandRules(org: string, repository: string | null, r
   const clean = ruleLines(rules.join("\n"));
   if (rulesInvalid(clean) || clean.length > COMMAND_RULES_MAX) return { ok: false, error: { key: "policy.invalid" } } as const;
   return call<null>("set_command_rules", { org, repository, rules: clean });
+}
+
+/** As permissões do chat que a organização desliga nos projetos dela. */
+export async function saveChatPermissions(org: string, blocked: string[]) {
+  const kinds = chatKindsOf(blocked);
+  if (kinds.length !== new Set(blocked).size) return { ok: false, error: { key: "policy.invalid" } } as const;
+  return call<null>("set_chat_permissions", { org, blocked: kinds });
 }
 
 /** Servidores MCP e skills da organização: owner e maintainer gravam; os

@@ -1,10 +1,11 @@
 "use client";
 
-import { FolderGit2Icon, FolderKanbanIcon, LockKeyholeIcon, PlugIcon, SettingsIcon, ShieldCheckIcon, SparklesIcon, UsersIcon } from "lucide-react";
+import { FolderGit2Icon, FolderKanbanIcon, LockKeyholeIcon, MessageSquareLockIcon, PlugIcon, SettingsIcon, ShieldCheckIcon, SparklesIcon, UsersIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/modules/i18n";
 import { canManage } from "@/modules/organizations/rules";
 import type { OrganizationDetail } from "../data";
+import { ChatPermissionsSection } from "./ChatPermissionsSection";
 import { InviteSection } from "./InviteSection";
 import { MembersSection } from "./MembersSection";
 import { McpSection } from "./McpSection";
@@ -15,11 +16,11 @@ import { RepositoriesSection, type GitOutcome } from "./RepositoriesSection";
 import { SettingsSection } from "./SettingsSection";
 import { SkillsSection } from "./SkillsSection";
 
-export type OrganizationTab = "members" | "projects" | "repositories" | "policy" | "permissions" | "mcp" | "skills" | "settings";
+export type OrganizationTab = "members" | "projects" | "repositories" | "policy" | "permissions" | "chat" | "mcp" | "skills" | "settings";
 
 /** As abas (na vertical, ao lado do conteúdo) da organização que saíram do app para o painel: convite,
  * projetos (só owner e maintainer, como a exclusão deles), repositórios (o provedor git do owner), política de LLM,
- * permissões de comandos, servidores MCP, skills e configurações. Projetos vem logo depois de Membros, na ordem do
+ * permissões de comandos, permissões do chat, servidores MCP, skills e configurações. Projetos vem logo depois de Membros, na ordem do
  * menu da organização no app (Projetos antes de Repositórios). */
 export function OrganizationBoard({ detail, tab, outcome }: {
   detail: OrganizationDetail; tab: OrganizationTab; outcome: { kind: GitOutcome; provider: string | null; pick: boolean } | null;
@@ -36,6 +37,7 @@ export function OrganizationBoard({ detail, tab, outcome }: {
         <TabsTrigger value="repositories" title={t("org.tab.repositories")} aria-label={t("org.tab.repositories")} className="flex-none gap-2.5 px-3 py-2"><FolderGit2Icon /><span className="hidden @lg:inline">{t("org.tab.repositories")}</span></TabsTrigger>
         <TabsTrigger value="policy" title={t("org.tab.policy")} aria-label={t("org.tab.policy")} className="flex-none gap-2.5 px-3 py-2"><ShieldCheckIcon /><span className="hidden @lg:inline">{t("org.tab.policy")}</span></TabsTrigger>
         <TabsTrigger value="permissions" title={t("site.org.tab.permissions")} aria-label={t("site.org.tab.permissions")} className="flex-none gap-2.5 px-3 py-2"><LockKeyholeIcon /><span className="hidden @lg:inline">{t("site.org.tab.permissions")}</span></TabsTrigger>
+        <TabsTrigger value="chat" title={t("site.org.tab.chat")} aria-label={t("site.org.tab.chat")} className="flex-none gap-2.5 px-3 py-2"><MessageSquareLockIcon /><span className="hidden @lg:inline">{t("site.org.tab.chat")}</span></TabsTrigger>
         <TabsTrigger value="mcp" title={t("site.org.tab.mcp")} aria-label={t("site.org.tab.mcp")} className="flex-none gap-2.5 px-3 py-2"><PlugIcon /><span className="hidden @lg:inline">{t("site.org.tab.mcp")}</span></TabsTrigger>
         <TabsTrigger value="skills" title={t("site.org.tab.skills")} aria-label={t("site.org.tab.skills")} className="flex-none gap-2.5 px-3 py-2"><SparklesIcon /><span className="hidden @lg:inline">{t("site.org.tab.skills")}</span></TabsTrigger>
         <TabsTrigger value="settings" title={t("org.tab.settings")} aria-label={t("org.tab.settings")} className="flex-none gap-2.5 px-3 py-2"><SettingsIcon /><span className="hidden @lg:inline">{t("org.tab.settings")}</span></TabsTrigger>
@@ -46,6 +48,7 @@ export function OrganizationBoard({ detail, tab, outcome }: {
         <TabsContent value="repositories"><RepositoriesSection detail={detail} outcome={outcome} /></TabsContent>
         <TabsContent value="policy"><PolicySection detail={detail} /></TabsContent>
         <TabsContent value="permissions"><PermissionsSection detail={detail} /></TabsContent>
+        <TabsContent value="chat"><ChatPermissionsSection key={detail.chatBlocked.join("|")} detail={detail} /></TabsContent>
         {/* A chave refaz o formulário quando o nome volta do banco. */}
         <TabsContent value="mcp"><McpSection detail={detail} /></TabsContent>
         <TabsContent value="skills"><SkillsSection detail={detail} /></TabsContent>

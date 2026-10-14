@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyPolicy, policyLines, policyOk, policyPayload, policyProblems, storedPolicy } from "./policy";
+import { chatKindsOf, storedChatPermissions } from "./chatPermissions";
 import { inCatalog, ruleBlocks, ruleLines, rulesInvalid, storedCommandRules } from "./commands";
 import { orgProjectsOf } from "./projects";
 import { canChangeRoles, canDelete, canManage, canRemove, orgFailure, slugify, slugOk } from "./rules";
@@ -127,5 +128,18 @@ describe("organization projects", () => {
     expect(orgProjectsOf([{ ...row, last_activity: null, chats: null, members: "x" }])[0]).toMatchObject({ lastActivity: null, chats: 0, members: 0 });
     expect(orgProjectsOf([{ ...row, last_activity: "sem data" }])[0].lastActivity).toBeNull();
     expect(orgProjectsOf(null)).toEqual([]);
+  });
+});
+
+describe("chat permissions", () => {
+  it("keeps only the three kinds of the picker, in its order, without repeats", () => {
+    expect(chatKindsOf(["network", "git", "docker", "git"])).toEqual(["git", "network"]);
+    expect(chatKindsOf("git")).toEqual([]);
+    expect(chatKindsOf(null)).toEqual([]);
+  });
+
+  it("reads a stored row", () => {
+    expect(storedChatPermissions({ org_id: "o1", blocked: ["shell"] })).toEqual(["shell"]);
+    expect(storedChatPermissions(null)).toEqual([]);
   });
 });
