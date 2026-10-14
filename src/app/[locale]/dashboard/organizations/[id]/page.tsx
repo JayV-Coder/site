@@ -11,7 +11,7 @@ import { loadOrganization } from "../data";
 import { OrganizationBoard, type OrganizationTab } from "./OrganizationBoard";
 import type { GitOutcome } from "./RepositoriesSection";
 
-const TABS: OrganizationTab[] = ["members", "projects", "repositories", "policy", "permissions", "chat", "mcp", "skills", "settings"];
+const TABS: OrganizationTab[] = ["members", "projects", "repositories", "policy", "permissions", "mcp", "skills", "settings"];
 const OUTCOMES: GitOutcome[] = ["connected", "denied", "requested", "forbidden", "failed"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/dashboard/organizations/[id]">): Promise<Metadata> {
@@ -29,7 +29,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/dashboar
 export default async function OrganizationPage({ params, searchParams }: PageProps<"/[locale]/dashboard/organizations/[id]">) {
   const { locale, id } = await params;
   const query = await searchParams;
-  const wanted = TABS.find((known) => known === query.tab) ?? "members";
+  // A aba Chat virou o quadro de cima da aba Permissões: o link antigo cai nela.
+  const wanted = TABS.find((known) => known === (query.tab === "chat" ? "permissions" : query.tab)) ?? "members";
   const kind = OUTCOMES.find((known) => known === query.git);
   const outcome = kind ? { kind, provider: typeof query.provider === "string" ? query.provider : null, pick: query.pick === "1", chosen: query.chosen === "1" } : null;
   const access = await requireAccess(locale, `/dashboard/organizations/${id}`);
