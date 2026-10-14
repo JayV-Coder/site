@@ -48,10 +48,9 @@ export function AdminBoard({ plans, features, subscribers }: { plans: Plan[]; fe
                 key={feature.key}
                 id={`feature-${feature.key}`}
                 label={t(`feature.${feature.key}.title` as Key)}
-                // O núcleo fica ligado em todo plano: o banco recusa desligá-lo.
+                // O núcleo começa em todo plano, mas o admin o desliga como qualquer outro.
                 hint={feature.core ? `${t("site.admin.feature.core")} · ${t(`feature.${feature.key}.detail` as Key)}` : t(`feature.${feature.key}.detail` as Key)}
-                checked={feature.core || feature.enabled}
-                disabled={feature.core}
+                checked={feature.enabled}
                 onChange={(enabled) => void toggle(feature.key, enabled)}
               />
             ))}
@@ -219,10 +218,10 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
             return (
               <div key={feature.key} className="grid gap-1.5 rounded-lg border border-border/60 px-3 py-2.5">
                 <div className="flex items-center justify-between gap-3">
-                  <span className={feature.enabled || feature.core ? "text-sm" : "text-sm text-muted-foreground line-through"}>{t(`feature.${feature.key}.title` as Key)}</span>
+                  <span className={feature.enabled ? "text-sm" : "text-sm text-muted-foreground line-through"}>{t(`feature.${feature.key}.title` as Key)}</span>
                   <div className="w-36 shrink-0">
                     <OptionSelect id={id(`mode-${feature.key}`)} label={t(`feature.${feature.key}.title` as Key)} value={mode} options={modes}
-                      disabled={feature.core} onChange={(next) => choose(feature, next)} />
+                      onChange={(next) => choose(feature, next)} />
                   </div>
                 </div>
                 {feature.core && <span className="text-xs text-muted-foreground">{t("site.admin.feature.core")}</span>}
