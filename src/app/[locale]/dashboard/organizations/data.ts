@@ -48,6 +48,8 @@ export interface OrganizationDetail {
   commandRules: StoredCommandRules[];
   /** As permissões do chat que a organização desliga para os projetos dela. */
   chatBlocked: ChatKind[];
+  /** As que ela deixa sempre ligadas. */
+  chatEnabled: ChatKind[];
   connections: GitConnection[];
   /** Os servidores MCP da organização; só owner e maintainer os leem (levam segredos). */
   mcpServers: OrgMcpServer[];
@@ -116,7 +118,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     supabase.from("organization_llm_policies").select("*").eq("org_id", id),
     // Antes da migração das permissões, o resto da tela continua de pé.
     supabase.from("organization_command_rules").select("repository_id, blocked").eq("org_id", id),
-    supabase.from("organization_chat_permissions").select("blocked").eq("org_id", id).maybeSingle(),
+    supabase.from("organization_chat_permissions").select("blocked, enabled").eq("org_id", id).maybeSingle(),
     supabase.from("organization_git_connections").select("provider, account, connected_at, namespace").eq("org_id", id),
     supabase.from("organization_mcp_servers").select("config, enabled").eq("org_id", id).order("name"),
     supabase.from("organization_skills").select("name, description, body, enabled").eq("org_id", id).order("name"),
@@ -150,6 +152,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     policies: (policies.data ?? []).map((row) => storedPolicy(row as Row)),
     commandRules: commandRules.error ? [] : (commandRules.data ?? []).map((row) => storedCommandRules(row as Row)),
     chatBlocked: chatPermissions.error ? [] : storedChatPermissions(chatPermissions.data as Row | null),
+    chatEnabled: chatPermissions.error ? [] : storedChatPermissions(chatPermissions.data as Row | null, "enabled"),
     connections: ((connections.data ?? []) as Row[]).flatMap((row) => (isGitProvider(row.provider) ? [{
       provider: row.provider, account: row.account as string, connectedAt: row.connected_at as string, namespace: (row.namespace as string) ?? null,
     }] : [])),

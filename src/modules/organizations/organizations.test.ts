@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyPolicy, policyLines, policyOk, policyPayload, policyProblems, storedPolicy } from "./policy";
-import { chatKindsOf, storedChatPermissions } from "./chatPermissions";
+import { chatKindsOf, chatLists, chatStates, storedChatPermissions } from "./chatPermissions";
 import { inCatalog, ruleBlocks, ruleLines, rulesInvalid, storedCommandRules } from "./commands";
 import { orgProjectsOf } from "./projects";
 import { canChangeRoles, canDelete, canManage, canRemove, orgFailure, slugify, slugOk } from "./rules";
@@ -141,5 +141,16 @@ describe("chat permissions", () => {
   it("reads a stored row", () => {
     expect(storedChatPermissions({ org_id: "o1", blocked: ["shell"] })).toEqual(["shell"]);
     expect(storedChatPermissions(null)).toEqual([]);
+  });
+});
+
+describe("chat permission states", () => {
+  it("joins the two lists into one state per permission, the blocked one winning", () => {
+    expect(chatStates(["network"], ["shell", "network"])).toEqual({ shell: "on", git: "free", network: "blocked" });
+    expect(storedChatPermissions({ blocked: ["git"], enabled: ["shell"] }, "enabled")).toEqual(["shell"]);
+  });
+
+  it("splits the states back into the lists the database takes", () => {
+    expect(chatLists({ shell: "on", git: "blocked", network: "free" })).toEqual({ blocked: ["git"], enabled: ["shell"] });
   });
 });

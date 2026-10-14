@@ -75,11 +75,12 @@ export async function saveCommandRules(org: string, repository: string | null, r
   return call<null>("set_command_rules", { org, repository, rules: clean });
 }
 
-/** As permissões do chat que a organização desliga nos projetos dela. */
-export async function saveChatPermissions(org: string, blocked: string[]) {
-  const kinds = chatKindsOf(blocked);
-  if (kinds.length !== new Set(blocked).size) return { ok: false, error: { key: "policy.invalid" } } as const;
-  return call<null>("set_chat_permissions", { org, blocked: kinds });
+/** As permissões do chat que a organização bloqueia e as que deixa sempre ligadas nos projetos dela. */
+export async function saveChatPermissions(org: string, blocked: string[], enabled: string[]) {
+  const off = chatKindsOf(blocked);
+  const on = chatKindsOf(enabled);
+  if (off.length !== new Set(blocked).size || on.length !== new Set(enabled).size || off.some((kind) => on.includes(kind))) return { ok: false, error: { key: "policy.invalid" } } as const;
+  return call<null>("set_chat_permissions", { org, blocked: off, enabled: on });
 }
 
 /** Servidores MCP e skills da organização: owner e maintainer gravam; os

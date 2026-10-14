@@ -13,8 +13,21 @@ export function chatKindsOf(value: unknown): ChatKind[] {
   return CHAT_KINDS.filter((kind) => listed.includes(kind));
 }
 
+/** Os três estados de uma permissão: livre (a pessoa liga), sempre ligada ou bloqueada. */
+export type ChatState = "free" | "on" | "blocked";
+
 /** Uma linha de `organization_chat_permissions` como o supabase-js a devolve:
- * as permissões bloqueadas. */
-export function storedChatPermissions(row: Record<string, unknown> | null | undefined): ChatKind[] {
-  return chatKindsOf(row?.blocked);
+ * as permissões bloqueadas (`blocked`) ou as sempre ligadas (`enabled`). */
+export function storedChatPermissions(row: Record<string, unknown> | null | undefined, column: "blocked" | "enabled" = "blocked"): ChatKind[] {
+  return chatKindsOf(row?.[column]);
+}
+
+/** O estado de cada permissão a partir das duas listas; a bloqueada vence. */
+export function chatStates(blocked: readonly ChatKind[], enabled: readonly ChatKind[]): Record<ChatKind, ChatState> {
+  return Object.fromEntries(CHAT_KINDS.map((kind) => [kind, blocked.includes(kind) ? "blocked" : enabled.includes(kind) ? "on" : "free"])) as Record<ChatKind, ChatState>;
+}
+
+/** As duas listas que `set_chat_permissions` recebe, a partir dos estados. */
+export function chatLists(states: Record<ChatKind, ChatState>): { blocked: ChatKind[]; enabled: ChatKind[] } {
+  return { blocked: CHAT_KINDS.filter((kind) => states[kind] === "blocked"), enabled: CHAT_KINDS.filter((kind) => states[kind] === "on") };
 }
