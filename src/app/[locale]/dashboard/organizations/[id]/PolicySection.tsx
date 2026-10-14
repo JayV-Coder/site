@@ -105,14 +105,19 @@ function PolicyForm({ orgId, repository, initial, manages }: { orgId: string; re
           </FormField>
           <FormField label={t("policy.mechanisms")} hint={t("policy.mechanisms.hint")}>
             <div className="grid gap-3">
-              {POLICY_AGENTS.filter((agent) => AGENT_MECHANISMS[agent].length > 0).map((agent) => (
-                <div key={agent} className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">{AGENT_LABELS[agent]}</span>
-                  <CheckList id={`policy-mechanisms-${agent}`} tone="danger" selected={policy.blocked_mechanisms}
-                    onChange={(blocked_mechanisms) => update({ blocked_mechanisms })}
-                    items={AGENT_MECHANISMS[agent].map((mechanism) => ({ value: `${agent}/${mechanism}`, label: t(`mechanism.${mechanism}` as Key) }))} />
-                </div>
-              ))}
+              {POLICY_AGENTS.filter((agent) => AGENT_MECHANISMS[agent].length > 0).map((agent) => {
+                // A lista gravada é a dos bloqueados; a tela mostra a dos
+                // liberados (marcado = ligado), para marcar tudo não bloquear tudo.
+                const values = AGENT_MECHANISMS[agent].map((mechanism) => `${agent}/${mechanism}`);
+                return (
+                  <div key={agent} className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">{AGENT_LABELS[agent]}</span>
+                    <CheckList id={`policy-mechanisms-${agent}`} selected={values.filter((value) => !policy.blocked_mechanisms.includes(value))}
+                      onChange={(allowed) => update({ blocked_mechanisms: [...policy.blocked_mechanisms.filter((value) => !values.includes(value)), ...values.filter((value) => !allowed.includes(value))] })}
+                      items={AGENT_MECHANISMS[agent].map((mechanism) => ({ value: `${agent}/${mechanism}`, label: t(`mechanism.${mechanism}` as Key) }))} />
+                  </div>
+                );
+              })}
             </div>
           </FormField>
           <ToggleRow id="policy-safe" label={t("policy.safe")} hint={t("policy.safe.hint")} checked={policy.safe_agents}
