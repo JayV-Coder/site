@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminFailure, blankPlan, CORE_FEATURES, featuresPayload, isFeature, modeOf, withDefault, withMode } from "./catalog";
+import { adminFailure, blankPlan, CORE_FEATURES, featuresPayload, isFeature, modeOf, withDefault, withMode, extraPricesPayload, parseCountries } from "./catalog";
 
 describe("plans catalog", () => {
   it("knows the features of the app", () => {
@@ -36,5 +36,17 @@ describe("plans catalog", () => {
     const plan = withDefault(withMode(blankPlan(0), { key: "planFirst" as const, core: false }, "optional"), "planFirst", false);
     expect(featuresPayload(plan)).toContainEqual({ key: "planFirst", mode: "optional", default_on: false });
     expect(featuresPayload(plan)).toContainEqual({ key: "agentSessions", mode: "locked", default_on: true });
+  });
+});
+
+describe("preços em outras moedas", () => {
+  it("lê os países digitados, em maiúsculas e sem repetir", () => {
+    expect(parseCountries("us, ca;  US  br")).toEqual(["US", "CA", "BR"]);
+    expect(parseCountries("")).toEqual([]);
+  });
+
+  it("manda ao banco só as moedas com valor", () => {
+    const plan = { extraPrices: [{ currency: "usd", priceCents: 990, countries: ["US"] }, { currency: "eur", priceCents: null, countries: [] }] };
+    expect(extraPricesPayload(plan)).toEqual([{ currency: "usd", price_cents: 990, countries: ["US"] }]);
   });
 });

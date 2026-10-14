@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { Text } from "@/modules/i18n/types";
-import { adminFailure, featuresPayload, type Plan } from "@/modules/plans/catalog";
+import { adminFailure, extraPricesPayload, featuresPayload, type Plan } from "@/modules/plans/catalog";
 import { auth } from "@/auth";
 import { SUPABASE_KEY, SUPABASE_URL } from "@/modules/supabase/config";
 import { userSupabase } from "@/modules/supabase/server";
@@ -52,12 +52,14 @@ async function billing(body: Record<string, unknown>): Promise<{ ok: true } | { 
 }
 
 /** Salva o plano e o envia ao Stripe (produto e preço). O preço do Stripe não
- * vem do formulário: a função o cria a partir de valor, moeda e intervalo. */
+ * vem do formulário: a função o cria a partir de valor, moeda, intervalo e das
+ * outras moedas do plano. */
 export async function savePlan(plan: Plan): Promise<SaveResult> {
   const saved = await call("admin_save_plan", {
     plan: {
       key: plan.key, name: plan.name, description: plan.description, position: plan.position, active: plan.active, is_default: plan.isDefault,
       price_cents: plan.isDefault ? null : plan.priceCents, currency: plan.isDefault ? "" : plan.currency ?? "", billing_interval: plan.isDefault ? "" : plan.billingInterval ?? "",
+      extra_prices: plan.isDefault ? [] : extraPricesPayload(plan),
       jev_daily_limit: plan.jevDailyLimit ?? "", max_concurrent_turns: plan.maxConcurrentTurns,
       features: featuresPayload(plan),
     },

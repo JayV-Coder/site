@@ -44,6 +44,14 @@ export const CORE_FEATURES: readonly FeatureKey[] = ["entryGate", "exitGate", "s
  * desliga) ou obrigatório (ligado, sem interruptor). */
 export type FeatureMode = "off" | "optional" | "locked";
 
+/** As moedas que o admin oferece além da padrão: as de duas casas decimais, que
+ * o Stripe conta em centavos. A mesma lista de `admin_save_plan`. */
+export const EXTRA_CURRENCIES = ["usd", "eur", "gbp", "brl", "cad", "aud", "chf", "mxn", "inr"] as const;
+
+/** O preço do plano em outra moeda e os países (códigos de duas letras) a que
+ * vale; sem países, vale onde a moeda é usada. */
+export interface ExtraPrice { currency: string; priceCents: number | null; countries: string[] }
+
 export interface PlanFeature { key: string; mode: Exclude<FeatureMode, "off">; defaultOn: boolean }
 
 export interface Plan {
@@ -62,6 +70,8 @@ export interface Plan {
   priceCents: number | null;
   currency: string | null;
   billingInterval: "month" | "year" | null;
+  /** Preços em outras moedas, enviados ao Stripe como `currency_options`. */
+  extraPrices: ExtraPrice[];
   features: PlanFeature[];
   /** Chamadas do Jev por dia; nulo usa o padrão do servidor. */
   jevDailyLimit: number | null;
@@ -74,7 +84,7 @@ export interface FeatureRow { key: FeatureKey; enabled: boolean; position: numbe
 /** Plano novo: o núcleo já travado. */
 export const blankPlan = (position: number): Plan => ({
   key: "", name: "", description: "", position, active: true, isDefault: false,
-  stripeProductId: null, stripePriceId: null, stripeSyncedAt: null, priceCents: null, currency: "brl", billingInterval: "month",
+  stripeProductId: null, stripePriceId: null, stripeSyncedAt: null, priceCents: null, currency: "brl", billingInterval: "month", extraPrices: [],
   features: CORE_FEATURES.map((key) => ({ key, mode: "locked", defaultOn: true })),
   jevDailyLimit: null, maxConcurrentTurns: 1,
 });
@@ -102,6 +112,17 @@ export function withDefault(plan: Plan, key: string, defaultOn: boolean): Plan {
 /** Os recursos como a RPC `admin_save_plan` os recebe. */
 export function featuresPayload(plan: Pick<Plan, "features">) {
   return plan.features.map((item) => ({ key: item.key, mode: item.mode, default_on: item.defaultOn }));
+}
+
+/** Os preços extras como a RPC `admin_save_plan` os recebe (a linha sem valor fica de fora). */
+export function extraPricesPayload(plan: Pick<Plan, "extraPrices">) {
+  return plan.extraPrices.filter((item) => item.priceCents !== null)
+    .map((item) => ({ currency: item.currency, price_cents: item.priceCents, countries: item.countries }));
+}
+
+/** Os países digitados (`us, ca`) como lista de códigos em maiúsculas, sem repetir. */
+export function parseCountries(text: string): string[] {
+  return [...new Set(text.split(/[\s,;]+/).map((code) => code.trim().toUpperCase()).filter(Boolean))];
 }
 
 /** O erro das RPCs do admin chega como chave do i18n (`admin.error.inUse`). */

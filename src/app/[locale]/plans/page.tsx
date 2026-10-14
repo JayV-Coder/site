@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { CheckIcon } from "lucide-react";
 import { PageHeading } from "@/components/molecules";
@@ -8,6 +9,14 @@ import { Button } from "@/components/ui/button";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
 import { publicPlans, type PublicPlan } from "@/modules/plans/public";
+
+/** O país de quem olha: o que a hospedagem informa (Vercel, Cloudflare) ou, na
+ * falta, a região do idioma (`pt-BR` → BR). Sem nenhum, a moeda padrão. */
+async function visitorCountry(locale: string): Promise<string | null> {
+  const sent = await headers();
+  const code = sent.get("x-vercel-ip-country") ?? sent.get("cf-ipcountry") ?? locale.split("-")[1] ?? null;
+  return code && /^[A-Za-z]{2}$/.test(code) ? code.toUpperCase() : null;
+}
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/plans">): Promise<Metadata> {
   const { locale } = await params;
@@ -26,14 +35,29 @@ function price(plan: PublicPlan, locale: string) {
 
 /** A página pública dos planos: o que cada um traz e quanto custa. Quem
  * assina é o app (Planos), pelo Stripe; aqui só se vê e se cria a conta. */
-export default async function PlansPage({ params }: PageProps<"/[locale]/plans">) {
+export default async function PlansPage({ params, searchParams }: PageProps<"/[locale]/plans">) {
   const { locale } = await params;
-  const [t, plans] = await Promise.all([getT(locale), publicPlans()]);
+  const { currency } = await searchParams;
+  const wanted = typeof currency === "string" && /^[a-z]{3}$/i.test(currency) ? currency.toLowerCase() : null;
+  const [t, plans] = await Promise.all([getT(locale), publicPlans(await visitorCountry(locale), wanted)]);
+  // As moedas que algum plano vende, para a pessoa trocar.
+  const currencies = [...new Set((plans ?? []).flatMap((plan) => plan.currencies))];
+  const shownCode = plans?.find((plan) => plan.currency)?.currency;
 
   return (
     <SitePage locale={locale}>
       <div className="shell py-8 md:py-12">
         <PageHeading eyebrow={t("site.plans.eyebrow")} title={t("site.plans.title")} description={t("site.plans.description")} />
+        {currencies.length > 1 && (
+          <nav aria-label={t("site.plans.currency")} className="mb-5 flex flex-wrap items-center gap-2">
+            <span className="font-mono text-caption text-muted-foreground">{t("site.plans.currency")}</span>
+            {currencies.map((code) => (
+              <Button key={code} asChild size="sm" variant={code === shownCode ? "default" : "outline"}>
+                <Link href={`/${locale}/plans?currency=${code}`} aria-current={code === shownCode ? "true" : undefined}>{code.toUpperCase()}</Link>
+              </Button>
+            ))}
+          </nav>
+        )}
         {!plans || plans.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("site.plans.empty")}</p>
         ) : (

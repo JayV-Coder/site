@@ -6,6 +6,7 @@ type PlanRow = {
   key: string; name: string; description: string; position: number; active: boolean; is_default: boolean;
   stripe_price_id: string | null; stripe_product_id?: string | null; stripe_synced_at?: string | null; price_cents: number | null; currency: string | null; billing_interval: "month" | "year" | null;
   jev_daily_limit?: number | null; max_concurrent_turns?: number | null;
+  extra_prices?: { currency: string; price_cents: number; countries?: string[] }[] | null;
 };
 type LinkRow = { plan_key: string; feature_key: string; mode?: "optional" | "locked"; default_on?: boolean };
 type FeatureDbRow = { key: string; enabled: boolean; position: number; core?: boolean };
@@ -29,7 +30,7 @@ export async function loadAdmin(): Promise<AdminData> {
   if (me.error || !(me.data as { admin?: boolean } | null)?.admin) return { state: "forbidden" };
 
   const read = (fresh: boolean) => Promise.all([
-    supabase.from("plans").select(fresh ? `${PLAN_COLUMNS}, jev_daily_limit, max_concurrent_turns, stripe_product_id, stripe_synced_at` : PLAN_COLUMNS).order("position").order("key"),
+    supabase.from("plans").select(fresh ? `${PLAN_COLUMNS}, jev_daily_limit, max_concurrent_turns, stripe_product_id, stripe_synced_at, extra_prices` : PLAN_COLUMNS).order("position").order("key"),
     supabase.from("plan_features").select(fresh ? "plan_key, feature_key, mode, default_on" : "plan_key, feature_key"),
     supabase.from("features").select(fresh ? "key, enabled, position, core" : "key, enabled, position").order("position").order("key"),
   ]);
@@ -46,6 +47,7 @@ export async function loadAdmin(): Promise<AdminData> {
     plans: (plans.data as unknown as PlanRow[]).map((row) => ({
       key: row.key, name: row.name, description: row.description, position: row.position, active: row.active, isDefault: row.is_default,
       stripeProductId: row.stripe_product_id ?? null, stripePriceId: row.stripe_price_id, stripeSyncedAt: row.stripe_synced_at ?? null, priceCents: row.price_cents, currency: row.currency, billingInterval: row.billing_interval,
+      extraPrices: (row.extra_prices ?? []).map((item) => ({ currency: item.currency, priceCents: item.price_cents, countries: item.countries ?? [] })),
       features: included(row.key),
       jevDailyLimit: row.jev_daily_limit ?? null,
       maxConcurrentTurns: row.max_concurrent_turns ?? 1,
