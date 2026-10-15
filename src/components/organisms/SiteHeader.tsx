@@ -24,6 +24,7 @@ export async function SiteHeader({ locale }: { locale: string }) {
     { href: `${home}#downloads`, label: t("site.nav.downloads") },
     { href: `${home}/plans`, label: t("site.nav.plans") },
     { href: `${home}/docs`, label: t("site.nav.docs") },
+    { href: `${home}/mods`, label: t("site.nav.mods") },
     { href: `${home}/releases`, label: t("site.nav.releases") },
   ];
 
