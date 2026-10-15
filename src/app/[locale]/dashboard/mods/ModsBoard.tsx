@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { BookOpenIcon, DownloadIcon, ExternalLinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { EmptyText } from "@/components/atoms";
+import { EmptyText, ModIcon } from "@/components/atoms";
 import { ConfirmAction, FormField, OptionSelect, SegmentedControl, SettingsSection, ToggleRow } from "@/components/molecules";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -149,6 +149,7 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
   const catalogRow = (manifest: ModManifest, action: React.ReactNode, lead?: React.ReactNode) => (
     <li key={manifest.id} className="flex flex-wrap items-start gap-3 rounded-md border border-border px-3 py-2.5">
       {lead}
+      <ModIcon icon={manifest.icon} className="mt-0.5 size-5 text-foreground" />
       {/* O texto pede pelo menos 14rem: no celular, o botão desce para baixo dele. */}
       <div className="grid min-w-0 flex-1 basis-56 gap-0.5">
         <span className="flex flex-wrap items-center gap-2 text-sm font-medium">

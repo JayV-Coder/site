@@ -47,10 +47,10 @@ describe("the pages of the mods", () => {
   });
 
   it("finds a mod by any word of its texts, in the language of the page", () => {
-    const catalog = { schema: 2, mods: [mod("rea", { skills: [] }, { required: false, preinstalled: true, author: "JayV" }), mod("stats", { features: ["stats"] }, { required: true, plan: "stats" })] };
+    const catalog = { schema: 2, mods: [mod("rea", { skills: [] }, { required: false, preinstalled: true, author: "JayV", icon: "<svg viewBox=\"0 0 24 24\"></svg>" }), mod("stats", { features: ["stats"] }, { required: true, plan: "stats" })] };
     const cards = cardsOf(catalog, readPages({ schema: 1, pages: { rea: { about: texts("Reverse engineering of binaries.") } } }), "pt-BR");
-    expect(cards[0]).toMatchObject({ id: "rea", about: "Reverse engineering of binaries. (pt)", preinstalled: true, required: false, kind: "skills" });
-    expect(cards[1]).toMatchObject({ required: true, preinstalled: true, plan: true, about: "" });
+    expect(cards[0]).toMatchObject({ id: "rea", about: "Reverse engineering of binaries. (pt)", preinstalled: true, required: false, kind: "skills", icon: "<svg viewBox=\"0 0 24 24\"></svg>" });
+    expect(cards[1]).toMatchObject({ required: true, preinstalled: true, plan: true, about: "", icon: null });
     const fields = (card: (typeof cards)[number]) => [card.title, card.summary, card.about, card.id, card.author];
     expect(cards.filter((card) => matchesMod("binaries reverse", fields(card))).map((card) => card.id)).toEqual(["rea"]);
     expect(cards.filter((card) => matchesMod("  ", fields(card)))).toHaveLength(2);

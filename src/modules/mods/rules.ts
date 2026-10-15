@@ -45,6 +45,10 @@ export interface ModManifest {
   author?: string;
   docs?: string;
   homepage?: string;
+  /** O ícone do mod: o SVG que o catálogo traz, já conferido pelo repositório
+   * de mods. A página o mostra como imagem ou máscara (`ModIcon`), nunca como
+   * marcação. */
+  icon?: string;
   title: Record<string, string>;
   summary: Record<string, string>;
   contributes: ModContributions;
@@ -59,6 +63,21 @@ export const LEGACY_SCHEMA = 1;
 
 /** Os pontos de extensão que o site sabe mostrar. */
 export const KNOWN_POINTS = ["llmEngines", "features", "agents", "skills"] as const;
+
+/** O maior ícone que o site mostra, o mesmo limite do repositório de mods e
+ * do app. */
+export const ICON_MAX = 16_000;
+
+/** O ícone, quando é um SVG que cabe; o resto some. */
+export const iconOf = (value: unknown): string | undefined => {
+  const svg = typeof value === "string" ? value.trim() : "";
+  return svg.startsWith("<svg") && svg.endsWith("</svg>") && svg.length <= ICON_MAX ? svg : undefined;
+};
+
+/** Os motores do formato antigo que vêm instalados: os mesmos que o genérico
+ * marca `preinstalled` (regra do dono: fora os essenciais, só Claude Code,
+ * Codex e Ollama), como no app. */
+const LEGACY_PREINSTALLED = ["claude", "codex"];
 
 /** O prefixo dos mods criados: nenhum motor do app começa assim. */
 export const CUSTOM_PREFIX = "mod-";
@@ -81,7 +100,7 @@ function fromLegacy(mod: Record<string, unknown>): ModManifest | null {
     : mod.kind === "template" && isObject(mod.template) ? { agents: [mod.template as ModAgent] }
     : null;
   if (!contributes) return null;
-  const preinstalled = mod.kind === "llm" || (mod.kind === "feature" && mod.defaultOn !== false);
+  const preinstalled = (mod.kind === "llm" && LEGACY_PREINSTALLED.includes(id)) || (mod.kind === "feature" && mod.defaultOn !== false);
   const { kind: _kind, defaultOn: _defaultOn, template: _template, ...rest } = mod;
   return { ...(rest as Omit<ModManifest, "contributes">), preinstalled, contributes };
 }
@@ -100,7 +119,9 @@ export function readCatalog(value: unknown): Catalog | null {
     const manifest = schema === CATALOG_SCHEMA ? (isObject(mod.contributes) && Object.keys(mod.contributes).length > 0 ? mod as unknown as ModManifest : null) : fromLegacy(mod);
     if (!manifest || seen.has(manifest.id)) continue;
     seen.add(manifest.id);
-    kept.push(manifest);
+    const icon = iconOf(manifest.icon);
+    const { icon: _icon, ...rest } = manifest;
+    kept.push(icon ? { ...rest, icon } : rest);
   }
   return { schema: CATALOG_SCHEMA, mods: kept };
 }
