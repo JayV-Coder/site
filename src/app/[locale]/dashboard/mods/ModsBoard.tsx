@@ -2,7 +2,8 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { DownloadIcon, ExternalLinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
+import { BookOpenIcon, DownloadIcon, ExternalLinkIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { EmptyText } from "@/components/atoms";
 import { ConfirmAction, FormField, OptionSelect, SegmentedControl, SettingsSection, ToggleRow } from "@/components/molecules";
@@ -164,11 +165,16 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
             {[manifest.author ? t("mods.by", { author: manifest.author }) : null, (manifest.requires ?? []).length > 0 ? t("mods.requires", { names: (manifest.requires ?? []).map(titleOf).join(", ") }) : null].filter(Boolean).join(" · ")}
           </span>
         )}
-        {manifest.homepage && (
-          <a href={manifest.homepage} target="_blank" rel="noreferrer" className="flex w-fit items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-            {t("site.mods.homepage")}<ExternalLinkIcon aria-hidden="true" className="size-3" />
-          </a>
-        )}
+        <span className="flex flex-wrap gap-x-3">
+          <Link href={`/${locale}/mods/${manifest.id}`} className="flex w-fit items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+            <BookOpenIcon aria-hidden="true" className="size-3" />{t("site.modPages.open", { name: modText(manifest.title, locale) })}
+          </Link>
+          {manifest.homepage && (
+            <a href={manifest.homepage} target="_blank" rel="noreferrer" className="flex w-fit items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+              {t("site.mods.homepage")}<ExternalLinkIcon aria-hidden="true" className="size-3" />
+            </a>
+          )}
+        </span>
       </div>
       {action}
     </li>

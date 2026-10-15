@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { SUPABASE_KEY } from "@/modules/supabase/config";
 import { MODS_API } from "./config";
+import { readPages, type ModPage } from "./pages";
 import { readCatalog, type Catalog } from "./rules";
 
 /** Quanto tempo o catálogo vale no cache do Next antes de pedir de novo. A
@@ -25,6 +26,22 @@ export const modCatalog = cache(async (): Promise<Catalog | null> => {
     return (await fetchCatalog("catalog/v2")) ?? (await fetchCatalog("catalog"));
   } catch (error) {
     console.error("mods catalog", error);
+    return null;
+  }
+});
+
+/** As páginas dos mods (`pages.json` do repositório de mods). Sem rede, ou num
+ * formato que o site não conhece, nulo: o catálogo mostra só o resumo. */
+export const modPages = cache(async (): Promise<Record<string, ModPage> | null> => {
+  try {
+    const response = await fetch(`${MODS_API}/pages`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+      next: { revalidate: REVALIDATE, tags: ["mods"] },
+    });
+    if (!response.ok) return null;
+    return readPages(await response.json());
+  } catch (error) {
+    console.error("mods pages", error);
     return null;
   }
 });

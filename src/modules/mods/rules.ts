@@ -21,6 +21,8 @@ export interface ModContributions {
   llmEngines?: string[];
   features?: string[];
   agents?: ModAgent[];
+  /** Skills que o Jev escolhe pelo pedido, com os servidores MCP delas. */
+  skills?: { name: string; description: string; instructions: string; mcpServers?: { name: string }[] }[];
   [point: string]: unknown;
 }
 
@@ -56,7 +58,7 @@ export const CATALOG_SCHEMA = 2;
 export const LEGACY_SCHEMA = 1;
 
 /** Os pontos de extensão que o site sabe mostrar. */
-export const KNOWN_POINTS = ["llmEngines", "features", "agents"] as const;
+export const KNOWN_POINTS = ["llmEngines", "features", "agents", "skills"] as const;
 
 /** O prefixo dos mods criados: nenhum motor do app começa assim. */
 export const CUSTOM_PREFIX = "mod-";
