@@ -63,6 +63,9 @@ describe("what's new on the home page", () => {
     expect(spotlight(releases[1])).toEqual({ item: releases[1].items[2], shot: RELEASE_SHOTS.onlyEssentials, mods: true });
     // Nenhum item com print: o primeiro, só com texto.
     expect(spotlight(releases[0])).toEqual({ item: releases[0].items[0], shot: null, mods: false });
+    // A 0.106.0 instala pelo site: o print do mod instalado e o botão do catálogo.
+    const fromSite = { kind: "feature" as const, id: "installFromSite", title: "From the site", detail: null };
+    expect(spotlight({ version: "0.106.0", date: "2026-10-16", items: [fromSite] })).toEqual({ item: fromSite, shot: RELEASE_SHOTS.installFromSite, mods: true });
     expect(spotlight(null)).toBeNull();
   });
 });

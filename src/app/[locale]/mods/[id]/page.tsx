@@ -6,6 +6,7 @@ import { BookOpenIcon, ExternalLinkIcon, SparklesIcon } from "lucide-react";
 import { ModIcon } from "@/components/atoms";
 import { GithubIcon } from "@/components/atoms/icons";
 import { BackLink, PageHeading } from "@/components/molecules";
+import { InstallInApp } from "@/components/organisms/mods/InstallInApp";
 import { SitePage } from "@/components/organisms/SitePage";
 import { Badge } from "@/components/ui/badge";
 import { getT } from "@/modules/i18n/server";
@@ -13,6 +14,10 @@ import type { Key } from "@/modules/i18n/types";
 import { imageUrl, kindOf, modSkills, type PageImage } from "@/modules/mods/pages";
 import { modText } from "@/modules/mods/rules";
 import { modCatalog, modPages } from "@/modules/mods/server";
+import { effectiveState } from "@/modules/mods/state";
+import { currentViewer } from "@/modules/auth/viewer";
+import { loadOrganizations } from "../../dashboard/organizations/data";
+import { loadModState } from "../../dashboard/mods/data";
 
 const REPOSITORY = "https://github.com/JayV-Coder/jayv-coder-mods/tree/main/mods";
 
@@ -58,6 +63,20 @@ function Step({ number, children, shot }: { number: number; children: ReactNode;
   );
 }
 
+/** Onde quem entrou pode instalar o mod — o ambiente pessoal e o de cada
+ * organização dele — e em quais ele já está, como o app vê (o gravado mais os
+ * essenciais). Sem sessão, nada: o botão leva ao login. */
+async function installTargets(id: string, catalog: Awaited<ReturnType<typeof modCatalog>>, personal: string) {
+  const organizations = await loadOrganizations().catch(() => []);
+  const environments = [{ id: "personal", name: personal }, ...organizations.map((organization) => ({ id: organization.id, name: organization.name }))];
+  const states = await Promise.all(environments.map((environment) => loadModState(environment.id).catch(() => null)));
+  const installedIn = environments.filter((_environment, index) => {
+    const saved = states[index];
+    return saved ? id in effectiveState(saved.stored, catalog, saved.legacy).mods : false;
+  }).map((environment) => environment.id);
+  return { environments, installedIn };
+}
+
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className="grid gap-3 rounded-lg border border-border bg-card p-5 md:p-6">
@@ -85,10 +104,13 @@ export default async function ModPageView({ params }: Props) {
   const requires = (manifest.requires ?? []).map((other) => ({ id: other, title: modText(catalog?.mods.find((mod) => mod.id === other)?.title, locale) || other }));
   const skills = modSkills(manifest);
 
+  // Instalar é aqui, no topo da página, com a pessoa logada: o site grava o
+  // mod na conta e o app sincroniza na hora.
+  const viewer = required ? null : await currentViewer();
+  const targets = viewer ? await installTargets(id, catalog, t("site.mods.environment.personal")) : null;
   const enableSteps: { text: string; image?: PageImage | null }[] = required ? [] : [
-    { text: t("site.modPages.enable.open") },
-    { text: t(preinstalled ? "site.modPages.enable.switch" : "site.modPages.enable.install", { name }), image: page?.enable ?? null },
-    { text: t("site.modPages.enable.save") },
+    { text: t("site.modPages.install.step1", { name }) },
+    { text: t("site.modPages.install.step2", { name }), image: page?.enable ?? null },
   ];
   const setup = (page?.setup ?? []).map((step) => ({ text: text(step.text), image: step.image }));
 
@@ -116,6 +138,17 @@ export default async function ModPageView({ params }: Props) {
           {manifest.author && <span className="text-xs text-muted-foreground">{t("site.modPages.by", { author: manifest.author })}</span>}
           {manifest.minApp && <span className="font-mono text-caption text-muted-foreground">· {t("site.modPages.minApp", { version: manifest.minApp })}</span>}
         </div>
+
+        {!required && (
+          <InstallInApp
+            mod={id}
+            name={name}
+            signedIn={viewer !== null}
+            loginHref={`/${locale}/login?next=${encodeURIComponent(`/${locale}/mods/${id}`)}`}
+            environments={targets?.environments ?? []}
+            installedIn={targets?.installedIn ?? []}
+          />
+        )}
 
         <Section id="about" title={t("site.modPages.about")}>
           {page ? <p className="text-sm leading-relaxed text-foreground/90">{text(page.about)}</p> : <p className="text-sm text-muted-foreground">{t("site.modPages.noSteps")}</p>}
