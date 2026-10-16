@@ -14,8 +14,9 @@ const fold = (text: string) => text.normalize("NFD").replace(/\p{Diacritic}/gu, 
 /** O idioma do site, igual ao seletor do app. Cada idioma aparece com o
  * próprio nome e, embaixo, no idioma atual; a busca aceita os dois, o inglês
  * e o código. Escolher troca o idioma no endereço e guarda a escolha num
- * cookie para a próxima visita. */
-export function LanguageSelect({ side = "top" }: { side?: "top" | "bottom" }) {
+ * cookie para a próxima visita. O `compact` é o do cabeçalho: a bandeira e o
+ * código, do tamanho dos outros botões da barra (no celular, só a bandeira). */
+export function LanguageSelect({ side = "top", compact = false }: { side?: "top" | "bottom"; compact?: boolean }) {
   const t = useT();
   const router = useRouter();
   const pathname = usePathname();
@@ -64,13 +65,17 @@ export function LanguageSelect({ side = "top" }: { side?: "top" | "bottom" }) {
       <PopoverTrigger
         aria-label={t("language.label")}
         title={t("language.label")}
-        className="flex h-10 w-full items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-foreground transition-colors outline-none hover:border-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"
+        className={compact
+          ? "flex h-8 items-center gap-1.5 rounded-md px-2 text-sm text-foreground transition-colors outline-none hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-secondary"
+          : "flex h-10 w-full items-center gap-2 rounded-md border border-input bg-card px-3 text-sm text-foreground transition-colors outline-none hover:border-muted-foreground/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20"}
       >
         <Flag locale={locale} />
-        <span className="min-w-0 flex-1 truncate text-start" lang={locale}>{current.name}</span>
-        <ChevronsUpDownIcon className="size-3.5 opacity-60" />
+        {compact
+          ? <span aria-hidden="true" className="font-mono text-caption tracking-wider uppercase max-sm:hidden">{locale}</span>
+          : <span className="min-w-0 flex-1 truncate text-start" lang={locale}>{current.name}</span>}
+        <ChevronsUpDownIcon aria-hidden="true" className={cn("size-3.5 opacity-60", compact && "max-sm:hidden")} />
       </PopoverTrigger>
-      <PopoverContent side={side} align="start" className="w-(--radix-popover-trigger-width) min-w-60 p-0">
+      <PopoverContent side={side} align={compact ? "end" : "start"} className={cn("p-0", compact ? "w-72 max-w-[calc(100vw-2rem)]" : "w-(--radix-popover-trigger-width) min-w-60")}>
         <div className="flex items-center gap-2 border-b px-3">
           <SearchIcon className="size-3.5 shrink-0 text-muted-foreground" />
           <input

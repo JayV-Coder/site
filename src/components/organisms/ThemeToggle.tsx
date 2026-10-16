@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/modules/i18n";
 import { setThemePreference, useTheme } from "@/modules/theme";
 
-/** Troca entre claro e escuro num clique; o rodapé tem a escolha completa
- * (sistema, claro, escuro). */
+/** Troca entre claro e escuro num clique, no cabeçalho de toda página. Antes
+ * do primeiro clique, vale o tema do sistema. */
 export function ThemeToggle() {
   const t = useT();
   const theme = useTheme((state) => state.theme);

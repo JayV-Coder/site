@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/atoms";
-import { LanguageSelect, ThemeSelect } from "@/components/molecules";
 import { getT } from "@/modules/i18n/server";
 import { latestRelease } from "@/modules/releases/server";
 
 /** O rodapé de toda página: a marca com a frase do topo, as colunas de links
- * (produto, ajuda e conta) e, embaixo, a versão publicada, o idioma e o tema. */
+ * (produto, ajuda e conta) e, embaixo, a versão publicada. O idioma e o tema
+ * ficam no cabeçalho. */
 export async function SiteFooter({ locale }: { locale: string }) {
   const t = await getT(locale);
   const release = await latestRelease();
@@ -45,15 +45,9 @@ export async function SiteFooter({ locale }: { locale: string }) {
             </nav>
           ))}
         </div>
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
-          <span className="flex items-center gap-3">
-            <span>{t("site.footer.rights", { year: new Date().getFullYear() })}</span>
-            {release && <span className="font-mono">v{release.version}</span>}
-          </span>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="w-52"><LanguageSelect /></div>
-            <ThemeSelect />
-          </div>
+        <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-border pt-6">
+          <span>{t("site.footer.rights", { year: new Date().getFullYear() })}</span>
+          {release && <span className="font-mono">v{release.version}</span>}
         </div>
       </div>
     </footer>
