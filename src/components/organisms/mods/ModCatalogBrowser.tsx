@@ -3,7 +3,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import Link from "next/link";
 import { BotIcon, CpuIcon, PuzzleIcon, SearchIcon, SparklesIcon, type LucideIcon } from "lucide-react";
-import { EmptyText } from "@/components/atoms";
+import { EmptyText, ModIcon } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useT, type Key } from "@/modules/i18n";
@@ -11,6 +11,7 @@ import { byKind, matchesMod, MOD_KINDS, type ModCard, type ModKind } from "@/mod
 import { categoryOf } from "@/modules/releases/content";
 import { cn } from "@/lib/utils";
 
+/** O ícone do tipo, para o mod que não traz o seu. */
 const KIND_ICONS: Record<ModKind, LucideIcon> = { llmEngines: CpuIcon, agents: BotIcon, skills: SparklesIcon, features: PuzzleIcon, other: PuzzleIcon };
 /** O nome de cada categoria no plural, o mesmo do filtro da aba Mods do app. */
 const KIND_GROUPS: Record<ModKind, Key> = {
@@ -20,7 +21,8 @@ const KIND_GROUPS: Record<ModKind, Key> = {
 /** O catálogo dos mods: a busca (no título, no resumo, no que o mod faz, no id
  * e no autor), o filtro por categoria e os cartões separados por categoria —
  * o que o mod é (motor de LLM, agente, skill, recurso), como na aba Mods do
- * app. Cada cartão diz em que parte do app o mod aparece e abre a página dele. */
+ * app. Cada cartão mostra o ícone do mod, diz em que parte do app ele aparece
+ * e abre a página dele. */
 export function ModCatalogBrowser({ cards, locale }: { cards: ModCard[]; locale: string }) {
   const t = useT();
   const [query, setQuery] = useState("");
@@ -67,9 +69,7 @@ export function ModCatalogBrowser({ cards, locale }: { cards: ModCard[]; locale:
             <span className="self-center font-mono text-caption font-normal text-muted-foreground">{list.length}</span>
           </h2>
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {list.map((card) => {
-              const Icon = KIND_ICONS[card.kind];
-              return (
+            {list.map((card) => (
                 <li key={card.id} className="min-w-0">
                   <Link
                     href={`/${locale}/mods/${card.id}`}
@@ -77,8 +77,8 @@ export function ModCatalogBrowser({ cards, locale }: { cards: ModCard[]; locale:
                     className="group flex h-full flex-col gap-2 rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/40 hover:bg-secondary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                   >
                     <span className="flex items-start gap-3">
-                      <span aria-hidden="true" className="flex size-9 flex-none items-center justify-center rounded-md border border-border bg-background text-muted-foreground group-hover:text-foreground">
-                        <Icon className="size-4" />
+                      <span aria-hidden="true" className="flex size-10 flex-none items-center justify-center rounded-md border border-border bg-background text-foreground/80 group-hover:text-foreground">
+                        <ModIcon icon={card.icon} fallback={KIND_ICONS[card.kind]} className="size-5" />
                       </span>
                       <span className="grid min-w-0 gap-1">
                         <span className="text-h4 font-semibold break-words">{card.title}</span>
@@ -97,8 +97,7 @@ export function ModCatalogBrowser({ cards, locale }: { cards: ModCard[]; locale:
                     </span>
                   </Link>
                 </li>
-              );
-            })}
+            ))}
           </ul>
         </section>
       ))}

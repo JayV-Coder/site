@@ -121,6 +121,8 @@ export interface ModCard {
   about: string;
   category: string;
   kind: ModKind;
+  /** O SVG do ícone do mod, quando ele tem um. */
+  icon: string | null;
   version: string | null;
   author: string | null;
   required: boolean;
@@ -136,6 +138,7 @@ export function cardsOf(catalog: Catalog, pages: Record<string, ModPage> | null,
     about: pages?.[manifest.id] ? modText(pages[manifest.id].about, locale) : "",
     category: manifest.category,
     kind: kindOf(manifest),
+    icon: manifest.icon ?? null,
     version: manifest.version ?? null,
     author: manifest.author ?? null,
     required: manifest.required === true,

@@ -23,13 +23,26 @@ describe("the catalog", () => {
       { id: "ollama", kind: "template", category: "agents", plan: "customMods", title: texts("Ollama"), summary: texts("Local."), template: api },
       { id: "stats", kind: "feature", defaultOn: false, category: "project", plan: "stats", title: texts("Statistics"), summary: texts("Charts.") },
       { id: "claude", kind: "llm", category: "agents", plan: null, title: texts("Claude Code"), summary: texts("Agent.") },
+      { id: "copilot", kind: "llm", category: "agents", plan: null, title: texts("GitHub Copilot"), summary: texts("Agent.") },
       { id: "x", kind: "plugin", title: texts("X"), summary: texts("X") },
     ] });
     expect(catalog?.schema).toBe(2);
+    // Dos motores, só os que o catálogo genérico também traz de fábrica.
     expect(catalog?.mods.map((mod) => [mod.id, mod.contributes, mod.preinstalled])).toEqual([
       ["ollama", { agents: [api] }, false], ["stats", { features: ["stats"] }, false], ["claude", { llmEngines: ["claude"] }, true],
+      ["copilot", { llmEngines: ["copilot"] }, false],
     ]);
     expect(catalog?.mods[1]).not.toHaveProperty("kind");
+  });
+
+  it("keeps the icon only when it is an SVG that fits", () => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 4h16" stroke="currentColor"/></svg>`;
+    const catalog = readCatalog({ schema: 2, mods: [
+      { ...ollama, icon: ` ${svg}\n` }, { ...ollama, id: "png", icon: "data:image/png;base64,AAAA" }, { ...ollama, id: "huge", icon: `<svg>${"x".repeat(16_000)}</svg>` },
+      { ...ollama, id: "number", icon: 7 },
+    ] });
+    expect(catalog?.mods.map((mod) => [mod.id, mod.icon])).toEqual([["ollama", svg], ["png", undefined], ["huge", undefined], ["number", undefined]]);
+    expect(catalog?.mods[1]).not.toHaveProperty("icon");
   });
 
   it("names the agents of each mod like the app", () => {

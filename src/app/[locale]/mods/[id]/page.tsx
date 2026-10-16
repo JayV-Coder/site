@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpenIcon, ExternalLinkIcon, SparklesIcon } from "lucide-react";
+import { ModIcon } from "@/components/atoms";
 import { GithubIcon } from "@/components/atoms/icons";
 import { BackLink, PageHeading } from "@/components/molecules";
 import { SitePage } from "@/components/organisms/SitePage";
@@ -95,7 +96,16 @@ export default async function ModPageView({ params }: Props) {
     <SitePage locale={locale}>
       <div className="shell grid max-w-4xl gap-6 py-8 md:py-12">
         <BackLink href={`/${locale}/mods`}>{t("site.modPages.back")}</BackLink>
-        <PageHeading eyebrow={t("site.modPages.eyebrow")} title={name} description={modText(manifest.summary, locale)} />
+        <PageHeading
+          eyebrow={t("site.modPages.eyebrow")}
+          title={name}
+          description={modText(manifest.summary, locale)}
+          mark={(
+            <span aria-hidden="true" className="flex size-14 flex-none items-center justify-center rounded-lg border border-border bg-card text-foreground">
+              <ModIcon icon={manifest.icon} className="size-8" />
+            </span>
+          )}
+        />
         <div className="-mt-4 flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{t(`site.modPages.kind.${kind}` as Key)}</Badge>
           {required
