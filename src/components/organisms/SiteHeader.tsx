@@ -12,7 +12,7 @@ import { UserMenu } from "./UserMenu";
 
 /** A barra de cima, como o cabeçalho do app: a marca, os atalhos da página e
  * a conta. Do `lg` para cima os atalhos ficam na barra; abaixo, num menu. O
- * idioma e o tema moram aqui, em todas as páginas.
+ * idioma e o tema moram aqui, em todas as páginas, no fim da barra.
  * Quem entrou vê a própria foto com o ponto de conectado, e o menu dela leva
  * ao painel (onde também mora a Administração, para o admin), à conta e a
  * sair. */
@@ -41,8 +41,6 @@ export async function SiteHeader({ locale }: { locale: string }) {
           <nav aria-label={t("site.nav.label")} className="hidden items-center gap-1 lg:flex">
             {links.map((item) => <Link key={item.href} className={link} href={item.href}>{item.label}</Link>)}
           </nav>
-          <LanguageSelect compact side="bottom" />
-          <ThemeToggle />
           {viewer && <NotificationBell />}
           {viewer ? (
             <UserMenu name={viewer.name} email={viewer.email} photo={viewer.photo} signOut={signOutAction.bind(null, locale)} />
@@ -52,6 +50,11 @@ export async function SiteHeader({ locale }: { locale: string }) {
               <Button asChild size="sm"><Link href={`${home}/register`}>{t("site.nav.signUp")}</Link></Button>
             </>
           )}
+          {/* O idioma e o tema no fim da barra, à direita; no celular, o menu
+              continua sendo o último. */}
+          <span aria-hidden="true" className="mx-1 hidden h-5 w-px bg-border lg:block" />
+          <LanguageSelect compact side="bottom" />
+          <ThemeToggle />
           <MobileNav links={links} extra={viewer ? undefined : [{ href: `${home}/login`, label: t("site.nav.signIn") }]} />
         </div>
       </div>
