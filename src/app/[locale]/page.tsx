@@ -98,13 +98,9 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
             {release ? t("site.hero.release", { version: release.version }) : t("site.hero.releaseUnknown")}
           </p>
 
-          {/* A tela de verdade, com o bloco da rota no canto e o aviso das
-              novidades por cima. No celular, um embaixo do outro. */}
+          {/* A tela de verdade, com o bloco da rota no canto. No celular, um
+              embaixo do outro. */}
           <div className={heroSrc ? "relative mt-12 w-full text-start md:mt-16 lg:pb-16" : "mt-12 w-full max-w-xl text-start"}>
-            {current && toast.length > 0 && (
-              <ReleaseToast items={toast} version={current.version} href={newsHref}
-                className={heroSrc ? "mb-4 lg:absolute lg:top-20 lg:left-1/2 lg:z-10 lg:mb-0 lg:w-[min(36rem,90%)] lg:-translate-x-1/2" : "mb-4"} />
-            )}
             {heroSrc && <AppWindow src={heroSrc} alt={t("site.shot.claude.chat")} label={version ? `jayv · v${version}` : "jayv"} priority className="lg:ms-auto lg:w-[82%]" />}
             <div className={heroSrc ? "mt-4 lg:absolute lg:start-0 lg:bottom-0 lg:z-10 lg:mt-0 lg:w-[24rem]" : undefined}>
               <Trace t={t} />
@@ -175,6 +171,9 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
       </section>
 
       <PrivacyBand t={t} locale={locale} />
+
+      {/* O aviso das novidades fica fixo no pé da tela, por cima da página. */}
+      {current && toast.length > 0 && <ReleaseToast items={toast} version={current.version} href={newsHref} />}
     </SitePage>
   );
 }
