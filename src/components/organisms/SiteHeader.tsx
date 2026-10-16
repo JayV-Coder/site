@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/atoms";
+import { LanguageSelect } from "@/components/molecules";
 import { Button } from "@/components/ui/button";
 import { currentViewer } from "@/modules/auth/viewer";
 import { getT } from "@/modules/i18n/server";
@@ -10,7 +11,8 @@ import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
 
 /** A barra de cima, como o cabeçalho do app: a marca, os atalhos da página e
- * a conta. Do `lg` para cima os atalhos ficam na barra; abaixo, num menu.
+ * a conta. Do `lg` para cima os atalhos ficam na barra; abaixo, num menu. O
+ * idioma e o tema moram aqui, em todas as páginas.
  * Quem entrou vê a própria foto com o ponto de conectado, e o menu dela leva
  * ao painel (onde também mora a Administração, para o admin), à conta e a
  * sair. */
@@ -39,6 +41,7 @@ export async function SiteHeader({ locale }: { locale: string }) {
           <nav aria-label={t("site.nav.label")} className="hidden items-center gap-1 lg:flex">
             {links.map((item) => <Link key={item.href} className={link} href={item.href}>{item.label}</Link>)}
           </nav>
+          <LanguageSelect compact side="bottom" />
           <ThemeToggle />
           {viewer && <NotificationBell />}
           {viewer ? (

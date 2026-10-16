@@ -14,5 +14,4 @@ export { SegmentedControl, type SegmentedOption } from "./SegmentedControl";
 export { SettingsSection } from "./SettingsSection";
 export { StatTile } from "./StatTile";
 export { SubmitButton } from "./SubmitButton";
-export { ThemeSelect } from "./ThemeSelect";
 export { ToggleRow } from "./ToggleRow";

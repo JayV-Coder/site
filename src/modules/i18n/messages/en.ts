@@ -87,7 +87,6 @@ export const en = {
   "auth.mfa.disabled": "Authenticator apps are not enabled on the server yet.",
   "error.unexpected": "Something went wrong: {reason}",
   "theme.label": "Theme",
-  "theme.system": "System",
   "theme.light": "Light",
   "theme.dark": "Dark",
   "feature.organizations.title": "Organizations",
