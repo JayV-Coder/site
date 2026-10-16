@@ -20,10 +20,11 @@ export const HERO_SHOT: Shot = { mod: "claude", name: "chat" };
 export const RELEASE_SHOTS: Record<string, Shot> = {
   onlyEssentials: { mod: "claude", name: "enable" },
   essentialsTab: { mod: "stats", name: "enable" },
+  installFromSite: { mod: "claude", name: "enable" },
 };
 
 /** Os itens de uma versão que levam ao catálogo de mods (o botão da faixa). */
-const MOD_ITEMS = new Set(["onlyEssentials", "essentialsTab"]);
+const MOD_ITEMS = new Set(["onlyEssentials", "essentialsTab", "installFromSite"]);
 
 /** As células da grade, na ordem: o id da funcionalidade no manual e, na
  * última linha, a ação de cada uma (a página do mod ou o catálogo). */
