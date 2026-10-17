@@ -30,6 +30,11 @@ export const FEATURES = [
   "kiloCode",
   "gatewayProviders",
   "conversationFind",
+  "customMods",
+  "keepSessionModel",
+  "limitResume",
+  "planBuildSession",
+  "autoTurnCeiling",
 ] as const;
 
 export type FeatureKey = (typeof FEATURES)[number];
