@@ -54,19 +54,26 @@ function optionsRecord(value: unknown): Record<string, unknown> {
 }
 
 /** Os modelos como o núcleo os grava: os de um mod que escreve no projeto
- * podem fazer código e usar ferramentas. */
-const capabilitiesOf = (draft: ModDraft) => (draft.kind === "cli" && draft.edits ? ["chat", "code", "reasoning", "tools"] : ["chat", "reasoning"]);
+ * (o ACP sempre escreve) podem fazer código e usar ferramentas. */
+const capabilitiesOf = (draft: ModDraft) => (draft.kind === "acp" || (draft.kind === "cli" && draft.edits) ? ["chat", "code", "reasoning", "tools"] : ["chat", "reasoning"]);
+
+/** O programa do mod: a linha de comando e o agente ACP têm um; a API, não. */
+const commandOf = (draft: ModDraft) => (draft.kind === "api" ? "" : draft.command.trim());
+
+/** O agente ACP diz os modelos dele: sem um escrito, o mod nasce com o
+ * `default`, que fica com a escolha do agente. */
+const firstModel = (draft: ModDraft) => draft.model.trim() || (draft.kind === "acp" ? "default" : "");
 
 /** Cria a linha do mod no ambiente, ligada, com o primeiro modelo, como o
  * "Criar mod" do app fazia. O app a recebe na próxima volta do sync. */
 async function create(supabase: Supabase, environment: string, id: string, draft: ModDraft): Promise<ActionResult<string>> {
   const at = now();
   const agent = await supabase.from("llm_agents").upsert({
-    environment_id: environment, id, enabled: 1, command: draft.kind === "cli" ? draft.command.trim() : "", timeout: 300,
+    environment_id: environment, id, enabled: 1, command: commandOf(draft), timeout: 300,
     options: JSON.stringify(optionsOf(draft)), updated_at: at, row_updated_at: at, row_deleted_at: null,
   }, { onConflict: "user_id,environment_id,id" });
   if (agent.error) return { ok: false, error: agent.error.message };
-  const model = draft.model.trim();
+  const model = firstModel(draft);
   if (model) {
     const row = await supabase.from("llm_models").upsert({
       environment_id: environment, agent: id, model, enabled: 1, capabilities: JSON.stringify(capabilitiesOf(draft)),
@@ -110,7 +117,7 @@ export async function saveMod(environment: string, id: string | null, draft: Mod
     if (Object.keys(draftProblems(fixed)).length > 0) return refused("site.mods.invalid");
     const at = now();
     const { error } = await supabase.from("llm_agents").update({
-      command: fixed.kind === "cli" ? fixed.command.trim() : "", options: JSON.stringify(optionsOf(fixed, kept)), updated_at: at, row_updated_at: at,
+      command: commandOf(fixed), options: JSON.stringify(optionsOf(fixed, kept)), updated_at: at, row_updated_at: at,
     }).eq("environment_id", environment).eq("id", id);
     if (error) return { ok: false, error: error.message };
     revalidatePath("/[locale]/dashboard/mods", "page");
