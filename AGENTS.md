@@ -6,6 +6,9 @@ As regras do app (`JayV-Coder/jayv-coder`) valem aqui:
   no servidor). Chave nova nasce em inglês em `src/modules/i18n/messages/en.ts`
   com o prefixo `site.` e ganha uma migração em `JayV-Coder/supabase` com os
   dez idiomas de `public.locales` (`on conflict (locale, key) do update`).
+- O texto segue o tom do app: curto, direto e genérico, sem citar jogos,
+  sem comparar o JayV com outros produtos e sem o `@` de organização; marca só
+  onde é preciso para usar a função.
 - Identificadores em inglês; comentários podem ser em português.
 - Cor só pelos tokens de `src/app/globals.css` (os mesmos do app), nunca
   `#hex` em componente.
