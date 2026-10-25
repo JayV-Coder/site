@@ -13,8 +13,15 @@ import type { Key } from "@/modules/i18n/types";
  * um mod criado, sem o que é da máquina. Instalado, vira o agente
  * `mod-<id do mod>` (`-2`, `-3`… para os seguintes). */
 export type ModAgent =
-  | { kind: "api"; protocol: "openai" | "anthropic"; baseUrl: string; keyRequired: boolean; models?: string[] }
-  | { kind: "cli"; command: string; args: string[]; planArgs?: string[]; edits?: boolean; models?: string[] };
+  | { kind: "api"; protocol: ModProtocol; baseUrl: string; keyRequired: boolean; modelField?: string; models?: string[] }
+  | { kind: "cli"; command: string; args: string[]; planArgs?: string[]; edits?: boolean; models?: string[] }
+  | { kind: "acp"; command: string; args: string[]; env?: Record<string, string>; buildMode?: string; planMode?: string; models?: string[] };
+
+/** Os protocolos dos mods de API: o chat da OpenAI, as mensagens da
+ * Anthropic e, a partir do app 0.107, a API Responses da OpenAI e as tarefas
+ * da Manus. */
+export const PROTOCOLS = ["openai", "anthropic", "responses", "manus"] as const;
+export type ModProtocol = (typeof PROTOCOLS)[number];
 
 /** O que um mod traz a cada ponto de extensão do app, pela chave do ponto. */
 export interface ModContributions {
@@ -184,13 +191,14 @@ export function joinLine(args: string[]): string {
 const PLACEHOLDER = /\{[A-Za-z0-9_]+\}/g;
 
 /** O que está errado numa linha de comando, ou `null`: só `{model}` (em
- * qualquer parte) e `{prompt}` (sozinho num argumento). */
-export function lineProblem(args: string[]): Key | null {
+ * qualquer parte) e `{prompt}` ou `{prompt_file}` (sozinhos num argumento).
+ * O agente ACP recebe o pedido pelo protocolo: na linha dele, só `{model}`. */
+export function lineProblem(args: string[], acp = false): Key | null {
   if (args.length > ARGS_MAX) return "mods.args.tooMany";
   for (const arg of args) {
     // eslint-disable-next-line no-control-regex
     if (arg === "" || arg.length > ARG_MAX || /[\u0000-\u001f\u007f]/.test(arg)) return "mods.args.invalid";
-    const rest = arg === "{prompt}" ? "" : arg.replaceAll("{model}", "");
+    const rest = !acp && (arg === "{prompt}" || arg === "{prompt_file}") ? "" : arg.replaceAll("{model}", "");
     if ((rest.match(PLACEHOLDER) ?? []).length > 0) return "mods.args.placeholder";
   }
   return null;
@@ -206,40 +214,59 @@ export function modId(name: string, taken: readonly string[]): string {
   return id;
 }
 
+/** O id de um modo do agente ACP (`mods::custom` no app). */
+const MODE = /^[A-Za-z0-9_.:-]{1,64}$/;
+/** O campo do modelo da API Responses (`preset` na Perplexity). */
+const MODEL_FIELD = /^[a-z_]{1,32}$/;
+
 /** O que a pessoa escreve no formulário. As linhas vão como foram digitadas. */
 export interface ModDraft {
   name: string;
-  kind: "cli" | "api";
+  kind: "cli" | "acp" | "api";
   command: string;
   args: string;
   planArgs: string;
   edits: boolean;
-  protocol: "openai" | "anthropic";
+  protocol: ModProtocol;
   baseUrl: string;
   keyRequired: boolean;
+  /** API Responses: o campo do pedido que leva o modelo. Vazio é `model`. */
+  modelField: string;
+  /** ACP: os ids dos modos do agente no desenvolvimento e no planejamento. */
+  buildMode: string;
+  planMode: string;
   /** O primeiro modelo, só ao criar. */
   model: string;
 }
 
-export const EMPTY_DRAFT: ModDraft = { name: "", kind: "cli", command: "", args: "", planArgs: "", edits: false, protocol: "openai", baseUrl: "", keyRequired: false, model: "" };
+export const EMPTY_DRAFT: ModDraft = {
+  name: "", kind: "cli", command: "", args: "", planArgs: "", edits: false, protocol: "openai", baseUrl: "", keyRequired: false, modelField: "", buildMode: "", planMode: "", model: "",
+};
 
 /** Os problemas do formulário, campo a campo, como o app os mostra. */
 export function draftProblems(draft: ModDraft): Partial<Record<keyof ModDraft, Key>> {
   const found: Partial<Record<keyof ModDraft, Key>> = {};
   if (!draft.name.trim() || draft.name.trim().length > NAME_MAX) found.name = "mods.name.empty";
-  if (draft.kind === "cli") {
+  if (draft.kind === "cli" || draft.kind === "acp") {
+    const acp = draft.kind === "acp";
     const command = draft.command.trim();
     if (!command) found.command = "site.mods.command.empty";
     else if (/\s/.test(command)) found.command = "mods.command.hint";
-    const args = lineProblem(splitLine(draft.args));
+    const args = lineProblem(splitLine(draft.args), acp);
     if (args) found.args = args;
-    const plan = lineProblem(splitLine(draft.planArgs));
-    if (plan) found.planArgs = plan;
-    else if (draft.edits && splitLine(draft.planArgs).length === 0) found.planArgs = "mods.planArgs.required";
+    if (acp) {
+      if (draft.buildMode.trim() && !MODE.test(draft.buildMode.trim())) found.buildMode = "mods.mode.invalid";
+      if (draft.planMode.trim() && !MODE.test(draft.planMode.trim())) found.planMode = "mods.mode.invalid";
+    } else {
+      const plan = lineProblem(splitLine(draft.planArgs));
+      if (plan) found.planArgs = plan;
+      else if (draft.edits && splitLine(draft.planArgs).length === 0) found.planArgs = "mods.planArgs.required";
+    }
   } else {
     const url = draft.baseUrl.trim();
     if (!url) found.baseUrl = "mods.baseUrl.required";
     else if (!/^https?:\/\/[^\s/@]+/i.test(url)) found.baseUrl = "site.mods.baseUrl.invalid";
+    if (draft.protocol === "responses" && draft.modelField.trim() && !MODEL_FIELD.test(draft.modelField.trim())) found.modelField = "mods.modelField.invalid";
   }
   if (draft.model.trim() && !MODEL.test(draft.model.trim())) found.model = "site.mods.model.invalid";
   return found;
@@ -250,20 +277,32 @@ export function draftProblems(draft: ModDraft): Partial<Record<keyof ModDraft, K
  * máquina (há chave guardada, aprovação dos servidores MCP) fica como estava. */
 export function optionsOf(draft: ModDraft, kept: Record<string, unknown> = {}): Record<string, unknown> {
   const cli = draft.kind === "cli";
-  const api = !cli;
+  const acp = draft.kind === "acp";
+  const api = draft.kind === "api";
+  const field = draft.modelField.trim();
+  // O que só vale para um tipo sai das opções dos outros, como o app grava.
+  const { modelField: _field, env, buildMode: _build, planMode: _plan, ...rest } = kept;
+  const variables = acp && isObject(env) ? Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => typeof entry[1] === "string")) : {};
   return {
-    ...kept,
+    ...rest,
     name: draft.name.trim(),
     kind: draft.kind,
-    args: cli ? splitLine(draft.args) : [],
+    args: cli || acp ? splitLine(draft.args) : [],
     planArgs: cli ? splitLine(draft.planArgs) : [],
-    edits: cli && draft.edits,
-    protocol: draft.protocol,
+    // O agente ACP sempre escreve: o modo só leitura é o dele, e o app recusa
+    // o que escreve no planejamento.
+    edits: acp || (cli && draft.edits),
+    protocol: api ? draft.protocol : "openai",
     baseUrl: api ? draft.baseUrl.trim() : "",
     keyRequired: api && draft.keyRequired,
-    hasKey: kept.hasKey === true,
-    // O cliente MCP do app só fala o protocolo da OpenAI.
-    approveMcps: api && draft.protocol === "openai" && kept.approveMcps === true,
+    hasKey: api && kept.hasKey === true,
+    // O cliente MCP do app só fala o protocolo da OpenAI; o agente ACP recebe
+    // os servidores pelo protocolo dele.
+    approveMcps: (acp || (api && draft.protocol === "openai")) && kept.approveMcps === true,
+    ...(api && draft.protocol === "responses" && field && field !== "model" ? { modelField: field } : {}),
+    ...(Object.keys(variables).length ? { env: variables } : {}),
+    ...(acp && draft.buildMode.trim() ? { buildMode: draft.buildMode.trim() } : {}),
+    ...(acp && draft.planMode.trim() ? { planMode: draft.planMode.trim() } : {}),
   };
 }
 
@@ -272,14 +311,17 @@ export function draftOf(options: Record<string, unknown>, command: string): ModD
   const list = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []);
   return {
     name: typeof options.name === "string" ? options.name : "",
-    kind: options.kind === "api" ? "api" : "cli",
+    kind: options.kind === "api" || options.kind === "acp" ? options.kind : "cli",
     command,
     args: joinLine(list(options.args)),
     planArgs: joinLine(list(options.planArgs)),
     edits: options.edits === true,
-    protocol: options.protocol === "anthropic" ? "anthropic" : "openai",
+    protocol: PROTOCOLS.includes(options.protocol as ModProtocol) ? options.protocol as ModProtocol : "openai",
     baseUrl: typeof options.baseUrl === "string" ? options.baseUrl : "",
     keyRequired: options.keyRequired === true,
+    modelField: typeof options.modelField === "string" ? options.modelField : "",
+    buildMode: typeof options.buildMode === "string" ? options.buildMode : "",
+    planMode: typeof options.planMode === "string" ? options.planMode : "",
     model: "",
   };
 }

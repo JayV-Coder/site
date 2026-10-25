@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useFeedback } from "@/modules/feedback";
 import { useLocale, useT, type Key } from "@/modules/i18n";
 import {
-  draftOf, draftProblems, EMPTY_DRAFT, KNOWN_POINTS, MAX_MODS, modText, NAME_MAX, pointsOf, reservedAgentIds, type Catalog, type ModDraft, type ModManifest,
+  draftOf, draftProblems, EMPTY_DRAFT, KNOWN_POINTS, MAX_MODS, modText, NAME_MAX, pointsOf, PROTOCOLS, reservedAgentIds, type Catalog, type ModDraft, type ModManifest,
 } from "@/modules/mods/rules";
 import { activeMods, type InstalledMods, type ModChange } from "@/modules/mods/state";
 import type { StoredMod } from "./data";
@@ -92,6 +92,7 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
   const form = editing && (() => {
     const { draft } = editing;
     const cli = draft.kind === "cli";
+    const acp = draft.kind === "acp";
     const creating = editing.id === null;
     return (
       <SettingsSection
@@ -102,12 +103,28 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
           <FormField label={t("mods.name")} htmlFor="mod-name" hint={t("mods.name.hint")} error={shown("name")}>
             <Input id="mod-name" maxLength={NAME_MAX} autoFocus={creating} value={draft.name} placeholder={t("mods.name.placeholder")} aria-invalid={shown("name") ? true : undefined} onChange={(event) => set({ name: event.target.value })} />
           </FormField>
-          <FormField label={t("mods.kind")} hint={creating ? t(cli ? "mods.kind.cli.hint" : "mods.kind.api.hint") : t("site.mods.form.kindFixed")}>
+          <FormField label={t("mods.kind")} hint={creating ? t(`mods.kind.${draft.kind}.hint`) : t("site.mods.form.kindFixed")}>
             {creating
-              ? <SegmentedControl label={t("mods.kind")} value={draft.kind} onChange={(kind) => set({ kind })} options={[{ value: "cli", label: t("mods.kind.cli") }, { value: "api", label: t("mods.kind.api") }]} />
-              : <Badge variant="outline" className="w-fit">{t(cli ? "mods.kind.cli" : "mods.kind.api")}</Badge>}
+              ? <SegmentedControl label={t("mods.kind")} value={draft.kind} onChange={(kind) => set({ kind })} options={[{ value: "cli", label: t("mods.kind.cli") }, { value: "acp", label: t("mods.kind.acp") }, { value: "api", label: t("mods.kind.api") }]} />
+              : <Badge variant="outline" className="w-fit">{t(`mods.kind.${draft.kind}`)}</Badge>}
           </FormField>
-          {cli ? (
+          {acp ? (
+            <>
+              <FormField label={t("mods.command")} htmlFor="mod-command" hint={t("mods.command.hint")} error={shown("command")}>
+                <Input id="mod-command" spellCheck={false} className="font-mono" value={draft.command} placeholder="opencode" aria-invalid={shown("command") ? true : undefined} onChange={(event) => set({ command: event.target.value })} />
+              </FormField>
+              <FormField label={t("mods.args")} htmlFor="mod-args" hint={t("mods.args.hint.acp")} error={shown("args")}>
+                <Input id="mod-args" spellCheck={false} className="font-mono text-xs" value={draft.args} placeholder="acp" aria-invalid={shown("args") ? true : undefined} onChange={(event) => set({ args: event.target.value })} />
+              </FormField>
+              <FormField label={t("mods.buildMode")} htmlFor="mod-build-mode" hint={t("mods.buildMode.hint")} error={shown("buildMode")}>
+                <Input id="mod-build-mode" spellCheck={false} className="font-mono text-xs" maxLength={64} value={draft.buildMode} placeholder="build" aria-invalid={shown("buildMode") ? true : undefined} onChange={(event) => set({ buildMode: event.target.value })} />
+              </FormField>
+              <FormField label={t("mods.planMode")} htmlFor="mod-plan-mode" hint={t("mods.planMode.hint")} error={shown("planMode")}>
+                <Input id="mod-plan-mode" spellCheck={false} className="font-mono text-xs" maxLength={64} value={draft.planMode} placeholder="plan" aria-invalid={shown("planMode") ? true : undefined} onChange={(event) => set({ planMode: event.target.value })} />
+              </FormField>
+              <p className="text-sm leading-snug text-muted-foreground @xl:col-span-2">{t("mods.acp.note")}</p>
+            </>
+          ) : cli ? (
             <>
               <FormField label={t("mods.command")} htmlFor="mod-command" hint={t("mods.command.hint")} error={shown("command")}>
                 <Input id="mod-command" spellCheck={false} className="font-mono" value={draft.command} aria-invalid={shown("command") ? true : undefined} onChange={(event) => set({ command: event.target.value })} />
@@ -124,8 +141,13 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
             <>
               <FormField label={t("mods.protocol")} hint={t("mods.protocol.hint")}>
                 <SegmentedControl label={t("mods.protocol")} value={draft.protocol} onChange={(protocol) => set({ protocol })}
-                  options={[{ value: "openai", label: t("mods.protocol.openai") }, { value: "anthropic", label: t("mods.protocol.anthropic") }]} />
+                  options={PROTOCOLS.map((value) => ({ value, label: t(`mods.protocol.${value}`) }))} />
               </FormField>
+              {draft.protocol === "responses" && (
+                <FormField label={t("mods.modelField")} htmlFor="mod-model-field" hint={t("mods.modelField.hint")} error={shown("modelField")}>
+                  <Input id="mod-model-field" spellCheck={false} className="font-mono" maxLength={32} value={draft.modelField} placeholder="model" aria-invalid={shown("modelField") ? true : undefined} onChange={(event) => set({ modelField: event.target.value })} />
+                </FormField>
+              )}
               <FormField label={t("site.mods.baseUrl")} htmlFor="mod-url" hint={t("mods.baseUrl.hint")} error={shown("baseUrl")}>
                 <Input id="mod-url" spellCheck={false} className="font-mono" value={draft.baseUrl} placeholder="http://localhost:8080/v1" aria-invalid={shown("baseUrl") ? true : undefined} onChange={(event) => set({ baseUrl: event.target.value })} />
               </FormField>
@@ -133,8 +155,8 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
             </>
           )}
           {creating && (
-            <FormField label={t("mods.model")} htmlFor="mod-model" hint={t(cli ? "mods.model.hint.cli" : "mods.model.hint.api")} error={shown("model")}>
-              <Input id="mod-model" spellCheck={false} className="font-mono" value={draft.model} aria-invalid={shown("model") ? true : undefined} onChange={(event) => set({ model: event.target.value })} />
+            <FormField label={t("mods.model")} htmlFor="mod-model" hint={t(`mods.model.hint.${draft.kind}`)} error={shown("model")}>
+              <Input id="mod-model" spellCheck={false} className="font-mono" value={draft.model} placeholder={acp ? "default" : undefined} aria-invalid={shown("model") ? true : undefined} onChange={(event) => set({ model: event.target.value })} />
             </FormField>
           )}
           <div className="flex flex-wrap justify-end gap-2 @xl:col-span-2">
@@ -236,12 +258,13 @@ export function ModsBoard({ environment, environments, catalog, state, mods, can
                 {list.map((mod) => {
                   const name = nameOf(mod);
                   const api = mod.options.kind === "api";
+                  const kind = api || mod.options.kind === "acp" ? mod.options.kind as "api" | "acp" : "cli";
                   return (
                     <li key={mod.id} className="flex flex-wrap items-center gap-3 rounded-md border border-border px-3 py-2.5">
                       <div className="grid min-w-0 flex-1 gap-0.5">
                         <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
                           <span className="break-words">{name}</span>
-                          <Badge variant="outline">{t(api ? "mods.kind.api" : "mods.kind.cli")}</Badge>
+                          <Badge variant="outline">{t(`mods.kind.${kind}`)}</Badge>
                           {!mod.enabled && <Badge variant="secondary">{t("site.mods.off")}</Badge>}
                         </span>
                         <span className="truncate font-mono text-xs text-muted-foreground">{api ? String(mod.options.baseUrl ?? "") : mod.command}</span>

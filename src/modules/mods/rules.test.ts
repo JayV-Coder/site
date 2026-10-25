@@ -67,6 +67,9 @@ describe("a mod created on the site", () => {
     expect(lineProblem(["--model={model}", "{prompt}"])).toBeNull();
     expect(lineProblem(["--prompt={prompt}"])).toBe("mods.args.placeholder");
     expect(lineProblem(["a\nb"])).toBe("mods.args.invalid");
+    expect(lineProblem(["--message-file", "{prompt_file}"])).toBeNull();
+    expect(lineProblem(["acp", "--model", "{model}"], true)).toBeNull();
+    expect(lineProblem(["acp", "{prompt}"], true)).toBe("mods.args.placeholder");
   });
 
   it("gets an id that repeats neither a mod of the environment nor a ready-made one", () => {
@@ -92,6 +95,27 @@ describe("a mod created on the site", () => {
     expect(optionsOf({ ...draft, protocol: "anthropic" }, { approveMcps: true }).approveMcps).toBe(false);
     const cli = optionsOf({ ...EMPTY_DRAFT, name: "Writer", command: "writer", args: "--model {model} {prompt}" });
     expect(draftOf(cli, "writer")).toEqual({ ...EMPTY_DRAFT, name: "Writer", command: "writer", args: "--model {model} {prompt}" });
+  });
+
+  it("writes an ACP agent and the Responses API like the app, keeping the agent's variables", () => {
+    const acp = { ...EMPTY_DRAFT, kind: "acp" as const, name: "OpenCode", command: "opencode", args: "acp", buildMode: " build ", planMode: "plan" };
+    expect(draftProblems(acp)).toEqual({});
+    expect(draftProblems({ ...acp, args: "acp {prompt}", planMode: "read only" })).toEqual({ args: "mods.args.placeholder", planMode: "mods.mode.invalid" });
+    const options = optionsOf(acp, { approveMcps: true, hasKey: true, env: { OPENCODE_PERMISSION: "{\"bash\":\"ask\"}" } });
+    expect(options).toEqual({
+      name: "OpenCode", kind: "acp", args: ["acp"], planArgs: [], edits: true, protocol: "openai", baseUrl: "", keyRequired: false, hasKey: false,
+      approveMcps: true, env: { OPENCODE_PERMISSION: "{\"bash\":\"ask\"}" }, buildMode: "build", planMode: "plan",
+    });
+    expect(draftOf(options, "opencode")).toEqual({ ...acp, buildMode: "build", edits: true });
+    const responses = { ...EMPTY_DRAFT, kind: "api" as const, name: "Search", protocol: "responses" as const, baseUrl: "https://api.example.com/v1", modelField: "preset" };
+    expect(optionsOf(responses, { approveMcps: true, env: { A: "1" }, planMode: "plan" })).toEqual({
+      name: "Search", kind: "api", args: [], planArgs: [], edits: false, protocol: "responses", baseUrl: "https://api.example.com/v1",
+      keyRequired: false, hasKey: false, approveMcps: false, modelField: "preset",
+    });
+    expect(optionsOf({ ...responses, modelField: "model" }).modelField).toBeUndefined();
+    expect(draftProblems({ ...responses, modelField: "Preset" })).toEqual({ modelField: "mods.modelField.invalid" });
+    expect(draftOf({ kind: "api", protocol: "manus" }, "").protocol).toBe("manus");
+    expect(draftOf({ kind: "api", protocol: "gopher" }, "").protocol).toBe("openai");
   });
 
   it("goes only to the personal environment or an organization id", () => {
