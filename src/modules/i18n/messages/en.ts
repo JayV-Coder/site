@@ -1225,4 +1225,12 @@ export const en = {
   "site.modPages.zoom": "Open the screenshot in full size",
   "site.modPages.noSteps": "The page of this mod is not ready yet. Its summary is above, and the documentation explains where it shows up in the app.",
   "site.modPages.open": "See how {name} works",
+  "site.validation.title": "Build validation",
+  "site.validation.description": "When required, the app validates every build in this organization's projects (tests, lint, typecheck and build) and saves a checkpoint first. Members can still turn it on themselves when it isn't required.",
+  "site.validation.required": "Require validation",
+  "site.validation.required.hint": "Every build is validated and a checkpoint is saved before it, whatever each person's settings say.",
+  "site.validation.hold": "Hold commits until validation passes",
+  "site.validation.hold.hint": "While the last validation of a chat failed, git commit and git push are blocked in that chat. Chats whose project has no test command are not held.",
+  "site.validation.save": "Save validation",
+  "site.validation.saved": "Validation policy saved",
 } satisfies Record<string, Message>;

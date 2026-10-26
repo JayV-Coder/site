@@ -83,6 +83,12 @@ export async function saveChatPermissions(org: string, blocked: string[], enable
   return call<null>("set_chat_permissions", { org, blocked: off, enabled: on });
 }
 
+/** Se a organização exige o validador de builds e retém commit enquanto ele falha. */
+export async function saveValidationPolicy(org: string, required: boolean, holdCommits: boolean) {
+  if (holdCommits && !required) return { ok: false, error: { key: "policy.invalid" } } as const;
+  return call<null>("set_validation_policy", { org, required, hold_commits: holdCommits });
+}
+
 /** Servidores MCP e skills da organização: owner e maintainer gravam; os
  * membros recebem no app. O banco confere o papel e o formato de novo. */
 export async function saveMcpServer(org: string, server: OrgMcpServer) {

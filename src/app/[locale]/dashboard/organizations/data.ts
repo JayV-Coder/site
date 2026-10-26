@@ -4,6 +4,7 @@ import { isGitProvider, type GitProvider } from "@/modules/git/providers";
 import { configuredProviders } from "@/modules/git/server";
 import { MCP_AGENTS, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
 import { storedChatPermissions, type ChatKind } from "@/modules/organizations/chatPermissions";
+import { storedValidation, type ValidationPolicy } from "@/modules/organizations/validationPolicy";
 import { storedCommandRules, type StoredCommandRules } from "@/modules/organizations/commands";
 import { storedPolicy, type StoredPolicy } from "@/modules/organizations/policy";
 import { orgProjectsOf, type OrgProject } from "@/modules/organizations/projects";
@@ -50,6 +51,8 @@ export interface OrganizationDetail {
   chatBlocked: ChatKind[];
   /** As que ela deixa sempre ligadas. */
   chatEnabled: ChatKind[];
+  /** Se a organização exige o validador de builds e retém commit enquanto ele falha. */
+  validation: ValidationPolicy;
   connections: GitConnection[];
   /** Os servidores MCP da organização; só owner e maintainer os leem (levam segredos). */
   mcpServers: OrgMcpServer[];
@@ -110,7 +113,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
   const supabase = await userSupabase();
   if (!organization || !supabase) return null;
   const manages = canManage(organization.role);
-  const [members, invites, repositories, policies, commandRules, chatPermissions, connections, mcpServers, skills, projects] = await Promise.all([
+  const [members, invites, repositories, policies, commandRules, chatPermissions, validation, connections, mcpServers, skills, projects] = await Promise.all([
     supabase.rpc("organization_members_view", { org: id }),
     manages ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
     supabase.from("organization_repositories")
@@ -119,6 +122,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     // Antes da migração das permissões, o resto da tela continua de pé.
     supabase.from("organization_command_rules").select("repository_id, blocked").eq("org_id", id),
     supabase.from("organization_chat_permissions").select("blocked, enabled").eq("org_id", id).maybeSingle(),
+    supabase.from("organization_validation").select("required, hold_commits").eq("org_id", id).maybeSingle(),
     supabase.from("organization_git_connections").select("provider, account, connected_at, namespace").eq("org_id", id),
     supabase.from("organization_mcp_servers").select("config, enabled").eq("org_id", id).order("name"),
     supabase.from("organization_skills").select("name, description, body, enabled").eq("org_id", id).order("name"),
@@ -153,6 +157,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     commandRules: commandRules.error ? [] : (commandRules.data ?? []).map((row) => storedCommandRules(row as Row)),
     chatBlocked: chatPermissions.error ? [] : storedChatPermissions(chatPermissions.data as Row | null),
     chatEnabled: chatPermissions.error ? [] : storedChatPermissions(chatPermissions.data as Row | null, "enabled"),
+    validation: validation.error ? storedValidation(null) : storedValidation(validation.data as Row | null),
     connections: ((connections.data ?? []) as Row[]).flatMap((row) => (isGitProvider(row.provider) ? [{
       provider: row.provider, account: row.account as string, connectedAt: row.connected_at as string, namespace: (row.namespace as string) ?? null,
     }] : [])),
