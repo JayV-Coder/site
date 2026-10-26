@@ -13,6 +13,7 @@ import { canManage } from "@/modules/organizations/rules";
 import { saveCommandRules } from "../actions";
 import type { OrganizationDetail } from "../data";
 import { ChatPermissionsSection } from "./ChatPermissionsSection";
+import { ValidationPolicySection } from "./ValidationPolicySection";
 
 /** O escopo da organização inteira no seletor; os outros são ids de repositório. */
 const WHOLE = "org";
@@ -38,6 +39,7 @@ export function PermissionsSection({ detail }: { detail: OrganizationDetail }) {
     <div className="grid gap-5">
       {/* O quadro das permissões do chat vale para a organização inteira: fica em cima, na mesma tela dos comandos. */}
       <ChatPermissionsSection key={`${detail.chatBlocked.join("|")}:${detail.chatEnabled.join("|")}`} detail={detail} />
+      <ValidationPolicySection key={`${detail.validation.required}:${detail.validation.holdCommits}`} detail={detail} />
       <SettingsSection title={t("site.perm.title")} description={t("site.perm.description")}>
         <FormField label={t("policy.scope")} htmlFor="perm-scope" hint={repository ? t("site.perm.repoNote") : undefined}>
           <OptionSelect id="perm-scope" value={scope} options={options} onChange={setScope} />
