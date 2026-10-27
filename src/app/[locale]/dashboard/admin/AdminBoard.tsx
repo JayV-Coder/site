@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeedback } from "@/modules/feedback";
 import { useT, type Key } from "@/modules/i18n";
 import { blankPlan, EXTRA_CURRENCIES, modeOf, parseCountries, withDefault, withMode, type ExtraPrice, type FeatureMode, type FeatureRow, type Plan } from "@/modules/plans/catalog";
-import type { FeatureUsage, JevCosts, ModelPrice } from "@/modules/usage";
+import type { FeatureUsage, FirstResults, JevCosts, ModelPrice } from "@/modules/usage";
 import { deletePlan, savePlan, setFeatureEnabled, syncPlan, type ActionResult, type SaveResult } from "./actions";
 import type { AdminTab } from "./tabs";
 import { FeatureUsageSection, JevCostSection, PricesSection } from "./UsageSections";
@@ -20,9 +20,9 @@ import { FeatureUsageSection, JevCostSection, PricesSection } from "./UsageSecti
  * para todo mundo e monta os planos (preço do Stripe e recursos de cada um).
  * O servidor leu o catálogo; cada gravação volta por uma server action e a
  * página relê. */
-export function AdminBoard({ plans, features, subscribers, prices, jevCosts, featureUsage, tab = "features" }: {
+export function AdminBoard({ plans, features, subscribers, prices, jevCosts, featureUsage, firstResults, tab = "features" }: {
   plans: Plan[]; features: FeatureRow[]; subscribers: Record<string, number>;
-  prices: ModelPrice[] | null; jevCosts: JevCosts | null; featureUsage: FeatureUsage | null; tab?: AdminTab;
+  prices: ModelPrice[] | null; jevCosts: JevCosts | null; featureUsage: FeatureUsage | null; firstResults: FirstResults | null; tab?: AdminTab;
 }) {
   const t = useT();
   const router = useRouter();
@@ -79,7 +79,7 @@ export function AdminBoard({ plans, features, subscribers, prices, jevCosts, fea
 
       <TabsContent value="prices"><PricesSection prices={prices} /></TabsContent>
       <TabsContent value="jevCost"><JevCostSection costs={jevCosts} plans={plans} /></TabsContent>
-      <TabsContent value="featureUsage"><FeatureUsageSection usage={featureUsage} /></TabsContent>
+      <TabsContent value="featureUsage"><FeatureUsageSection usage={featureUsage} firstResults={firstResults} /></TabsContent>
     </Tabs>
   );
 }

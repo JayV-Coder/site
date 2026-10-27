@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { isGitProvider, type GitProvider } from "@/modules/git/providers";
 import { configuredProviders } from "@/modules/git/server";
 import { MCP_AGENTS, type OrgMcpServer, type OrgSkill } from "@/modules/organizations/extensions";
+import { memberPlansOf, type MemberPlans } from "@/modules/organizations/access";
 import { storedChatPermissions, type ChatKind } from "@/modules/organizations/chatPermissions";
 import { storedValidation, type ValidationPolicy } from "@/modules/organizations/validationPolicy";
 import { storedCommandRules, type StoredCommandRules } from "@/modules/organizations/commands";
@@ -61,6 +62,9 @@ export interface OrganizationDetail {
   /** O uso da equipe nas últimas 8 semanas (`org_usage`), só para owner e
    * maintainer; nulo para o membro ou o banco sem a migração. */
   usage: OrgUsage | null;
+  /** O plano de cada membro (`org_member_plans`), para a aba Acesso; só para
+   * owner e maintainer. */
+  memberPlans: MemberPlans | null;
   /** Os repositórios que algum membro tem como projeto no app (`org_projects`);
    * só owner e maintainer os leem. Nulo quando o banco não respondeu. */
   projects: OrgProject[] | null;
@@ -117,7 +121,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
   const supabase = await userSupabase();
   if (!organization || !supabase) return null;
   const manages = canManage(organization.role);
-  const [members, invites, repositories, policies, commandRules, chatPermissions, validation, connections, mcpServers, skills, projects, usage] = await Promise.all([
+  const [members, invites, repositories, policies, commandRules, chatPermissions, validation, connections, mcpServers, skills, projects, usage, memberPlans] = await Promise.all([
     supabase.rpc("organization_members_view", { org: id }),
     manages ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
     supabase.from("organization_repositories")
@@ -132,6 +136,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     supabase.from("organization_skills").select("name, description, body, enabled").eq("org_id", id).order("name"),
     manages ? supabase.rpc("org_projects", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
     manages ? supabase.rpc("org_usage", { org: id, weeks: 8 }) : Promise.resolve({ data: null, error: { message: "member" } }),
+    manages ? supabase.rpc("org_member_plans", { org: id }) : Promise.resolve({ data: null, error: { message: "member" } }),
   ]);
   // Sem a lista dos projetos (a migração ainda não chegou), o resto da página
   // continua de pé e a aba avisa.
@@ -172,6 +177,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     })),
     projects: projects.error ? null : orgProjectsOf(projects.data),
     usage: usage.error ? null : orgUsageOf(usage.data),
+    memberPlans: memberPlans.error ? null : memberPlansOf(memberPlans.data),
     providers: configuredProviders(),
   };
 }

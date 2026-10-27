@@ -11,7 +11,7 @@ import { loadOrganization } from "../data";
 import { OrganizationBoard, type OrganizationTab } from "./OrganizationBoard";
 import type { GitOutcome } from "./RepositoriesSection";
 
-const TABS: OrganizationTab[] = ["members", "projects", "usage", "repositories", "policy", "permissions", "mcp", "skills", "settings"];
+const TABS: OrganizationTab[] = ["members", "projects", "usage", "access", "audit", "repositories", "policy", "permissions", "mcp", "skills", "settings"];
 const OUTCOMES: GitOutcome[] = ["connected", "denied", "requested", "forbidden", "failed"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/dashboard/organizations/[id]">): Promise<Metadata> {
@@ -37,8 +37,8 @@ export default async function OrganizationPage({ params, searchParams }: PagePro
   const t = await getT(locale);
   // O id vem do endereço: um texto que não é uuid nem chega ao banco.
   const detail = /^[0-9a-f-]{36}$/i.test(id) ? await loadOrganization(id) : null;
-  // Projetos e Uso são só de quem gere: o membro que chega por `?tab=` cai em Membros.
-  const tab = (wanted === "projects" || wanted === "usage") && !canManage(detail?.organization.role) ? "members" : wanted;
+  // Projetos, Uso, Acesso e Auditoria são só de quem gere: o membro que chega por `?tab=` cai em Membros.
+  const tab = ["projects", "usage", "access", "audit"].includes(wanted) && !canManage(detail?.organization.role) ? "members" : wanted;
   const back = <BackLink href={`/${locale}/dashboard/organizations`}>{t("org.back")}</BackLink>;
 
   return (

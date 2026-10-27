@@ -4,7 +4,7 @@ import { Eyebrow } from "@/components/atoms";
 import { AppWindow } from "@/components/organisms/home/AppWindow";
 import { Downloads, HeroDownload } from "@/components/organisms/home/Downloads";
 import {
-  DeepCards, FeatureGrid, MoreOptions, OUTLINE, PrivacyBand, SectionHeading, Showcase, Spotlight, WorksWith,
+  DeepCards, FeatureGrid, MoreOptions, OUTLINE, PrivacyBand, Proof, SectionHeading, Showcase, Spotlight, WorksWith,
   type GridCellView, type ShowcaseView,
 } from "@/components/organisms/home/HomeSections";
 import { ReleaseToast } from "@/components/organisms/home/ReleaseToast";
@@ -16,6 +16,8 @@ import type { Key } from "@/modules/i18n";
 import { getContentTexts, getT } from "@/modules/i18n/server";
 import { modText } from "@/modules/mods/rules";
 import { modCatalog, modPages } from "@/modules/mods/server";
+import { cheapestPaid, formatPlanPrice } from "@/modules/plans/price";
+import { publicPlans } from "@/modules/plans/public";
 import { localized, versionAnchor } from "@/modules/releases/content";
 import { changelog, latestRelease, manual } from "@/modules/releases/server";
 
@@ -29,10 +31,13 @@ const STEPS = [1, 2, 3, 4] as const;
  * seção sai só com o texto. */
 export default async function Home({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
-  const [t, release, releases, manualData, pages, catalog, news, docs] = await Promise.all([
+  // O preço do "a partir de" sai na moeda do país do idioma (pt-BR → reais).
+  const [t, release, releases, manualData, pages, catalog, news, docs, plans] = await Promise.all([
     getT(locale), latestRelease(), changelog(), manual(), modPages(), modCatalog(),
-    getContentTexts(locale, "whatsNew.item"), getContentTexts(locale, "docs"),
+    getContentTexts(locale, "whatsNew.item"), getContentTexts(locale, "docs"), publicPlans(locale.split("-")[1] ?? null),
   ]);
+  const starting = cheapestPaid(plans ?? []);
+  const startingPrice = starting ? formatPlanPrice(starting, locale) : null;
 
   const current = currentRelease(releases, release?.version ?? null);
   const version = release?.version ?? current?.version ?? null;
@@ -97,6 +102,11 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
           <p className="mt-4 font-mono text-caption text-muted-foreground">
             {release ? t("site.hero.release", { version: release.version }) : t("site.hero.releaseUnknown")}
           </p>
+          <Link href={`/${locale}/plans`} className="mt-2 text-small text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+            {starting && startingPrice
+              ? t(starting.interval === "year" ? "site.hero.priceYear" : "site.hero.price", { plan: starting.name, price: startingPrice })
+              : t("site.hero.priceFree")}
+          </Link>
 
           {/* A tela de verdade, com o bloco da rota no canto. No celular, um
               embaixo do outro. */}
@@ -108,6 +118,8 @@ export default async function Home({ params }: PageProps<"/[locale]">) {
           </div>
         </div>
       </section>
+
+      <Proof t={t} locale={locale} />
 
       {featured && featuredText && current && (
         <Spotlight

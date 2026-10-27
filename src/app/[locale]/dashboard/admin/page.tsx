@@ -32,7 +32,7 @@ export default async function AdminPage({ params, searchParams }: PageProps<"/[l
       <PageHeading eyebrow={t("admin.eyebrow")} title={t("nav.admin")} description={t("admin.description")} />
       {data.state === "ready"
         ? <AdminBoard plans={data.plans} features={data.features} subscribers={data.subscribers}
-          prices={data.prices} jevCosts={data.jevCosts} featureUsage={data.featureUsage} tab={tab} />
+          prices={data.prices} jevCosts={data.jevCosts} featureUsage={data.featureUsage} firstResults={data.firstResults} tab={tab} />
         : <EmptyText>{t("admin.forbidden")}</EmptyText>}
     </DashboardShell>
   );

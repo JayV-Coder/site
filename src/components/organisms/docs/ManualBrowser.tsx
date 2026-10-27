@@ -17,6 +17,7 @@ export interface FeatureView {
   title: string;
   summary: string;
   usage: string;
+  example: string | null;
 }
 export interface ManualView { version: string | null; features: FeatureView[]; commands: ManualCommand[] }
 
@@ -112,6 +113,12 @@ export function ManualBrowser({ manual }: { manual: ManualView }) {
                         <p className="font-mono text-caption tracking-wider text-muted-foreground uppercase">{t("site.docs.howTo")}</p>
                         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{feature.usage}</p>
                       </div>
+                      {feature.example && (
+                        <details className="mt-3 text-sm">
+                          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{t("site.docs.example")}</summary>
+                          <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-background px-3.5 py-2.5 font-mono text-xs leading-relaxed"><code>{feature.example}</code></pre>
+                        </details>
+                      )}
                       {feature.commands.length > 0 && (
                         <ul aria-label={t("site.docs.commands")} className="mt-3 flex flex-wrap gap-1.5">
                           {feature.commands.map((id) => commandsById.get(id)).filter((command): command is ManualCommand => !!command).map((command) => (

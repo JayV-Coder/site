@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useFeedback } from "@/modules/feedback";
 import { useLocale, useT, type Key } from "@/modules/i18n";
 import type { Plan } from "@/modules/plans/catalog";
-import { formatCount, formatUsd, parsePrice, unusedFeatures, type FeatureUsage, type JevCosts, type ModelPrice } from "@/modules/usage";
+import { formatCount, formatUsd, parsePrice, unusedFeatures, type FeatureUsage, type FirstResults, type JevCosts, type ModelPrice } from "@/modules/usage";
 import { deleteModelPrice, saveModelPrice } from "./actions";
 
 type PriceDraft = { pattern: string; inputUsd: string; outputUsd: string; cacheReadUsd: string; cacheWriteUsd: string };
@@ -170,12 +170,24 @@ export function JevCostSection({ costs, plans }: { costs: JevCosts | null; plans
 /** O uso de cada recurso em 30 e 60 dias, só de quem aceitou a telemetria no
  * app. O recurso que o app ainda não mede aparece como "sem medição", não
  * como zero. */
-export function FeatureUsageSection({ usage }: { usage: FeatureUsage | null }) {
+export function FeatureUsageSection({ usage, firstResults }: { usage: FeatureUsage | null; firstResults?: FirstResults | null }) {
   const t = useT();
   const locale = useLocale();
   if (usage === null) return <EmptyText>{t("site.admin.usage.unavailable")}</EmptyText>;
   const unused = new Set(unusedFeatures(usage).map((item) => item.feature));
   return (
+    <div className="grid gap-4">
+    {firstResults && (
+      <SettingsSection title={t("site.admin.firstResults.title")} description={t("site.admin.firstResults.description")}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+          <StatTile label={t("site.admin.firstResults.count")} value={formatCount(firstResults.count, locale)} />
+          <StatTile label={t("site.admin.firstResults.median")}
+            value={firstResults.medianSeconds === null ? "—" : t("site.admin.firstResults.minutes", { minutes: (firstResults.medianSeconds / 60).toFixed(1) })} />
+          <StatTile label={t("site.admin.firstResults.under10")}
+            value={firstResults.count === 0 ? "—" : `${Math.round((firstResults.under10 * 100) / firstResults.count)}%`} hint={t("site.admin.firstResults.goal")} />
+        </div>
+      </SettingsSection>
+    )}
     <SettingsSection title={t("site.admin.featureUsage.title")} description={t("site.admin.featureUsage.description", { count: usage.consenting })}>
       {usage.consenting === 0 && <EmptyText>{t("site.admin.featureUsage.nobody")}</EmptyText>}
       <div className="overflow-x-auto">
@@ -208,5 +220,6 @@ export function FeatureUsageSection({ usage }: { usage: FeatureUsage | null }) {
         </table>
       </div>
     </SettingsSection>
+    </div>
   );
 }

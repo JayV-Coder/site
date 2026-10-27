@@ -20,6 +20,7 @@ export async function SiteFooter({ locale }: { locale: string }) {
     { title: t("site.footer.help"), links: [
       { href: `${home}/docs`, label: t("site.nav.docs") },
       { href: `${home}/releases`, label: t("site.nav.releases") },
+      { href: `${home}/security`, label: t("site.nav.security") },
       { href: `${home}/docs#tutorials`, label: t("site.footer.tutorials") },
     ] },
     { title: t("site.footer.account"), links: [

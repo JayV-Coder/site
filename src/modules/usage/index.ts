@@ -124,6 +124,15 @@ export function featureUsageOf(data: unknown): FeatureUsage {
   };
 }
 
+/** O tempo até o primeiro resultado comprovado (`admin_first_results`), de
+ * quem aceitou a telemetria. */
+export interface FirstResults { count: number; medianSeconds: number | null; under10: number }
+
+export function firstResultsOf(data: unknown): FirstResults {
+  const value = (data && typeof data === "object" ? data : {}) as Row;
+  return { count: num(value.count), medianSeconds: maybe(value.median_seconds), under10: num(value.under_10_min) };
+}
+
 /** Os recursos medidos que ninguém usou em 60 dias: candidatos a sair ou a
  * virar opcionais (roadmap, item 2.6). Só conta com quem aceitou medir. */
 export const unusedFeatures = (usage: FeatureUsage) => (usage.consenting === 0 ? [] : usage.features.filter((item) => item.measured && item.uses60 === 0));

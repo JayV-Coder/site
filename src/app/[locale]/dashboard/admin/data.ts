@@ -1,7 +1,7 @@
 import "server-only";
 import { FEATURES, type FeatureRow, type Plan } from "@/modules/plans/catalog";
 import { userSupabase } from "@/modules/supabase/server";
-import { featureUsageOf, jevCostsOf, modelPricesOf, type FeatureUsage, type JevCosts, type ModelPrice } from "@/modules/usage";
+import { featureUsageOf, firstResultsOf, jevCostsOf, modelPricesOf, type FeatureUsage, type FirstResults, type JevCosts, type ModelPrice } from "@/modules/usage";
 
 type PlanRow = {
   key: string; name: string; description: string; position: number; active: boolean; is_default: boolean;
@@ -22,7 +22,7 @@ export type AdminData =
   | {
     state: "ready"; plans: Plan[]; features: FeatureRow[]; subscribers: Record<string, number>;
     /** Nulos quando o banco ainda não tem a migração do app 0.110.0. */
-    prices: ModelPrice[] | null; jevCosts: JevCosts | null; featureUsage: FeatureUsage | null;
+    prices: ModelPrice[] | null; jevCosts: JevCosts | null; featureUsage: FeatureUsage | null; firstResults: FirstResults | null;
   };
 
 /** Planos, recursos e assinantes, lidos com o token de quem entrou. Quem
@@ -43,13 +43,14 @@ export async function loadAdmin(): Promise<AdminData> {
   // a página abre com o que ele tem, tudo opcional.
   let [plans, links, features] = await read(true);
   if ([plans, links, features].some((result) => missingColumn(result.error))) [plans, links, features] = await read(false);
-  const [counts, requests, prices, jevCosts, featureUsage] = await Promise.all([
+  const [counts, requests, prices, jevCosts, featureUsage, firstResults] = await Promise.all([
     supabase.rpc("admin_plan_counts"),
     // O teto de pedidos do Jev (app 0.110.0) vem à parte: sem a coluna, o resto abre igual.
     supabase.from("plans").select("key, jev_daily_requests"),
     supabase.from("model_prices").select("pattern, input_usd, output_usd, cache_read_usd, cache_write_usd"),
     supabase.rpc("admin_jev_costs", { days: 30 }),
     supabase.rpc("admin_feature_usage"),
+    supabase.rpc("admin_first_results"),
   ]);
   const requestsOf = new Map(requests.error ? [] : ((requests.data ?? []) as { key: string; jev_daily_requests: number | null }[]).map((row) => [row.key, row.jev_daily_requests]));
   for (const result of [plans, links, features]) if (result.error) throw new Error(result.error.message);
@@ -72,5 +73,6 @@ export async function loadAdmin(): Promise<AdminData> {
     prices: prices.error ? null : modelPricesOf(prices.data),
     jevCosts: jevCosts.error ? null : jevCostsOf(jevCosts.data),
     featureUsage: featureUsage.error ? null : featureUsageOf(featureUsage.data),
+    firstResults: firstResults.error ? null : firstResultsOf(firstResults.data),
   };
 }
