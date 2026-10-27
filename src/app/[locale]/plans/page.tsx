@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
-import { publicPlans, type PublicPlan } from "@/modules/plans/public";
+import { formatPlanPrice } from "@/modules/plans/price";
+import { publicPlans } from "@/modules/plans/public";
 
 /** O país de quem olha: o que a hospedagem informa (Vercel, Cloudflare) ou, na
  * falta, a região do idioma (`pt-BR` → BR). Sem nenhum, a moeda padrão. */
@@ -22,15 +23,6 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/plans">)
   const { locale } = await params;
   const t = await getT(locale);
   return { title: `${t("site.plans.title")} · JayV`, description: t("site.plans.description") };
-}
-
-function price(plan: PublicPlan, locale: string) {
-  if (plan.isDefault || plan.priceCents === null || !plan.currency) return null;
-  try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency: plan.currency.toUpperCase() }).format(plan.priceCents / 100);
-  } catch {
-    return `${(plan.priceCents / 100).toFixed(2)} ${plan.currency.toUpperCase()}`;
-  }
 }
 
 /** A página pública dos planos: o que cada um traz e quanto custa. Quem
@@ -63,7 +55,7 @@ export default async function PlansPage({ params, searchParams }: PageProps<"/[l
         ) : (
           <ul className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
             {plans.map((plan) => {
-              const amount = price(plan, locale);
+              const amount = formatPlanPrice(plan, locale);
               return (
                 <li key={plan.key} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
                   <div className="grid gap-1">

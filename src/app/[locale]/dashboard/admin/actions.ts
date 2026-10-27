@@ -6,6 +6,7 @@ import { adminFailure, extraPricesPayload, featuresPayload, type Plan } from "@/
 import { auth } from "@/auth";
 import { SUPABASE_KEY, SUPABASE_URL } from "@/modules/supabase/config";
 import { userSupabase } from "@/modules/supabase/server";
+import type { ModelPrice } from "@/modules/usage";
 
 export type ActionResult = { ok: true } | { ok: false; error: Text | string };
 /** Salvar o plano e enviá-lo ao Stripe são dois passos: o plano pode ter sido
@@ -54,7 +55,7 @@ async function billing(body: Record<string, unknown>): Promise<{ ok: true } | { 
 /** Salva o plano e o envia ao Stripe (produto e preço). O preço do Stripe não
  * vem do formulário: a função o cria a partir de valor, moeda, intervalo e das
  * outras moedas do plano. */
-export async function savePlan(plan: Plan): Promise<SaveResult> {
+export async function savePlan(plan: Plan, previousRequests?: number | null): Promise<SaveResult> {
   const saved = await call("admin_save_plan", {
     plan: {
       key: plan.key, name: plan.name, description: plan.description, position: plan.position, active: plan.active, is_default: plan.isDefault,
@@ -65,6 +66,12 @@ export async function savePlan(plan: Plan): Promise<SaveResult> {
     },
   });
   if (!saved.ok) return saved;
+  // O teto de pedidos do Jev tem a sua RPC (app 0.110.0); só vai quando mudou,
+  // para o banco sem a migração continuar salvando o resto.
+  if (plan.jevDailyRequests !== (previousRequests ?? null)) {
+    const capped = await call("admin_set_plan_jev_requests", { plan: plan.key, requests: plan.jevDailyRequests });
+    if (!capped.ok) return capped;
+  }
   const sync = await billing({ action: "sync_plan", plan: plan.key });
   revalidatePath("/[locale]/dashboard/admin", "page");
   return { ok: true, sync };
@@ -92,4 +99,16 @@ export async function deletePlan(key: string): Promise<ActionResult> {
     if (!archived.ok) console.error("admin: arquivar o produto do plano", key, archived.error);
   }
   return deleted;
+}
+
+/** Grava um preço da tabela (`previous` renomeia o padrão). */
+export async function saveModelPrice(price: ModelPrice, previous: string | null): Promise<ActionResult> {
+  return call("admin_save_model_price", {
+    pattern: price.pattern, input_usd: price.inputUsd, output_usd: price.outputUsd,
+    cache_read_usd: price.cacheReadUsd, cache_write_usd: price.cacheWriteUsd, previous,
+  });
+}
+
+export async function deleteModelPrice(pattern: string): Promise<ActionResult> {
+  return call("admin_delete_model_price", { pattern });
 }

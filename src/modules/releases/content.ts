@@ -16,6 +16,8 @@ export interface ManualFeature {
   title: string;
   summary: string;
   usage: string;
+  /** Um exemplo pronto para copiar (um workflow, um comando), sem tradução. */
+  example?: string | null;
 }
 export interface Manual { version: string | null; updatedAt: string | null; features: ManualFeature[]; commands: ManualCommand[] }
 

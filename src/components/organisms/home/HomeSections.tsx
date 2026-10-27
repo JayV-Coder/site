@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRightIcon, BookOpenIcon, ChevronRightIcon, CircleCheckIcon, EyeIcon, GitForkIcon, ListChecksIcon, LockIcon,
-  PuzzleIcon, RouteIcon, ShieldCheckIcon, UsersIcon, type LucideIcon,
+  GaugeIcon, PuzzleIcon, RouteIcon, ShieldCheckIcon, TerminalIcon, UsersIcon, type LucideIcon,
 } from "lucide-react";
 import { Eyebrow, ModIcon } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
@@ -217,7 +217,39 @@ export function PrivacyBand({ t, locale }: { t: T; locale: string }) {
           <p className="font-semibold">{t("site.privacy.title")}</p>
           <p className="mt-1 text-sm text-muted-foreground">{t("site.privacy.detail")}</p>
         </div>
-        <Link href={`/${locale}/docs#category-privacy`} className={TEXT_LINK}>{t("site.privacy.link")}<Chevron className="size-3.5" /></Link>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          <Link href={`/${locale}/docs#category-privacy`} className={TEXT_LINK}>{t("site.privacy.link")}<Chevron className="size-3.5" /></Link>
+          <Link href={`/${locale}/security`} className={TEXT_LINK}>{t("site.privacy.security")}<Chevron className="size-3.5" /></Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const PROOFS: { id: "verify" | "savings" | "ci"; Icon: LucideIcon; docs: string }[] = [
+  { id: "verify", Icon: CircleCheckIcon, docs: "buildValidation" },
+  { id: "savings", Icon: GaugeIcon, docs: "savingsBaseline" },
+  { id: "ci", Icon: TerminalIcon, docs: "ciRun" },
+];
+
+/** A prova do que a frase do topo promete: a validação que roda os testes do
+ * próprio projeto, a economia medida contra uma linha de base e o mesmo
+ * portão no CI. Cada cartão leva à página do manual. */
+export function Proof({ t, locale }: { t: T; locale: string }) {
+  return (
+    <section id="proof" className="scroll-mt-16 border-b border-border py-16 md:py-20">
+      <div className="shell">
+        <SectionHeading kicker={t("site.proof.kicker")} title={t("site.proof.title")} note={t("site.proof.note")} />
+        <ul className="grid gap-4 md:grid-cols-3">
+          {PROOFS.map(({ id, Icon, docs }) => (
+            <li key={id} className="flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+              <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-md border border-border bg-background"><Icon className="size-4 text-go" /></span>
+              <h3 className="text-h4">{t(`site.proof.${id}.title` as Key)}</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t(`site.proof.${id}.detail` as Key)}</p>
+              <Link href={`/${locale}/docs#${docs}`} className={cn(TEXT_LINK, "mt-auto")}>{t(`site.proof.${id}.link` as Key)}<Chevron className="size-3.5" /></Link>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

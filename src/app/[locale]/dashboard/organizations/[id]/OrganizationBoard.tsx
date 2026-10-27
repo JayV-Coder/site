@@ -1,10 +1,12 @@
 "use client";
 
-import { FolderGit2Icon, FolderKanbanIcon, LockKeyholeIcon, PlugIcon, SettingsIcon, ShieldCheckIcon, SparklesIcon, UsersIcon } from "lucide-react";
+import { ChartColumnIcon, FileClockIcon, FolderGit2Icon, FolderKanbanIcon, LockKeyholeIcon, PlugIcon, ScanEyeIcon, SettingsIcon, ShieldCheckIcon, SparklesIcon, UsersIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/modules/i18n";
 import { canManage } from "@/modules/organizations/rules";
 import type { OrganizationDetail } from "../data";
+import { AccessSection } from "./AccessSection";
+import { AuditSection } from "./AuditSection";
 import { InviteSection } from "./InviteSection";
 import { MembersSection } from "./MembersSection";
 import { McpSection } from "./McpSection";
@@ -14,11 +16,13 @@ import { ProjectsSection } from "./ProjectsSection";
 import { RepositoriesSection, type GitOutcome } from "./RepositoriesSection";
 import { SettingsSection } from "./SettingsSection";
 import { SkillsSection } from "./SkillsSection";
+import { UsageSection } from "./UsageSection";
 
-export type OrganizationTab = "members" | "projects" | "repositories" | "policy" | "permissions" | "mcp" | "skills" | "settings";
+export type OrganizationTab = "members" | "projects" | "usage" | "access" | "audit" | "repositories" | "policy" | "permissions" | "mcp" | "skills" | "settings";
 
 /** As abas (na vertical, ao lado do conteúdo) da organização que saíram do app para o painel: convite,
- * projetos (só owner e maintainer, como a exclusão deles), repositórios (o provedor git do owner), política de LLM,
+ * projetos, uso da equipe, acesso de cada membro e auditoria (só owner e
+ * maintainer), repositórios (o provedor git do owner), política de LLM,
  * permissões (do chat e de comandos), servidores MCP, skills e configurações. Projetos vem logo depois de Membros, na ordem do
  * menu da organização no app (Projetos antes de Repositórios). */
 export function OrganizationBoard({ detail, tab, outcome }: {
@@ -33,6 +37,15 @@ export function OrganizationBoard({ detail, tab, outcome }: {
         {manages && (
           <TabsTrigger value="projects" title={t("site.org.tab.projects")} aria-label={t("site.org.tab.projects")} className="flex-none gap-2.5 px-3 py-2"><FolderKanbanIcon /><span className="hidden @lg:inline">{t("site.org.tab.projects")}</span></TabsTrigger>
         )}
+        {manages && (
+          <TabsTrigger value="usage" title={t("site.org.tab.usage")} aria-label={t("site.org.tab.usage")} className="flex-none gap-2.5 px-3 py-2"><ChartColumnIcon /><span className="hidden @lg:inline">{t("site.org.tab.usage")}</span></TabsTrigger>
+        )}
+        {manages && (
+          <TabsTrigger value="access" title={t("site.org.tab.access")} aria-label={t("site.org.tab.access")} className="flex-none gap-2.5 px-3 py-2"><ScanEyeIcon /><span className="hidden @lg:inline">{t("site.org.tab.access")}</span></TabsTrigger>
+        )}
+        {manages && (
+          <TabsTrigger value="audit" title={t("site.org.tab.audit")} aria-label={t("site.org.tab.audit")} className="flex-none gap-2.5 px-3 py-2"><FileClockIcon /><span className="hidden @lg:inline">{t("site.org.tab.audit")}</span></TabsTrigger>
+        )}
         <TabsTrigger value="repositories" title={t("org.tab.repositories")} aria-label={t("org.tab.repositories")} className="flex-none gap-2.5 px-3 py-2"><FolderGit2Icon /><span className="hidden @lg:inline">{t("org.tab.repositories")}</span></TabsTrigger>
         <TabsTrigger value="policy" title={t("org.tab.policy")} aria-label={t("org.tab.policy")} className="flex-none gap-2.5 px-3 py-2"><ShieldCheckIcon /><span className="hidden @lg:inline">{t("org.tab.policy")}</span></TabsTrigger>
         <TabsTrigger value="permissions" title={t("site.org.tab.permissions")} aria-label={t("site.org.tab.permissions")} className="flex-none gap-2.5 px-3 py-2"><LockKeyholeIcon /><span className="hidden @lg:inline">{t("site.org.tab.permissions")}</span></TabsTrigger>
@@ -43,6 +56,9 @@ export function OrganizationBoard({ detail, tab, outcome }: {
       <div className="min-w-0 flex-1">
         <TabsContent value="members" className="grid gap-5"><MembersSection detail={detail} /><InviteSection detail={detail} /></TabsContent>
         {manages && <TabsContent value="projects"><ProjectsSection detail={detail} /></TabsContent>}
+        {manages && <TabsContent value="usage"><UsageSection usage={detail.usage} /></TabsContent>}
+        {manages && <TabsContent value="access"><AccessSection detail={detail} /></TabsContent>}
+        {manages && <TabsContent value="audit"><AuditSection detail={detail} /></TabsContent>}
         <TabsContent value="repositories"><RepositoriesSection detail={detail} outcome={outcome} /></TabsContent>
         <TabsContent value="policy"><PolicySection detail={detail} /></TabsContent>
         <TabsContent value="permissions"><PermissionsSection detail={detail} /></TabsContent>
