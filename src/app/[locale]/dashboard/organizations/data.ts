@@ -10,6 +10,7 @@ import { storedPolicy, type StoredPolicy } from "@/modules/organizations/policy"
 import { orgProjectsOf, type OrgProject } from "@/modules/organizations/projects";
 import { canManage, isRole, type Role } from "@/modules/organizations/rules";
 import { userSupabase } from "@/modules/supabase/server";
+import { orgUsageOf, type OrgUsage } from "@/modules/usage";
 
 export interface Organization { id: string; name: string; slug: string; role: Role; members: number; repositories: number }
 export interface Member { userId: string; username: string; displayName: string; avatarUrl: string | null; role: Role; self: boolean }
@@ -57,6 +58,9 @@ export interface OrganizationDetail {
   /** Os servidores MCP da organização; só owner e maintainer os leem (levam segredos). */
   mcpServers: OrgMcpServer[];
   skills: OrgSkill[];
+  /** O uso da equipe nas últimas 8 semanas (`org_usage`), só para owner e
+   * maintainer; nulo para o membro ou o banco sem a migração. */
+  usage: OrgUsage | null;
   /** Os repositórios que algum membro tem como projeto no app (`org_projects`);
    * só owner e maintainer os leem. Nulo quando o banco não respondeu. */
   projects: OrgProject[] | null;
@@ -113,7 +117,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
   const supabase = await userSupabase();
   if (!organization || !supabase) return null;
   const manages = canManage(organization.role);
-  const [members, invites, repositories, policies, commandRules, chatPermissions, validation, connections, mcpServers, skills, projects] = await Promise.all([
+  const [members, invites, repositories, policies, commandRules, chatPermissions, validation, connections, mcpServers, skills, projects, usage] = await Promise.all([
     supabase.rpc("organization_members_view", { org: id }),
     manages ? supabase.rpc("organization_invites_view", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
     supabase.from("organization_repositories")
@@ -127,6 +131,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
     supabase.from("organization_mcp_servers").select("config, enabled").eq("org_id", id).order("name"),
     supabase.from("organization_skills").select("name, description, body, enabled").eq("org_id", id).order("name"),
     manages ? supabase.rpc("org_projects", { org: id }) : Promise.resolve({ data: [] as Row[], error: null }),
+    manages ? supabase.rpc("org_usage", { org: id, weeks: 8 }) : Promise.resolve({ data: null, error: { message: "member" } }),
   ]);
   // Sem a lista dos projetos (a migração ainda não chegou), o resto da página
   // continua de pé e a aba avisa.
@@ -166,6 +171,7 @@ export async function loadOrganization(id: string): Promise<OrganizationDetail |
       name: row.name as string, description: row.description as string, body: row.body as string, enabled: row.enabled !== false,
     })),
     projects: projects.error ? null : orgProjectsOf(projects.data),
+    usage: usage.error ? null : orgUsageOf(usage.data),
     providers: configuredProviders(),
   };
 }

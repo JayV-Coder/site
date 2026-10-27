@@ -11,13 +11,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useFeedback } from "@/modules/feedback";
 import { useT, type Key } from "@/modules/i18n";
 import { blankPlan, EXTRA_CURRENCIES, modeOf, parseCountries, withDefault, withMode, type ExtraPrice, type FeatureMode, type FeatureRow, type Plan } from "@/modules/plans/catalog";
+import type { FeatureUsage, JevCosts, ModelPrice } from "@/modules/usage";
 import { deletePlan, savePlan, setFeatureEnabled, syncPlan, type ActionResult, type SaveResult } from "./actions";
+import type { AdminTab } from "./tabs";
+import { FeatureUsageSection, JevCostSection, PricesSection } from "./UsageSections";
 
 /** A administração do sistema, trazida do app: liga e desliga cada recurso
  * para todo mundo e monta os planos (preço do Stripe e recursos de cada um).
  * O servidor leu o catálogo; cada gravação volta por uma server action e a
  * página relê. */
-export function AdminBoard({ plans, features, subscribers }: { plans: Plan[]; features: FeatureRow[]; subscribers: Record<string, number> }) {
+export function AdminBoard({ plans, features, subscribers, prices, jevCosts, featureUsage, tab = "features" }: {
+  plans: Plan[]; features: FeatureRow[]; subscribers: Record<string, number>;
+  prices: ModelPrice[] | null; jevCosts: JevCosts | null; featureUsage: FeatureUsage | null; tab?: AdminTab;
+}) {
   const t = useT();
   const router = useRouter();
   const { report } = useFeedback();
@@ -34,10 +40,13 @@ export function AdminBoard({ plans, features, subscribers }: { plans: Plan[]; fe
   };
 
   return (
-    <Tabs defaultValue="features" className="gap-5">
+    <Tabs defaultValue={tab} className="gap-5">
       <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
         <TabsTrigger value="features" className="flex-none px-4 py-2">{t("admin.tab.features")}</TabsTrigger>
         <TabsTrigger value="plans" className="flex-none px-4 py-2">{t("admin.tab.plans")}</TabsTrigger>
+        <TabsTrigger value="prices" className="flex-none px-4 py-2">{t("site.admin.tab.prices")}</TabsTrigger>
+        <TabsTrigger value="jevCost" className="flex-none px-4 py-2">{t("site.admin.tab.jevCost")}</TabsTrigger>
+        <TabsTrigger value="featureUsage" className="flex-none px-4 py-2">{t("site.admin.tab.featureUsage")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="features">
@@ -67,6 +76,10 @@ export function AdminBoard({ plans, features, subscribers }: { plans: Plan[]; fe
           ? <PlanEditor plan={blankPlan((plans.at(-1)?.position ?? 0) + 10)} features={shown} subscribers={0} fresh onDone={() => setAdding(false)} />
           : <Button variant="outline" className="justify-self-start" onClick={() => setAdding(true)}>{t("admin.plan.new")}</Button>}
       </TabsContent>
+
+      <TabsContent value="prices"><PricesSection prices={prices} /></TabsContent>
+      <TabsContent value="jevCost"><JevCostSection costs={jevCosts} plans={plans} /></TabsContent>
+      <TabsContent value="featureUsage"><FeatureUsageSection usage={featureUsage} /></TabsContent>
     </Tabs>
   );
 }
@@ -198,6 +211,10 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
             <Input id={id("jev")} type="number" min={1} step={1} value={draft.jevDailyLimit ?? ""}
               onChange={(event) => edit({ jevDailyLimit: event.target.value === "" ? null : Math.max(1, Math.round(Number(event.target.value))) })} />
           </FormField>
+          <FormField label={t("site.admin.plan.jevDailyRequests")} htmlFor={id("jevRequests")} hint={t("site.admin.plan.jevDailyRequestsHint")}>
+            <Input id={id("jevRequests")} type="number" min={1} step={1} value={draft.jevDailyRequests ?? ""}
+              onChange={(event) => edit({ jevDailyRequests: event.target.value === "" ? null : Math.max(1, Math.round(Number(event.target.value))) })} />
+          </FormField>
           <FormField label={t("site.admin.plan.maxConcurrentTurns")} htmlFor={id("turns")} hint={t("site.admin.plan.maxConcurrentTurnsHint")}>
             <OptionSelect
               id={id("turns")}
@@ -254,7 +271,7 @@ function PlanEditor({ plan, features, subscribers, fresh, onDone }: {
           <Button variant="outline" loading={busy} onClick={() => run(() => syncPlan(plan.key), t("site.admin.plan.stripe.sent", { plan: plan.name }))}>{t("site.admin.plan.stripe.sync")}</Button>
         )}
         {!fresh && dirty && <Button variant="ghost" onClick={() => setDraft(plan)}>{t("settings.discard")}</Button>}
-        <Button loading={busy} disabled={!dirty || !draft.key || !draft.name.trim()} onClick={() => run(() => savePlan(draft), t("admin.plan.saved", { plan: draft.name }))}>{t("settings.save")}</Button>
+        <Button loading={busy} disabled={!dirty || !draft.key || !draft.name.trim()} onClick={() => run(() => savePlan(draft, fresh ? null : plan.jevDailyRequests), t("admin.plan.saved", { plan: draft.name }))}>{t("settings.save")}</Button>
       </div>
     </SettingsSection>
   );

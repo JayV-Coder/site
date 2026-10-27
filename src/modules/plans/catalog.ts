@@ -81,6 +81,9 @@ export interface Plan {
   features: PlanFeature[];
   /** Chamadas do Jev por dia; nulo usa o padrão do servidor. */
   jevDailyLimit: number | null;
+  /** Pedidos por dia com o Jev completo; depois dele, a heurística local do
+   * app. Nulo, sem teto. */
+  jevDailyRequests: number | null;
   /** Pedidos de chats diferentes ao mesmo tempo (1 a 8). */
   maxConcurrentTurns: number;
 }
@@ -92,7 +95,7 @@ export const blankPlan = (position: number): Plan => ({
   key: "", name: "", description: "", position, active: true, isDefault: false,
   stripeProductId: null, stripePriceId: null, stripeSyncedAt: null, priceCents: null, currency: "brl", billingInterval: "month", extraPrices: [],
   features: CORE_FEATURES.map((key) => ({ key, mode: "locked", defaultOn: true })),
-  jevDailyLimit: null, maxConcurrentTurns: 1,
+  jevDailyLimit: null, jevDailyRequests: null, maxConcurrentTurns: 1,
 });
 
 /** O modo do recurso no plano. O núcleo é sempre obrigatório. */
