@@ -1,4 +1,5 @@
 import NextAuth, { type DefaultSession } from "next-auth";
+import type { JWT } from "@auth/core/jwt";
 import Credentials from "next-auth/providers/credentials";
 import { supabaseAuth, type Tokens } from "@/modules/supabase/gotrue";
 import { decodeClaims, displayName, avatarUrl, needsMoreAssurance, type SupabaseUser } from "@/modules/auth/session";
@@ -41,6 +42,21 @@ async function checkTokens(accessToken: string, expected?: string) {
   return { user, claims };
 }
 
+/** Renova a sessão no Supabase com o refresh token guardado. */
+async function refreshed(token: JWT): Promise<JWT> {
+  if (!token.refreshToken || token.error) return token;
+  const response = await supabaseAuth("token?grant_type=refresh_token", { method: "POST", body: JSON.stringify({ refresh_token: token.refreshToken }) });
+  if (!response.ok) return { ...token, error: "refresh" as const };
+  const fresh = (await response.json()) as { access_token: string; refresh_token: string; expires_at?: number };
+  return {
+    ...token,
+    accessToken: fresh.access_token,
+    refreshToken: fresh.refresh_token,
+    expiresAt: fresh.expires_at ?? decodeClaims(fresh.access_token)?.exp,
+    error: undefined,
+  };
+}
+
 /** O login acontece no navegador, pelo Supabase Auth (senha, GitHub, GitLab,
  * Bitbucket, segundo fator), igual ao app. O NextAuth recebe os tokens já
  * prontos, confere com o Supabase quem é a pessoa e passa a guardar a sessão
@@ -73,24 +89,16 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       // A sessão nova da página Conta substitui a guardada, se for da mesma
       // pessoa; qualquer outra coisa enviada pelo `update` é ignorada.
       if (trigger === "update") {
+        // O Doctor trocou a Organização ativa: as claims dela só mudam num token novo.
+        if ((session as { refresh?: boolean } | undefined)?.refresh === true) return refreshed(token);
         const fresh = (session as { supabase?: Tokens } | undefined)?.supabase;
         if (!fresh?.accessToken || !fresh.refreshToken || !token.sub) return token;
         const checked = await checkTokens(fresh.accessToken, token.sub);
         if (!checked) return token;
         return { ...token, accessToken: fresh.accessToken, refreshToken: fresh.refreshToken, expiresAt: checked.claims.exp, error: undefined };
       }
-      if (!token.refreshToken || token.error) return token;
       if (token.expiresAt && Date.now() / 1000 < token.expiresAt - EARLY) return token;
-      const response = await supabaseAuth("token?grant_type=refresh_token", { method: "POST", body: JSON.stringify({ refresh_token: token.refreshToken }) });
-      if (!response.ok) return { ...token, error: "refresh" as const };
-      const fresh = (await response.json()) as { access_token: string; refresh_token: string; expires_at?: number };
-      return {
-        ...token,
-        accessToken: fresh.access_token,
-        refreshToken: fresh.refresh_token,
-        expiresAt: fresh.expires_at ?? decodeClaims(fresh.access_token)?.exp,
-        error: undefined,
-      };
+      return refreshed(token);
     },
     session({ session, token }) {
       session.user.id = token.sub ?? "";

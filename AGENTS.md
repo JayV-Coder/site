@@ -25,3 +25,23 @@ As regras do app (`JayV-Coder/jayv-coder`) valem aqui:
   (`src/modules/mods/appLink.ts`). O link não instala nada, só acorda o sync
   do app; nunca faça o app instalar a partir do link, sem a conta. Sem login, a
   página mostra Entrar para instalar, e o app não lista mais o catálogo.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
+- O Integration AI Doctor mora em `/[locale]/doctor` (`src/app/[locale]/doctor` e
+  `src/modules/doctor`). As telas leem e gravam pela API do `JayV-Coder/jayv-doctor`
+  (`DOCTOR_API_URL`), só no servidor, com o token de quem entrou (`doctorFetch`); nada do
+  Doctor é lido direto do Supabase. Os tipos vêm de `contracts.gen.ts`, copiado de lá. O
+  vocabulário é o do `GLOSSARY.md` do jayv-doctor (Organização, Integração, Execução,
+  Incidente, Diagnóstico, Evidência), com inicial maiúscula. As chaves são `site.doctor.*`
+  em `src/modules/i18n/messages/doctor.ts`, e a migração das traduções **não** leva
+  `_doctor_` logo depois do carimbo (esse nome é das migrações do schema `doctor`, que o
+  deploy não aplica): use `<carimbo>_site_doctor_<nome>.sql`. Trocar a Organização ativa
+  renova a sessão (`unstable_update({ refresh: true })`), porque ela vai nas claims do token.

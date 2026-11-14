@@ -1,4 +1,5 @@
 import type { Message } from "../types";
+import { doctor } from "./doctor";
 
 /** O dicionário embutido do site. Como no app, as chaves nascem em inglês e
  * os outros idiomas chegam do Supabase (tabela `translations`).
@@ -1450,4 +1451,6 @@ export const en = {
   "site.admin.firstResults.under10": "Under 10 minutes",
   "site.admin.firstResults.goal": "Goal: most installs under 10 minutes",
   "site.docs.example": "Example",
+  // O Integration AI Doctor (`/doctor`).
+  ...doctor,
 } satisfies Record<string, Message>;
