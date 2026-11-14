@@ -20,6 +20,14 @@ moravam no app.
 - **Visual** igual ao app: os tokens claro/escuro de `src/app/globals.css`
   são os do app, fonte mono em tudo, cantos pequenos, sem sombra.
 
+## Integration AI Doctor
+
+As telas do Doctor (diagnóstico de falhas de integrações) ficam em `/doctor`, com a mesma
+sessão do site. Elas falam com a API do `JayV-Coder/jayv-doctor`, pelo servidor:
+defina `DOCTOR_API_URL`. Sem ela, ou com a API fora do ar, as páginas avisam que o serviço
+não respondeu. Por enquanto estão aqui a escolha e a criação de Organização e o painel; o
+resto das telas chega em blocos.
+
 ## Rodar
 
 ```sh
