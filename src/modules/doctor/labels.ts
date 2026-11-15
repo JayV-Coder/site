@@ -96,3 +96,37 @@ export function slugify(name: string): string {
 export function initials(name: string): string {
   return name.split(/\s+/).slice(0, 2).map((word) => word.charAt(0).toUpperCase()).join("");
 }
+
+export type IncidentStatus = (typeof STATUSES)[number];
+
+/** Espelho de `doctor.check_incident_transition`: a tela só oferece o que o banco aceita. */
+export const NEXT_STATUSES: Record<IncidentStatus, IncidentStatus[]> = {
+  open: ["investigating", "resolved", "dismissed"],
+  investigating: ["open", "resolved", "dismissed"],
+  resolved: ["open"],
+  dismissed: ["open"],
+};
+
+export const EXECUTION_STATUSES = ["failed", "success", "pending_confirmation", "unknown"] as const;
+export const executionStatusKey = (status: string) => keyOf(EXECUTION_STATUSES, "site.doctor.execution.status", status);
+
+export function executionStatusVariant(status: string): "destructive" | "success" | "warning" | "secondary" {
+  if (status === "failed") return "destructive";
+  if (status === "success") return "success";
+  return status === "pending_confirmation" ? "warning" : "secondary";
+}
+
+export function durationParts(ms: number):
+  { unit: "ms"; value: number } | { unit: "s"; value: number } | { unit: "min"; minutes: number; seconds: number } {
+  if (ms < 1000) return { unit: "ms", value: ms };
+  if (ms < 60_000) return { unit: "s", value: Math.floor(ms / 100) / 10 };
+  const seconds = Math.round(ms / 1000);
+  return { unit: "min", minutes: Math.floor(seconds / 60), seconds: seconds % 60 };
+}
+
+/** O nome da Execução pelos identificadores que a correlação achou; nulo sem eles (a tela usa
+ * "Execução" + o começo do id). */
+export function executionTitle(_id: string, keys: Record<string, string[] | undefined>): string | null {
+  const parts = [keys.execution_id?.[0], keys.trace_id?.[0]].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}

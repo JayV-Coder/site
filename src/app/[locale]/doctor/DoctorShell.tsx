@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ActivityIcon, Building2Icon } from "lucide-react";
+import { ActivityIcon, Building2Icon, SirenIcon } from "lucide-react";
 import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import type { Organization } from "@/modules/doctor/api";
 import { getT } from "@/modules/i18n/server";
 
-export type DoctorSection = "overview";
+export type DoctorSection = "overview" | "incidents";
 
 /** A moldura do Doctor: a Organização ativa em cima (o botão leva à troca), as seções e a
  * página. No celular as seções são uma faixa que rola de lado; a partir de `md`, uma coluna.
@@ -18,6 +18,7 @@ export async function DoctorShell({ locale, active, current, children }: {
   const base = `/${locale}/doctor`;
   const sections = [
     { id: "overview" as const, href: base, label: t("site.doctor.nav.overview"), Icon: ActivityIcon },
+    { id: "incidents" as const, href: `${base}/incidents`, label: t("site.doctor.nav.incidents"), Icon: SirenIcon },
   ];
 
   return (

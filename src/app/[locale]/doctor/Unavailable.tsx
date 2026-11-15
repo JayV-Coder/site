@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SitePage } from "@/components/organisms/SitePage";
 import { Button } from "@/components/ui/button";
 import { getT } from "@/modules/i18n/server";
 
@@ -11,5 +12,14 @@ export async function Unavailable({ locale, title, retry = "/doctor" }: { locale
       <p className="max-w-[62ch] text-sm leading-relaxed text-muted-foreground">{t("site.doctor.unavailable.body")}</p>
       <Button asChild variant="outline"><Link href={`/${locale}${retry}`} prefetch={false}>{t("site.doctor.reload")}</Link></Button>
     </div>
+  );
+}
+
+/** A página inteira quando a API não respondeu: sem ela não há Organização ativa para a moldura. */
+export async function UnavailablePage({ locale }: { locale: string }) {
+  return (
+    <SitePage locale={locale}>
+      <div className="shell max-w-xl py-8 md:py-12"><Unavailable locale={locale} /></div>
+    </SitePage>
   );
 }
