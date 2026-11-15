@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { DailyBars, LinkSegments, PageHeading, StatTile } from "@/components/molecules";
-import { SitePage } from "@/components/organisms/SitePage";
 import { Badge } from "@/components/ui/badge";
 import { doctorList, type Schemas } from "@/modules/doctor/api";
 import {
@@ -12,7 +11,7 @@ import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "./access";
 import { CategoryBars } from "./CategoryBars";
 import { DoctorShell } from "./DoctorShell";
-import { Unavailable } from "./Unavailable";
+import { Unavailable, UnavailablePage } from "./Unavailable";
 
 type Dashboard = Schemas["Dashboard"];
 type Period = (typeof PERIODS)[number];
@@ -42,10 +41,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps<"/[
   const environment = ENVIRONMENTS.find((value) => value === query.environment) ?? null;
   const access = await requireDoctor(locale, "/doctor");
   const t = await getT(locale);
-  if (!access) {
-    // Sem a resposta da API não há Organização ativa para a moldura mostrar.
-    return <SitePage locale={locale}><div className="shell max-w-xl py-8 md:py-12"><Unavailable locale={locale} /></div></SitePage>;
-  }
+  if (!access) return <UnavailablePage locale={locale} />;
 
   const search = new URLSearchParams({ period });
   if (environment) search.set("environment", environment);

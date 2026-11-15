@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { ageParts, bucketLabel, canManage, changeArrow, incidentCode, initials, isManager, mttrParts, peak, slugify } from "./labels";
+import {
+  ageParts, bucketLabel, canManage, changeArrow, durationParts, executionStatusKey, executionTitle, incidentCode, initials, isManager,
+  mttrParts, NEXT_STATUSES, peak, slugify,
+} from "./labels";
 
 describe("rótulos do Doctor", () => {
   it("numera o Incidente com quatro casas", () => {
@@ -52,5 +55,29 @@ describe("rótulos do Doctor", () => {
     expect(slugify("  Varejo São João Ltda.  ")).toBe("varejo-sao-joao-ltda");
     expect(slugify("x".repeat(60))).toHaveLength(40);
     expect(initials("acme integrações brasil")).toBe("AI");
+  });
+});
+
+describe("rótulos de Incidente e Execução", () => {
+  it("só oferece as transições de status que o banco aceita", () => {
+    expect(NEXT_STATUSES.open).toEqual(["investigating", "resolved", "dismissed"]);
+    expect(NEXT_STATUSES.resolved).toEqual(["open"]);
+    expect(NEXT_STATUSES.dismissed).toEqual(["open"]);
+  });
+
+  it("separa a duração em ms, segundos com uma casa, ou minutos e segundos", () => {
+    expect(durationParts(850)).toEqual({ unit: "ms", value: 850 });
+    expect(durationParts(12_345)).toEqual({ unit: "s", value: 12.3 });
+    expect(durationParts(125_000)).toEqual({ unit: "min", minutes: 2, seconds: 5 });
+  });
+
+  it("dá à Execução o nome do execution_id e do trace, ou o começo do id", () => {
+    expect(executionTitle("0190f3a1-7b2c", { execution_id: ["PED-1"], trace_id: ["abc"] })).toBe("PED-1 · abc");
+    expect(executionTitle("0190f3a1-7b2c", {})).toBeNull();
+  });
+
+  it("conhece os status de Execução", () => {
+    expect(executionStatusKey("pending_confirmation")).toBe("site.doctor.execution.status.pending_confirmation");
+    expect(executionStatusKey("outro")).toBeNull();
   });
 });
