@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { BackLink, PageHeading } from "@/components/molecules";
+import { BackLink, LinkSegments, PageHeading } from "@/components/molecules";
 import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
 import { Badge } from "@/components/ui/badge";
 import { doctorGet, doctorList, type Schemas } from "@/modules/doctor/api";
+import { comparedWith, isActive, reviewable, shownVersion } from "@/modules/doctor/diagnosis";
 import {
   durationParts, environmentKey, executionStatusKey, executionTitle, incidentCode, severityKey, severityVariant, statusKey,
 } from "@/modules/doctor/labels";
@@ -13,12 +14,20 @@ import { requireDoctor } from "../../access";
 import { DoctorShell } from "../../DoctorShell";
 import { Unavailable, UnavailablePage } from "../../Unavailable";
 import { CommentForm } from "./CommentForm";
+import {
+  DiagnosisCard, DiagnosisEmpty, DiagnosisEvidence, DiagnosisHypotheses, DiagnosisRecommendations, VersionDifferences,
+} from "./Diagnosis";
 import { IncidentControls } from "./IncidentControls";
+import { NewDiagnosis } from "./NewDiagnosis";
+import { PromoteButton, ReviewControls } from "./ReviewControls";
 
 type IncidentDetail = Schemas["IncidentDetail"];
 type Comment = Schemas["Comment"];
+type DiagnosisSummary = Schemas["DiagnosisSummary"];
+type DiagnosisDetail = Schemas["DiagnosisDetail"];
 
 const OPERATORS = ["owner", "admin", "analyst"];
+const FAST_WINDOW_MS = 10 * 60_000;
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/incidents/[id]">): Promise<Metadata> {
   const { locale } = await params;
@@ -26,21 +35,43 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/i
   return { title: `${t("site.doctor.incident.title")} · ${t("site.doctor.name")}`, robots: { index: false } };
 }
 
-/** Tela 6, primeira parte: o Incidente, as Regras que dispararam, as Execuções, o histórico e
- * a conversa. O Diagnóstico, a revisão, os chamados e o relatório chegam no bloco seguinte. */
-export default async function IncidentPage({ params }: PageProps<"/[locale]/doctor/incidents/[id]">) {
-  const { locale, id } = await params;
+/** Tela 6: o Incidente e o Diagnóstico (a versão de `?version=`, a mais nova por padrão) com a
+ * revisão; as Evidências, as Regras que dispararam, as Execuções, o histórico e a conversa.
+ * Os chamados e o relatório chegam no bloco seguinte. */
+export default async function IncidentPage({ params, searchParams }: PageProps<"/[locale]/doctor/incidents/[id]">) {
+  const [{ locale, id }, query] = await Promise.all([params, searchParams]);
   const access = await requireDoctor(locale, `/doctor/incidents/${id}`);
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-  const [incident, comments] = await Promise.all([
+  const [incident, comments, versions] = await Promise.all([
     doctorGet<IncidentDetail>(`/incidents/${encodeURIComponent(id)}`),
     doctorList<Comment[]>(`/incidents/${encodeURIComponent(id)}/comments`),
+    doctorList<DiagnosisSummary[]>(`/incidents/${encodeURIComponent(id)}/diagnoses`),
   ]);
   if (incident === "not_found") notFound();
 
   const { me } = access;
   const operator = OPERATORS.includes(me.active_role ?? "");
+  const wanted = typeof query.version === "string" ? query.version : undefined;
+  const chosen = versions ? shownVersion(versions, wanted) : null;
+  const previous = versions && chosen ? comparedWith(versions, chosen) : undefined;
+  // Um Diagnóstico novo rodando aparece em cima do resultado escolhido, com as etapas.
+  const active = versions?.find((item) => isActive(item.status) && item.id !== chosen?.id);
+  const [found, before, progress] = await Promise.all([
+    chosen ? doctorGet<DiagnosisDetail>(`/diagnoses/${encodeURIComponent(chosen.id)}`) : null,
+    previous ? doctorGet<DiagnosisDetail>(`/diagnoses/${encodeURIComponent(previous.id)}`) : null,
+    active ? doctorGet<DiagnosisDetail>(`/diagnoses/${encodeURIComponent(active.id)}`) : null,
+  ]);
+  const diagnosis = found === "not_found" ? null : found;
+  const earlier = before === "not_found" ? null : before;
+  const running = progress === "not_found" ? null : progress;
+  // Revisa-se a versão final mais nova, uma vez por revisor (o banco confere de novo).
+  const newestFinal = versions?.find((item) => reviewable(item.status));
+  const canReview = operator && diagnosis !== null && diagnosis.id === newestFinal?.id
+    && !diagnosis.feedback.some((item) => item.reviewer_id === me.id);
+  // Atualiza mais de perto só nos primeiros minutos de um Diagnóstico: preso na fila (worker
+  // fora do ar), a página volta ao ritmo normal em vez de bater na API sem fim.
+  const fresh = versions?.some((item) => isActive(item.status) && Date.now() - new Date(item.created_at).getTime() < FAST_WINDOW_MS) ?? false;
   const label = (key: Key | null, fallback: string) => (key ? t(key) : fallback);
   const when = (iso: string) =>
     `${new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso))} UTC`;
@@ -54,7 +85,8 @@ export default async function IncidentPage({ params }: PageProps<"/[locale]/doct
 
   return (
     <DoctorShell locale={locale} active={access.active} current="incidents">
-      <AutoRefresh />
+      {/* Com Diagnóstico rodando, o card acompanha as etapas mais de perto. */}
+      <AutoRefresh seconds={fresh ? 4 : 20} />
       <BackLink href={`/${locale}/doctor/incidents`}>{t("site.doctor.nav.incidents")}</BackLink>
       {incident === null ? <Unavailable locale={locale} title={t("site.doctor.incident.unavailable")} retry={`/doctor/incidents/${id}`} /> : (
         <div className="grid gap-5">
@@ -77,12 +109,36 @@ export default async function IncidentPage({ params }: PageProps<"/[locale]/doct
           {incident.status === "resolved" && incident.resolution_note && (
             <p className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm"><strong>{t("site.doctor.incident.resolution")}</strong> {incident.resolution_note}</p>
           )}
+          {operator && <div><NewDiagnosis incidentId={incident.id} /></div>}
           {operator && (
             <IncidentControls id={incident.id} status={incident.status} severity={incident.severity}
               mine={incident.assignee_id === me.id} meId={me.id} />
           )}
 
           <div className="grid gap-5 @4xl:grid-cols-2">
+            <div className="grid content-start gap-4">
+              {versions && versions.length > 1 && (
+                <LinkSegments label={t("site.doctor.diagnosis.versions")} options={versions.map((item) => ({
+                  href: `/${locale}/doctor/incidents/${incident.id}?version=${item.version}`,
+                  label: t("site.doctor.diagnosis.versionChip", { version: item.version, status: t(`site.doctor.diagnosis.status.${item.status}`) }),
+                  current: item.id === chosen?.id,
+                }))} />
+              )}
+              {running && <DiagnosisCard locale={locale} diagnosis={running} />}
+              {diagnosis ? <DiagnosisCard locale={locale} diagnosis={diagnosis} /> : <DiagnosisEmpty locale={locale} failed={versions === null || chosen !== null} />}
+              {canReview && <ReviewControls diagnosisId={diagnosis.id} />}
+              {/* A API decide pela mesma regra da promoção no banco (versão final mais nova). */}
+              {operator && incident.promotable && <PromoteButton incidentId={incident.id} />}
+              {incident.knowledge_document_id && (
+                <p className="rounded-md border border-border bg-secondary px-3 py-2 text-sm">{t("site.doctor.promote.inKnowledge")}</p>
+              )}
+              {earlier && diagnosis && <VersionDifferences locale={locale} before={earlier} after={diagnosis} />}
+              {diagnosis && <DiagnosisHypotheses locale={locale} diagnosis={diagnosis} />}
+              {diagnosis && <DiagnosisRecommendations locale={locale} diagnosis={diagnosis} />}
+            </div>
+
+            <div className="grid content-start gap-5">
+            {diagnosis && <DiagnosisEvidence locale={locale} diagnosis={diagnosis} />}
             <section aria-labelledby="doctor-rules" className="grid content-start gap-2">
               <h2 id="doctor-rules" className="text-sm font-medium">{t("site.doctor.incident.rules", { count: incident.evidence.length })}</h2>
               <ul className="grid gap-2">
@@ -147,6 +203,7 @@ export default async function IncidentPage({ params }: PageProps<"/[locale]/doct
               )}
               {operator && <CommentForm id={incident.id} />}
             </section>
+            </div>
           </div>
         </div>
       )}

@@ -26,7 +26,8 @@ As telas do Doctor (diagnóstico de falhas de integrações) ficam em `/doctor`,
 sessão do site. Elas falam com a API do `JayV-Coder/jayv-doctor`, pelo servidor:
 defina `DOCTOR_API_URL`. Sem ela, ou com a API fora do ar, as páginas avisam que o serviço
 não respondeu. Por enquanto estão aqui a escolha e a criação de Organização, o painel e os
-Incidentes (lista e detalhe, sem o Diagnóstico); o resto das telas chega em blocos.
+Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana e a promoção à Base de
+conhecimento); o resto das telas chega em blocos.
 
 ## Rodar
 

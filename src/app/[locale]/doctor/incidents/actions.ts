@@ -10,6 +10,8 @@ type Severity = Schemas["IncidentSummary"]["severity"];
 
 export interface IncidentFilters { status: Status[]; severity: Severity[] }
 
+const DETAIL = "/[locale]/doctor/incidents/[id]";
+
 const KNOWN = {
   invalid_transition: "site.doctor.incident.error.transition",
   invalid_assignee: "site.doctor.incident.error.assignee",
@@ -30,12 +32,55 @@ export async function changeIncident(
   change: { status?: Status; severity?: Severity; assignee_id?: string | null; resolution_note?: string },
 ): Promise<Text | null> {
   return sendToDoctor(`/incidents/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(change) }, {
-    revalidate: "/[locale]/doctor/incidents/[id]", known: KNOWN, invalid: "site.doctor.incident.error.resolutionNote",
+    revalidate: DETAIL, known: KNOWN, invalid: "site.doctor.incident.error.resolutionNote",
   });
 }
 
 export async function addComment(id: string, body: string): Promise<Text | null> {
   return sendToDoctor(`/incidents/${encodeURIComponent(id)}/comments`, { method: "POST", body: JSON.stringify({ body_md: body, mentions: [] }) }, {
-    revalidate: "/[locale]/doctor/incidents/[id]", invalid: "site.doctor.incident.error.comment",
+    revalidate: DETAIL, invalid: "site.doctor.incident.error.comment",
+  });
+}
+
+/** Cria a versão N+1 do Diagnóstico; o progresso aparece no card. A chave de idempotência faz
+ * a repetição depois de uma resposta perdida devolver o mesmo Diagnóstico. */
+export async function requestDiagnosis(
+  id: string, body: { mode: "hybrid" | "rules_only"; include_knowledge_base: boolean }, key: string,
+): Promise<Text | null> {
+  return sendToDoctor(`/incidents/${encodeURIComponent(id)}/diagnoses`, { method: "POST", body: JSON.stringify(body) }, {
+    revalidate: DETAIL, key, invalid: "site.doctor.diagnosis.error.mode",
+    known: { idempotency_conflict: "site.doctor.diagnosis.error.idempotency" },
+  });
+}
+
+export type Review =
+  | { verdict: "accepted" }
+  | { verdict: "rejected"; comment?: string }
+  | { verdict: "corrected"; correct_category?: string; correct_cause?: string; responsible_system?: string; comment?: string };
+
+/** Revisão humana (#26): uma por revisor e versão; o banco confere de novo. */
+export async function reviewDiagnosis(diagnosisId: string, review: Review, key: string): Promise<Text | null> {
+  return sendToDoctor(`/diagnoses/${encodeURIComponent(diagnosisId)}/feedback`, { method: "POST", body: JSON.stringify(review) }, {
+    revalidate: DETAIL, key,
+    // Na correção, o que falha na validação é faltar a categoria ou a causa; no resto, o genérico.
+    invalid: review.verdict === "corrected" ? "site.doctor.review.error.correction" : undefined,
+    known: {
+      correction_required: "site.doctor.review.error.correction",
+      already_reviewed: "site.doctor.review.error.already",
+      superseded: "site.doctor.review.error.superseded",
+      not_reviewable: "site.doctor.review.error.notReviewable",
+    },
+  });
+}
+
+/** Incidente resolvido com Diagnóstico aceito ou corrigido: o caso vai para a Base de conhecimento. */
+export async function promoteIncident(id: string, key: string): Promise<Text | null> {
+  return sendToDoctor(`/incidents/${encodeURIComponent(id)}/knowledge`, { method: "POST" }, {
+    revalidate: DETAIL, key,
+    known: {
+      already_promoted: "site.doctor.promote.error.already",
+      not_resolved: "site.doctor.promote.error.notResolved",
+      not_reviewed: "site.doctor.promote.error.notReviewed",
+    },
   });
 }
