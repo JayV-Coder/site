@@ -13,7 +13,8 @@ const FAILURES: Record<string, string> = {
   rate_limited: "site.doctor.error.rateLimited",
 };
 
-type Options = { revalidate?: string; known?: Record<string, string>; invalid?: string; key?: string };
+/** `layout`: revalida a rota e as de baixo (a lista e o detalhe mudam juntos). */
+type Options = { revalidate?: string; layout?: boolean; known?: Record<string, string>; invalid?: string; key?: string };
 
 async function call(path: string, init: RequestInit, options: Options): Promise<{ response: Response } | { error: Text }> {
   const response = await doctorFetch(path, {
@@ -26,7 +27,7 @@ async function call(path: string, init: RequestInit, options: Options): Promise<
     if (code === "validation_error") return { error: { key: options.invalid ?? "site.doctor.error.validation" } };
     return { error: { key: options.known?.[code ?? ""] ?? FAILURES[code ?? ""] ?? "site.doctor.error.generic" } };
   }
-  if (options.revalidate) revalidatePath(options.revalidate, "page");
+  if (options.revalidate) revalidatePath(options.revalidate, options.layout ? "layout" : "page");
   return { response };
 }
 

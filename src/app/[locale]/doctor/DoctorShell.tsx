@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ActivityIcon, Building2Icon, CableIcon, SirenIcon, WorkflowIcon } from "lucide-react";
+import { ActivityIcon, Building2Icon, CableIcon, PlugIcon, SirenIcon, WorkflowIcon } from "lucide-react";
 import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import type { Organization } from "@/modules/doctor/api";
 import { getT } from "@/modules/i18n/server";
 
-export type DoctorSection = "overview" | "incidents" | "executions" | "integrations";
+export type DoctorSection = "overview" | "incidents" | "executions" | "integrations" | "connectors";
 
 /** A moldura do Doctor: a Organização ativa em cima (o botão leva à troca), as seções e a
  * página. No celular as seções são uma faixa que rola de lado; a partir de `md`, uma coluna.
@@ -21,6 +21,7 @@ export async function DoctorShell({ locale, active, current, children }: {
     { id: "incidents" as const, href: `${base}/incidents`, label: t("site.doctor.nav.incidents"), Icon: SirenIcon },
     { id: "executions" as const, href: `${base}/executions`, label: t("site.doctor.nav.executions"), Icon: WorkflowIcon },
     { id: "integrations" as const, href: `${base}/integrations`, label: t("site.doctor.nav.integrations"), Icon: CableIcon },
+    { id: "connectors" as const, href: `${base}/connectors`, label: t("site.doctor.nav.connectors"), Icon: PlugIcon },
   ];
 
   return (
