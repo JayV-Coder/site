@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackLink, LinkSegments, PageHeading } from "@/components/molecules";
 import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { doctorGet, doctorList, type Schemas } from "@/modules/doctor/api";
+import { ticketProviders } from "@/modules/doctor/reports";
 import { comparedWith, isActive, reviewable, shownVersion } from "@/modules/doctor/diagnosis";
 import {
-  durationParts, environmentKey, executionStatusKey, executionTitle, incidentCode, severityKey, severityVariant, statusKey,
+  durationParts, environmentKey, isOperator, utcDateTime, executionStatusKey, executionTitle, incidentCode, severityKey, severityVariant, statusKey,
 } from "@/modules/doctor/labels";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
@@ -19,14 +22,17 @@ import {
 } from "./Diagnosis";
 import { IncidentControls } from "./IncidentControls";
 import { NewDiagnosis } from "./NewDiagnosis";
+import { TicketCard } from "./TicketCard";
 import { PromoteButton, ReviewControls } from "./ReviewControls";
 
 type IncidentDetail = Schemas["IncidentDetail"];
 type Comment = Schemas["Comment"];
 type DiagnosisSummary = Schemas["DiagnosisSummary"];
 type DiagnosisDetail = Schemas["DiagnosisDetail"];
+type Ticket = Schemas["Ticket"];
+type JiraConnection = Schemas["JiraConnection"];
+type ServiceNowConnection = Schemas["ServiceNowConnection"];
 
-const OPERATORS = ["owner", "admin", "analyst"];
 const FAST_WINDOW_MS = 10 * 60_000;
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/incidents/[id]">): Promise<Metadata> {
@@ -37,21 +43,25 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/i
 
 /** Tela 6: o Incidente e o Diagnóstico (a versão de `?version=`, a mais nova por padrão) com a
  * revisão; as Evidências, as Regras que dispararam, as Execuções, o histórico e a conversa.
- * Os chamados e o relatório chegam no bloco seguinte. */
+ * Os chamados no ITSM e o link para o relatório (Tela 19). */
 export default async function IncidentPage({ params, searchParams }: PageProps<"/[locale]/doctor/incidents/[id]">) {
   const [{ locale, id }, query] = await Promise.all([params, searchParams]);
   const access = await requireDoctor(locale, `/doctor/incidents/${id}`);
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-  const [incident, comments, versions] = await Promise.all([
+  // A conexão com o ITSM só importa para quem abre chamado.
+  const operator = isOperator(access.me.active_role);
+  const [incident, comments, versions, tickets, jira, servicenow] = await Promise.all([
     doctorGet<IncidentDetail>(`/incidents/${encodeURIComponent(id)}`),
     doctorList<Comment[]>(`/incidents/${encodeURIComponent(id)}/comments`),
     doctorList<DiagnosisSummary[]>(`/incidents/${encodeURIComponent(id)}/diagnoses`),
+    doctorList<Ticket[]>(`/incidents/${encodeURIComponent(id)}/tickets`),
+    operator ? doctorList<JiraConnection | null>("/itsm/jira") : null,
+    operator ? doctorList<ServiceNowConnection | null>("/itsm/servicenow") : null,
   ]);
   if (incident === "not_found") notFound();
 
   const { me } = access;
-  const operator = OPERATORS.includes(me.active_role ?? "");
   const wanted = typeof query.version === "string" ? query.version : undefined;
   const chosen = versions ? shownVersion(versions, wanted) : null;
   const previous = versions && chosen ? comparedWith(versions, chosen) : undefined;
@@ -72,9 +82,10 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
   // Atualiza mais de perto só nos primeiros minutos de um Diagnóstico: preso na fila (worker
   // fora do ar), a página volta ao ritmo normal em vez de bater na API sem fim.
   const fresh = versions?.some((item) => isActive(item.status) && Date.now() - new Date(item.created_at).getTime() < FAST_WINDOW_MS) ?? false;
+  // ITSM conectado de verdade: Jira com projeto e ServiceNow com instância (#43, #44).
+  const providers = ticketProviders(tickets ?? [], jira, servicenow, operator);
   const label = (key: Key | null, fallback: string) => (key ? t(key) : fallback);
-  const when = (iso: string) =>
-    `${new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso))} UTC`;
+  const when = (iso: string) => utcDateTime(locale, iso);
   const duration = (ms: number) => {
     const parts = durationParts(ms);
     if (parts.unit === "ms") return t("site.doctor.duration.ms", { value: parts.value });
@@ -109,7 +120,14 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
           {incident.status === "resolved" && incident.resolution_note && (
             <p className="rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm"><strong>{t("site.doctor.incident.resolution")}</strong> {incident.resolution_note}</p>
           )}
-          {operator && <div><NewDiagnosis incidentId={incident.id} /></div>}
+          <div className="flex flex-wrap gap-2">
+            {operator && <NewDiagnosis incidentId={incident.id} />}
+            <Button asChild variant="outline"><Link href={`/${locale}/doctor/incidents/${incident.id}/report`}>{t("site.doctor.report.title")}</Link></Button>
+          </div>
+          {/* Sem a lista de chamados, a tela não oferece abrir um que talvez já exista. */}
+          {tickets === null
+            ? <p className="text-sm text-muted-foreground">{t("site.doctor.ticket.unavailable")}</p>
+            : providers.length > 0 && <TicketCard incidentId={incident.id} tickets={tickets} providers={providers} resolved={incident.status === "resolved"} />}
           {operator && (
             <IncidentControls id={incident.id} status={incident.status} severity={incident.severity}
               mine={incident.assignee_id === me.id} meId={me.id} />

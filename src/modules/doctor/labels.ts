@@ -78,6 +78,18 @@ export function canManage(me: { active_role?: string | null; aal?: string | null
   return isManager(me?.active_role) && me?.aal === "aal2";
 }
 
+const OPERATOR_ROLES = ["owner", "admin", "analyst"];
+
+/** Owner, Admin e Analyst operam o Incidente (status, Diagnóstico, revisão, chamado, relatório). */
+export function isOperator(role: string | null | undefined): boolean {
+  return role != null && OPERATOR_ROLES.includes(role);
+}
+
+/** Data e hora curtas em UTC, no formato do idioma: o mesmo relógio para toda a equipe. */
+export function utcDateTime(locale: string, iso: string): string {
+  return `${new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso))} UTC`;
+}
+
 export const SLUG_MAX = 40;
 
 function plain(text: string): string {
