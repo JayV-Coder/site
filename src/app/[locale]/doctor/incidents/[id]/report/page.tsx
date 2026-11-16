@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { doctorGet, doctorList, type Schemas } from "@/modules/doctor/api";
 import { clampConfidence, reviewable, verdictOf } from "@/modules/doctor/diagnosis";
-import { environmentKey, incidentCode } from "@/modules/doctor/labels";
-import { downloadName, formatName, reportState } from "@/modules/doctor/reports";
+import { environmentKey, incidentCode, isOperator, utcDateTime } from "@/modules/doctor/labels";
+import { formatName, reportState } from "@/modules/doctor/reports";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../../../access";
@@ -21,8 +21,13 @@ type DiagnosisSummary = Schemas["DiagnosisSummary"];
 type DiagnosisDetail = Schemas["DiagnosisDetail"];
 type ReportSummary = Schemas["ReportSummary"];
 
-const OPERATORS = ["owner", "admin", "analyst"];
 const HISTORY = 10;
+/** A rota de download volta para cá com `?download=` quando não consegue entregar o arquivo. */
+const DOWNLOAD_FAILURES: Record<string, Key> = {
+  missing: "site.doctor.report.error.missing",
+  not_ready: "site.doctor.report.error.notReady",
+  unavailable: "site.doctor.report.error.unavailable",
+};
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/incidents/[id]/report">): Promise<Metadata> {
   const { locale } = await params;
@@ -32,8 +37,9 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/i
 
 /** Tela 19: a pré-visualização do que o relatório leva (o Diagnóstico final mais novo), o
  * formato e as opções para quem gera; o histórico, com download, para todo Papel. */
-export default async function ReportPage({ params }: PageProps<"/[locale]/doctor/incidents/[id]/report">) {
-  const { locale, id } = await params;
+export default async function ReportPage({ params, searchParams }: PageProps<"/[locale]/doctor/incidents/[id]/report">) {
+  const [{ locale, id }, query] = await Promise.all([params, searchParams]);
+  const failure = DOWNLOAD_FAILURES[typeof query.download === "string" ? query.download : ""];
   const access = await requireDoctor(locale, `/doctor/incidents/${id}/report`);
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
@@ -53,13 +59,12 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/doctor
     );
   }
 
-  const operator = OPERATORS.includes(access.me.active_role ?? "");
+  const operator = isOperator(access.me.active_role);
   const current = versions?.find((item) => reviewable(item.status));
   const found = current ? await doctorGet<DiagnosisDetail>(`/diagnoses/${encodeURIComponent(current.id)}`) : null;
   const diagnosis = found === "not_found" ? null : found;
   const verdict = diagnosis ? verdictOf(diagnosis.feedback) : null;
-  const when = (iso: string) =>
-    `${new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso))} UTC`;
+  const when = (iso: string) => utcDateTime(locale, iso);
   const confidence = (value: number) => new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(clampConfidence(value));
   const environment = environmentKey(incident.environment);
   const recent = reports.slice(0, HISTORY);
@@ -72,10 +77,11 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/doctor
       {back}
       <div className="grid gap-5">
         <PageHeading title={t("site.doctor.report.title")} />
+        {failure && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">{t(failure)}</p>}
         <div className="grid gap-5 @4xl:grid-cols-2">
           <section aria-labelledby="doctor-report-preview" className="grid content-start gap-3 rounded-lg border border-border bg-card px-4 py-4">
             <h2 id="doctor-report-preview" className="font-mono text-xs text-muted-foreground">
-              {t("site.doctor.report.preview", { file: downloadName(incident.number, "pdf") })}
+              {t("site.doctor.report.preview", { file: incidentCode(incident.number) })}
             </h2>
             <div className="grid gap-1">
               <span className={heading}>{t("site.doctor.report.technical")}</span>
@@ -103,7 +109,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/doctor
                 <span className={heading}>
                   {diagnosis?.confidence != null ? t("site.doctor.report.cause", { value: confidence(diagnosis.confidence) }) : t("site.doctor.diagnosis.probableCause")}
                 </span>
-                <p className="text-sm break-words">{diagnosis?.probable_cause ?? t("site.doctor.report.noDiagnosis")}</p>
+                <p className="text-sm break-words">{diagnosis ? (diagnosis.probable_cause ?? "—") : t("site.doctor.report.noDiagnosis")}</p>
               </div>
             )}
             {diagnosis && (
@@ -130,7 +136,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/doctor
 
           <div className="grid content-start gap-5">
             {operator
-              ? <ReportForm incidentId={incident.id} downloadBase={`/${locale}/doctor/incidents/${incident.id}/report`} />
+              ? <ReportForm incidentId={incident.id} number={incident.number} downloadBase={`/${locale}/doctor/incidents/${incident.id}/report`} />
               : <p className="rounded-md border border-border bg-secondary px-3 py-2 text-sm">{t("site.doctor.report.viewerHint")}</p>}
 
             {recent.length > 0 && (
@@ -149,7 +155,7 @@ export default async function ReportPage({ params }: PageProps<"/[locale]/doctor
                           {state === "ready" ? (
                             <Button asChild size="sm" variant="outline">
                               {/* Rota do servidor: a URL assinada nasce no clique. */}
-                              <a href={`/${locale}/doctor/incidents/${incident.id}/report/${report.id}`}>{t("site.doctor.report.downloadShort")}</a>
+                              <a href={`/${locale}/doctor/incidents/${incident.id}/report/${report.id}?number=${incident.number}`}>{t("site.doctor.report.downloadShort")}</a>
                             </Button>
                           ) : (
                             <Badge variant={state === "failed" ? "destructive" : "secondary"}>{t(`site.doctor.report.state.${state}`)}</Badge>

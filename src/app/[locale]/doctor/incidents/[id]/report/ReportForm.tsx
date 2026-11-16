@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { FormField, OptionSelect, ToggleRow } from "@/components/molecules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { utcDateTime } from "@/modules/doctor/labels";
 import { formatName } from "@/modules/doctor/reports";
 import { useLocale, useSay, useT } from "@/modules/i18n";
 import type { Text } from "@/modules/i18n/types";
@@ -18,7 +19,7 @@ const POLL_TRIES = 30;
 /** Opções da Tela 19. Gerar é assíncrono: o pedido vai para a fila e a tela espera o arquivo
  * ficar pronto (o worker leva poucos segundos) antes de baixar ou compartilhar. A chave fica a
  * mesma enquanto as opções forem as mesmas: clicar de novo retoma o mesmo relatório. */
-export function ReportForm({ incidentId, downloadBase }: { incidentId: string; downloadBase: string }) {
+export function ReportForm({ incidentId, number, downloadBase }: { incidentId: string; number: number; downloadBase: string }) {
   const t = useT();
   const say = useSay();
   const locale = useLocale();
@@ -67,7 +68,6 @@ export function ReportForm({ incidentId, downloadBase }: { incidentId: string; d
     });
   };
 
-  const until = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso)) + " UTC";
 
   return (
     <section aria-label={t("site.doctor.report.title")} className="grid gap-3 rounded-lg border border-border bg-card px-4 py-4">
@@ -84,14 +84,14 @@ export function ReportForm({ incidentId, downloadBase }: { incidentId: string; d
       {error && <p role="alert" className="text-sm text-destructive">{say(error)}</p>}
       {link && (
         <div role="status" className="grid gap-2 rounded-md border border-border bg-secondary px-3 py-3">
-          <p className="text-sm">{t("site.doctor.report.linkCreated", { when: until(link.expires_at) })}</p>
+          <p className="text-sm">{t("site.doctor.report.linkCreated", { when: utcDateTime(locale, link.expires_at) })}</p>
           <FormField label={t("site.doctor.report.link")} htmlFor="doctor-report-link">
             <Input id="doctor-report-link" readOnly value={link.url} className="font-mono text-xs" onFocus={(event) => event.currentTarget.select()} />
           </FormField>
         </div>
       )}
       <div className="flex flex-wrap gap-2">
-        <Button loading={pending === "download"} disabled={busy} onClick={() => run("download", async (report) => { window.location.assign(`${downloadBase}/${report}`); })}>
+        <Button loading={pending === "download"} disabled={busy} onClick={() => run("download", async (report) => { window.location.assign(`${downloadBase}/${report}?number=${number}`); })}>
           {t("site.doctor.report.download", { format: formatName(format) })}
         </Button>
         <Button variant="outline" loading={pending === "share"} disabled={busy} onClick={() => run("share", async (report) => {

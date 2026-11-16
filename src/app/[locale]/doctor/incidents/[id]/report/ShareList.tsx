@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { utcDateTime } from "@/modules/doctor/labels";
 import { useLocale, useSay, useT } from "@/modules/i18n";
 import type { Text } from "@/modules/i18n/types";
 import { revokeShare } from "./actions";
@@ -15,12 +16,11 @@ export function ShareList({ reportId, shares }: { reportId: string; shares: Shar
   const locale = useLocale();
   const [error, setError] = useState<Text | null>(null);
   const [busy, startBusy] = useTransition();
-  const until = (iso: string) => new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso)) + " UTC";
   return (
     <ul className="grid gap-1.5">
       {shares.map((share) => (
         <li key={share.id} className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          <span>{t("site.doctor.report.shareLine", { when: until(share.expires_at), count: share.access_count })}</span>
+          <span>{t("site.doctor.report.shareLine", { when: utcDateTime(locale, share.expires_at), count: share.access_count })}</span>
           <Button size="sm" variant="outline" disabled={busy} onClick={() => startBusy(async () => {
             setError(await revokeShare(reportId, share.id).catch((): Text => ({ key: "site.doctor.error.offline" })));
           })}>

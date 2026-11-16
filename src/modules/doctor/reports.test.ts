@@ -25,6 +25,8 @@ describe("relatórios e chamados", () => {
     const ticket = { status: "open", external_key: "OPS-12", external_status: "Em andamento", error: null };
     expect(ticketLine(ticket)).toEqual({ text: "OPS-12 · Em andamento" });
     expect(ticketLine({ ...ticket, external_status: null })).toEqual({ text: "OPS-12" });
+    // Aberto, mas sem chave nem status do ITSM ainda: diz que espera, em vez de um selo vazio.
+    expect(ticketLine({ ...ticket, external_key: null, external_status: null })).toEqual({ key: "site.doctor.ticket.pending" });
     expect(ticketLine({ ...ticket, status: "creating" })).toEqual({ key: "site.doctor.ticket.creating" });
     expect(ticketLine({ ...ticket, status: "failed", error: "projeto inexistente" })).toEqual({ key: "site.doctor.ticket.failed", error: "projeto inexistente" });
     expect(ticketBadge("failed")).toBe("destructive");
@@ -35,10 +37,12 @@ describe("relatórios e chamados", () => {
   it("aparecem os provedores com chamado e os conectados; só os conectados abrem", () => {
     const jira = { status: "active", project_key: "OPS" };
     const servicenow = { status: "active", instance_url: "https://acme.service-now.com" };
-    expect(ticketProviders([], jira, servicenow)).toEqual([{ provider: "jira", canOpen: true }, { provider: "servicenow", canOpen: true }]);
+    expect(ticketProviders([], jira, servicenow, true)).toEqual([{ provider: "jira", canOpen: true }, { provider: "servicenow", canOpen: true }]);
+    // Quem não opera só vê os chamados que existem.
+    expect(ticketProviders([{ provider: "jira" }], jira, servicenow, false)).toEqual([{ provider: "jira", canOpen: false }]);
     // Jira sem projeto não abre; o chamado antigo do ServiceNow continua à vista.
-    expect(ticketProviders([{ provider: "servicenow" }], { ...jira, project_key: null }, null))
+    expect(ticketProviders([{ provider: "servicenow" }], { ...jira, project_key: null }, null, true))
       .toEqual([{ provider: "servicenow", canOpen: false }]);
-    expect(ticketProviders([], { ...jira, status: "needs_reauth" }, undefined)).toEqual([]);
+    expect(ticketProviders([], { ...jira, status: "needs_reauth" }, null, true)).toEqual([]);
   });
 });

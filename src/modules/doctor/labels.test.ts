@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ageParts, bucketLabel, canManage, changeArrow, durationParts, executionStatusKey, executionTitle, incidentCode, initials, isManager,
+  ageParts, bucketLabel, isOperator, utcDateTime, canManage, changeArrow, durationParts, executionStatusKey, executionTitle, incidentCode, initials, isManager,
   mttrParts, NEXT_STATUSES, peak, slugify,
 } from "./labels";
 
@@ -79,5 +79,16 @@ describe("rótulos de Incidente e Execução", () => {
   it("conhece os status de Execução", () => {
     expect(executionStatusKey("pending_confirmation")).toBe("site.doctor.execution.status.pending_confirmation");
     expect(executionStatusKey("outro")).toBeNull();
+  });
+
+  it("operam o Incidente Owner, Admin e Analyst; Viewer só lê", () => {
+    expect(["owner", "admin", "analyst"].every(isOperator)).toBe(true);
+    expect(isOperator("viewer")).toBe(false);
+    expect(isOperator(null)).toBe(false);
+  });
+
+  it("data e hora curtas em UTC, no formato do idioma", () => {
+    expect(utcDateTime("pt-BR", "2026-11-16T01:49:00Z")).toBe("16/11/2026, 01:49 UTC");
+    expect(utcDateTime("en", "2026-11-16T01:49:00Z")).toBe("11/16/26, 1:49 AM UTC");
   });
 });

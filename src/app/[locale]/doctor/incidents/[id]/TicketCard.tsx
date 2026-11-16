@@ -12,8 +12,8 @@ type Ticket = Schemas["Ticket"];
 
 /** Os chamados do Incidente (#43 Jira, #44 ServiceNow): um por provedor, com a chave e o status
  * que voltam do ITSM. Resolvido lá só sugere: quem resolve o Incidente é uma pessoa, aqui. */
-export function TicketCard({ incidentId, tickets, providers, operator, resolved }: {
-  incidentId: string; tickets: Ticket[]; providers: { provider: Provider; canOpen: boolean }[]; operator: boolean; resolved: boolean;
+export function TicketCard({ incidentId, tickets, providers, resolved }: {
+  incidentId: string; tickets: Ticket[]; providers: { provider: Provider; canOpen: boolean }[]; resolved: boolean;
 }) {
   const t = useT();
   return (
@@ -21,7 +21,7 @@ export function TicketCard({ incidentId, tickets, providers, operator, resolved 
       <h2 id="doctor-tickets" className="text-sm font-medium">{t("site.doctor.ticket.title")}</h2>
       {providers.map(({ provider, canOpen }) => (
         <ProviderTicket key={provider} incidentId={incidentId} provider={provider} resolved={resolved}
-          ticket={tickets.find((ticket) => ticket.provider === provider)} canOpen={operator && canOpen} />
+          ticket={tickets.find((ticket) => ticket.provider === provider)} canOpen={canOpen} />
       ))}
     </section>
   );

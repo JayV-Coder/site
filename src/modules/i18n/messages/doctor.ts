@@ -284,6 +284,8 @@ export const doctor = {
   "site.doctor.ticket.open": "Open ticket in {provider}",
   "site.doctor.ticket.retry": "Try again in {provider}",
   "site.doctor.ticket.error.notConfigured": "Connect and set up the ITSM in Tickets (ITSM) first.",
+  "site.doctor.ticket.pending": "Waiting for the ITSM",
+  "site.doctor.ticket.unavailable": "Couldn't load the tickets.",
 
   "site.doctor.report.title": "Report",
   "site.doctor.report.unavailable": "Couldn't load the report",
@@ -319,4 +321,6 @@ export const doctor = {
   "site.doctor.report.shareLine": { one: "Link valid until {when} · {count} access", other: "Link valid until {when} · {count} accesses" },
   "site.doctor.report.revoke": "Revoke",
   "site.doctor.report.error.notReady": "The report isn't ready yet.",
+  "site.doctor.report.error.missing": "This report no longer exists or its file has expired. Generate a new one.",
+  "site.doctor.report.error.unavailable": "The service didn't respond. Try the download again in a moment.",
 } satisfies Record<string, Message>;

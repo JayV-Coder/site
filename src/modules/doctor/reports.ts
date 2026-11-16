@@ -27,7 +27,8 @@ export function ticketLine(ticket: {
 }): { text: string } | { key: Key; error?: string } {
   if (ticket.status === "creating") return { key: "site.doctor.ticket.creating" };
   if (ticket.status === "failed") return { key: "site.doctor.ticket.failed", ...(ticket.error && { error: ticket.error }) };
-  return { text: [ticket.external_key, ticket.external_status].filter(Boolean).join(" · ") };
+  const text = [ticket.external_key, ticket.external_status].filter(Boolean).join(" · ");
+  return text ? { text } : { key: "site.doctor.ticket.pending" };
 }
 
 export function ticketBadge(status: string): "destructive" | "success" | "secondary" {
@@ -36,18 +37,19 @@ export function ticketBadge(status: string): "destructive" | "success" | "second
 }
 
 /** Os provedores que aparecem no Incidente: os que já têm chamado e os conectados de verdade
- * (Jira com projeto, ServiceNow com instância). Só os conectados abrem chamado. A conexão vem
- * nula sem conexão e indefinida quando a API não respondeu. */
+ * (Jira com projeto, ServiceNow com instância). Só os conectados abrem chamado, e só para quem
+ * opera; quem não opera vê apenas os chamados que existem. */
 export function ticketProviders(
   tickets: readonly { provider: string }[],
-  jira: { status: string; project_key: string | null } | null | undefined,
-  servicenow: { status: string; instance_url: string | null } | null | undefined,
+  jira: { status: string; project_key: string | null } | null,
+  servicenow: { status: string; instance_url: string | null } | null,
+  operator: boolean,
 ): { provider: Provider; canOpen: boolean }[] {
   const connected = new Set<Provider>();
   if (jira?.status === "active" && jira.project_key) connected.add("jira");
   if (servicenow?.status === "active" && servicenow.instance_url) connected.add("servicenow");
   const shown = new Set<Provider>();
   for (const ticket of tickets) if (ticket.provider === "jira" || ticket.provider === "servicenow") shown.add(ticket.provider);
-  for (const provider of connected) shown.add(provider);
-  return [...shown].map((provider) => ({ provider, canOpen: connected.has(provider) }));
+  if (operator) for (const provider of connected) shown.add(provider);
+  return [...shown].map((provider) => ({ provider, canOpen: operator && connected.has(provider) }));
 }
