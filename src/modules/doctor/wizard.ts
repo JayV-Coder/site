@@ -1,3 +1,5 @@
+import { INTERVALS } from "./connectors";
+
 /** O assistente de novo Conector (Tela 12): Google Cloud e Salesforce (#37). O rascunho do Google
  * Cloud fica no sessionStorage, para quem sai e volta não perder o progresso, e nunca leva a
  * credencial: ela só existe na memória da página. */
@@ -25,6 +27,9 @@ export const EMPTY_GCP: GcpDraft = {
 const PROJECT = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 export const validProject = (value: string) => PROJECT.test(value);
 
+/** O nome é opcional (sem ele vale o projeto ou o provedor); preenchido, 2 a 80 caracteres. */
+export const validName = (value: string) => value.trim() === "" || (value.trim().length >= 2 && value.trim().length <= 80);
+
 export function buildGcpConfig(draft: GcpDraft): Record<string, unknown> {
   const services = draft.services.split(",").map((service) => service.trim()).filter(Boolean);
   const filter = draft.filter.trim();
@@ -48,8 +53,11 @@ export function readGcpDraft(raw: string | null): GcpDraft {
       if (typeof saved[key] !== typeof EMPTY_GCP[key]) return EMPTY_GCP;
       Object.assign(draft, { [key]: saved[key] });
     }
+    // O projeto entra em comandos de copiar e colar: passado o passo 1, ele tem de ser válido.
     const valid = [1, 2, 3, 4].includes(draft.step) && [24, 168].includes(draft.backfill_hours)
-      && (SEVERITIES as readonly string[]).includes(draft.min_severity);
+      && (SEVERITIES as readonly string[]).includes(draft.min_severity)
+      && (INTERVALS as readonly number[]).includes(draft.sync_interval_seconds)
+      && (draft.project_id === "" ? draft.step === 1 : validProject(draft.project_id));
     return valid ? draft : EMPTY_GCP;
   } catch {
     return EMPTY_GCP;

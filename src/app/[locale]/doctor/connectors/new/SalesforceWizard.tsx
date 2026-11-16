@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormField, OptionSelect } from "@/components/molecules";
@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import type { Schemas } from "@/modules/doctor/api";
-import { INTERVALS, intervalParts } from "@/modules/doctor/connectors";
+import { INTERVALS, intervalText } from "@/modules/doctor/connectors";
+import { OFFLINE, useKeyedAction } from "@/modules/doctor/useKeyedAction";
 import {
   buildSalesforceConfig, EMPTY_SALESFORCE, probeSalesforceConfig, SALESFORCE_SOURCES, validField, validObject,
-  type SalesforceDraft, type SalesforceSource,
+  validName, type SalesforceDraft, type SalesforceSource,
 } from "@/modules/doctor/wizard";
 import { useHref, useSay, useT } from "@/modules/i18n";
 import type { Text } from "@/modules/i18n/types";
@@ -21,7 +22,6 @@ import { SalesforceSecret } from "../CredentialField";
 import { TestOutcome, WizardActions, WizardDone, WizardStep } from "./WizardParts";
 
 type TestResult = Schemas["TestResult"];
-const OFFLINE: Text = { key: "site.doctor.error.offline" };
 
 /** O assistente do Salesforce (#37): a credencial da Connected App fica só na memória e vai para
  * o cofre ao ativar; nenhuma consulta é escrita aqui, só escolhida da allowlist. */
@@ -34,18 +34,21 @@ export function SalesforceWizard({ integrations }: { integrations: { id: string;
   const [draft, setDraft] = useState<SalesforceDraft>(EMPTY_SALESFORCE);
   const [credential, setCredential] = useState<string | null>(null);
   const [connection, setConnection] = useState<{ result: TestResult | null; error: Text | null }>({ result: null, error: null });
-  const [error, setError] = useState<Text | null>(null);
-  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [busy, startBusy] = useTransition();
+  const save = useKeyedAction();
+  // Mudar a config ou a credencial invalida o teste em andamento (a resposta antiga não vale).
+  const round = useRef(0);
   const titles = [t("site.doctor.wizard.sf.step1"), t("site.doctor.wizard.sf.step2"), t("site.doctor.wizard.sf.step3"), t("site.doctor.wizard.step4")];
   const available = connection.result?.capabilities ?? {};
-  const update = (change: Partial<SalesforceDraft>) => { setDraft((current) => ({ ...current, ...change })); setError(null); setRequestKey(crypto.randomUUID()); };
-  const untested = () => setConnection({ result: null, error: null });
+  const update = (change: Partial<SalesforceDraft>) => { setDraft((current) => ({ ...current, ...change })); if (save.error) save.reset(); };
+  const untested = () => { round.current += 1; setConnection({ result: null, error: null }); };
 
   const test = () => {
     if (credential === null) return;
+    const mine = round.current;
     startBusy(async () => {
       const outcome = await testNewConnection("salesforce", probeSalesforceConfig(draft), credential).catch(() => ({ ok: false as const, error: OFFLINE }));
+      if (mine !== round.current) return;
       setConnection(outcome.ok ? { result: outcome.value, error: null } : { result: null, error: outcome.error });
       // Já marca as fontes que a org tem.
       const found = outcome.ok ? outcome.value.capabilities ?? {} : {};
@@ -54,27 +57,27 @@ export function SalesforceWizard({ integrations }: { integrations: { id: string;
   };
   const activate = () => {
     if (credential === null) return;
-    startBusy(async () => {
-      const created = await createConnector({
-        provider: "salesforce", integration_id: draft.integration_id, name: draft.name.trim() || "Salesforce", config: buildSalesforceConfig(draft),
-        sync_interval_seconds: draft.sync_interval_seconds, credential,
-      }, requestKey).catch(() => ({ ok: false as const, error: OFFLINE }));
-      if (!created.ok) { setError(created.error); return; }
-      router.push(href(`/doctor/connectors/${created.value.id}`));
-    });
+    const request = {
+      provider: "salesforce" as const, integration_id: draft.integration_id, name: draft.name.trim() || "Salesforce", config: buildSalesforceConfig(draft),
+      sync_interval_seconds: draft.sync_interval_seconds, credential,
+    };
+    let created: string | null = null;
+    save.run(async (requestKey) => {
+      const outcome = await createConnector(request, requestKey);
+      if (!outcome.ok) return outcome.error;
+      created = outcome.value.id;
+      return null;
+    }, () => { if (created) router.push(href(`/doctor/connectors/${created}`)); }, JSON.stringify(request));
   };
   const toggle = (source: SalesforceSource, on: boolean) => update({ sources: on ? [...draft.sources, source] : draft.sources.filter((item) => item !== source) });
-  const interval = (seconds: number) => {
-    const parts = intervalParts(seconds);
-    return t(`site.doctor.connector.every.${parts.unit}`, { count: parts.count });
-  };
-  const fieldsOk = validField(draft.message_field) && validField(draft.severity_field);
+  // Os campos só contam com a fonte do objeto de log escolhida (senão, nem aparecem).
+  const fieldsOk = !draft.sources.includes("integration_log") || (validField(draft.message_field) && validField(draft.severity_field));
 
   return (
     <WizardStep provider="Salesforce" step={step} titles={titles}>
       {step === 1 && (
         <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); setStep(2); }}>
-          <FormField label={t("site.doctor.wizard.name")} htmlFor="doctor-sf-name">
+          <FormField label={t("site.doctor.wizard.name")} htmlFor="doctor-sf-name" error={validName(draft.name) ? null : t("site.doctor.connector.error.edit")}>
             <Input id="doctor-sf-name" minLength={2} maxLength={80} placeholder={t("site.doctor.wizard.sf.namePlaceholder")} value={draft.name} onChange={(event) => update({ name: event.currentTarget.value })} />
           </FormField>
           <FormField label={t("site.doctor.wizard.sf.environment")} htmlFor="doctor-sf-environment">
@@ -88,7 +91,7 @@ export function SalesforceWizard({ integrations }: { integrations: { id: string;
           </FormField>
           <WizardActions>
             <Button asChild variant="outline"><Link href={href("/doctor/connectors")}>{t("common.cancel")}</Link></Button>
-            <Button type="submit" disabled={!validObject(draft.object)}>{t("site.doctor.wizard.continue")}</Button>
+            <Button type="submit" disabled={!validObject(draft.object) || !validName(draft.name)}>{t("site.doctor.wizard.continue")}</Button>
           </WizardActions>
         </form>
       )}
@@ -100,12 +103,12 @@ export function SalesforceWizard({ integrations }: { integrations: { id: string;
           {(["jwt_bearer", "web_server"] as const).map((mode) => (
             <label key={mode} className="flex cursor-pointer items-center gap-3 rounded-lg border border-border/60 px-3.5 py-3 text-sm has-checked:border-foreground/40 has-checked:bg-secondary">
               <input type="radio" name="doctor-sf-auth-mode" className="size-4 accent-foreground" checked={draft.auth === mode}
-                onChange={() => { update({ auth: mode }); setCredential(null); untested(); }} />
+                onChange={() => { update({ auth: mode }); untested(); }} />
               {t(mode === "jwt_bearer" ? "site.doctor.wizard.sf.jwtRecommended" : "site.doctor.credential.sfWeb")}
             </label>
           ))}
         </fieldset>
-        <SalesforceSecret key={draft.auth} auth={draft.auth} onChange={(value) => { setCredential(value); untested(); }} />
+        <SalesforceSecret auth={draft.auth} onChange={(value) => { setCredential(value); untested(); }} />
         <TestOutcome {...connection} />
         <Button variant="outline" className="justify-self-start" loading={busy} disabled={credential === null} onClick={test}>{t("site.doctor.connector.test")}</Button>
         <WizardActions>
@@ -146,7 +149,7 @@ export function SalesforceWizard({ integrations }: { integrations: { id: string;
           )}
           <FormField label={t("site.doctor.connector.interval")} htmlFor="doctor-sf-interval">
             <OptionSelect id="doctor-sf-interval" value={String(draft.sync_interval_seconds)} onChange={(value) => update({ sync_interval_seconds: Number(value) })}
-              options={INTERVALS.map((seconds) => ({ value: String(seconds), label: interval(seconds) }))} />
+              options={INTERVALS.map((seconds) => ({ value: String(seconds), label: intervalText(t, seconds) }))} />
           </FormField>
           <WizardActions>
             <Button variant="outline" onClick={() => setStep(2)}>{t("site.doctor.wizard.back")}</Button>
@@ -163,10 +166,10 @@ export function SalesforceWizard({ integrations }: { integrations: { id: string;
               options={[{ value: "none", label: t("site.doctor.wizard.choose"), disabled: true }, ...integrations.map((item) => ({ value: item.id, label: item.label }))]} />
           </FormField>
           <p className="text-sm text-muted-foreground">{t("site.doctor.wizard.sf.activateHint")}</p>
-          {error && <p role="alert" className="text-sm text-destructive">{say(error)}</p>}
+          {save.error && <p role="alert" className="text-sm text-destructive">{say(save.error)}</p>}
           <WizardActions>
             <Button variant="outline" onClick={() => setStep(3)}>{t("site.doctor.wizard.back")}</Button>
-            <Button loading={busy} disabled={draft.integration_id === "" || credential === null} onClick={activate}>{t("site.doctor.wizard.activate")}</Button>
+            <Button loading={save.busy} disabled={draft.integration_id === "" || credential === null} onClick={activate}>{t("site.doctor.wizard.activate")}</Button>
           </WizardActions>
         </div>
       )}

