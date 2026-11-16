@@ -47,7 +47,7 @@ export default async function ConnectorsPage({ params }: PageProps<"/[locale]/do
                 <ConnectorSummary locale={locale} connector={connector} now={now} headingId={`doctor-connector-${connector.id}`}
                   actions={manager && connector.status !== "disabled" && (
                     <div className="flex flex-wrap items-start gap-2">
-                      <TestConnection id={connector.id} name={connector.name} provider={connector.provider} primary={connector.status === "failing"} />
+                      <TestConnection id={connector.id} name={connector.name} provider={connector.provider} auth={connector.config.auth} primary={connector.status === "failing"} />
                       <ConnectorAction key={paused ? "resume" : "sync"} id={connector.id} action={paused ? "resume" : "sync"} />
                     </div>
                   )}>

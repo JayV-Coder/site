@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildSalesforceCredential, checkpointInstant, connectorState, INTERVALS, intervalParts, intervalOptions, pauseKey, relativeParts,
+  buildSalesforceCredential, checkpointInstant, credentialFields, pairCredential, connectorState, INTERVALS, intervalParts, intervalOptions, pauseKey, relativeParts,
   serviceAccountEmail, syncSeconds, syncStatus,
 } from "./connectors";
 
@@ -13,6 +13,8 @@ describe("Conectores", () => {
     expect(connectorState({ status: "disabled", last_sync_at: null })).toEqual({ key: "site.doctor.connector.state.disabled", variant: "destructive" });
     expect(connectorState({ status: "active", last_sync_at: "2026-11-16T14:30:00Z" })).toEqual({ key: "site.doctor.connector.state.healthy", variant: "success" });
     expect(connectorState({ status: "active", last_sync_at: null })).toEqual({ key: "site.doctor.connector.state.waiting", variant: "outline" });
+    // Limite diário da API: ativo, mas esperando a janela seguinte; nada de "Saudável".
+    expect(connectorState({ status: "active", last_sync_at: "2026-11-16T14:30:00Z", paused_reason: "api_limit" })).toEqual({ key: "site.doctor.connector.state.limit", variant: "warning" });
   });
 
   it("tempo relativo nos dois sentidos, na maior unidade que cabe", () => {
@@ -29,6 +31,10 @@ describe("Conectores", () => {
     expect(checkpointInstant({ timestamp: "2026-11-16T14:00:00Z" })).toBe("2026-11-16T14:00:00Z");
     expect(checkpointInstant({ sources: { a: { at: "2026-11-16T10:00:00Z" }, b: { at: "2026-11-16T12:00:00Z" } } })).toBe("2026-11-16T12:00:00Z");
     expect(checkpointInstant({ page_token: "x" })).toBe("saved");
+    // SAP Integration Suite guarda o fim do último log.
+    expect(checkpointInstant({ log_end: "2026-11-16T14:00:00", message_guid: "g" })).toBe("2026-11-16T14:00:00");
+    // Uma fonte nula não derruba a página.
+    expect(checkpointInstant({ sources: { a: null, b: { at: "2026-11-16T12:00:00Z" } } })).toBe("2026-11-16T12:00:00Z");
   });
 
   it("o motivo da pausa", () => {
@@ -40,6 +46,8 @@ describe("Conectores", () => {
   it("intervalo em minutos ou horas; o salvo fora da lista entra nas opções", () => {
     expect(intervalParts(300)).toEqual({ unit: "minutes", count: 5 });
     expect(intervalParts(7200)).toEqual({ unit: "hours", count: 2 });
+    // Fora dos minutos inteiros, em segundos: nada de arredondar.
+    expect(intervalParts(90)).toEqual({ unit: "seconds", count: 90 });
     expect(intervalOptions(900)).toEqual([...INTERVALS]);
     expect(intervalOptions(120)).toEqual([...INTERVALS, 120]);
   });
@@ -57,6 +65,15 @@ describe("Conectores", () => {
     expect(serviceAccountEmail(JSON.stringify({ type: "service_account", client_email: "x@p.iam.gserviceaccount.com", private_key: "k" }))).toBe("x@p.iam.gserviceaccount.com");
     expect(serviceAccountEmail(JSON.stringify({ type: "authorized_user" }))).toBeNull();
     expect(serviceAccountEmail("não é json")).toBeNull();
+  });
+
+  it("SAP e OData recebem a credencial em JSON, pelos campos do modo", () => {
+    expect(credentialFields("sap", undefined)).toEqual(["client_id", "client_secret"]);
+    expect(credentialFields("odata", "basic")).toEqual(["username", "password"]);
+    expect(credentialFields("odata", "oauth")).toEqual(["client_id", "client_secret"]);
+    expect(credentialFields("fake", undefined)).toBeNull();
+    expect(pairCredential(["username", "password"], { username: " ana ", password: "x" })).toBe(JSON.stringify({ username: "ana", password: "x" }));
+    expect(pairCredential(["username", "password"], { username: "ana", password: "" })).toBeNull();
   });
 
   it("a credencial do Salesforce só sai completa, pelo modo escolhido", () => {

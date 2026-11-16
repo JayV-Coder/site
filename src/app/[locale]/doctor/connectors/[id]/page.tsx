@@ -60,8 +60,8 @@ export default async function ConnectorPage({ params }: PageProps<"/[locale]/doc
           actions={manager && active && (
             <div className="flex flex-wrap items-start gap-2">
               <ConnectorAction key={paused ? "resume" : "sync"} id={connector.id} action={paused ? "resume" : "sync"} primary />
-              <TestConnection id={connector.id} name={connector.name} provider={connector.provider} />
-              <CredentialDialog id={connector.id} provider={connector.provider} />
+              <TestConnection id={connector.id} name={connector.name} provider={connector.provider} auth={connector.config.auth} />
+              <CredentialDialog id={connector.id} provider={connector.provider} auth={connector.config.auth} />
               <EditConnector id={connector.id} name={connector.name} interval={connector.sync_interval_seconds} />
               {!paused && <ConnectorAction id={connector.id} action="pause" />}
             </div>

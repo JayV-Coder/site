@@ -8,12 +8,13 @@ import { getT } from "@/modules/i18n/server";
 type Connector = Schemas["Connector"];
 type T = Awaited<ReturnType<typeof getT>>;
 
-/** Há quanto tempo ou daqui a quanto, no idioma de quem lê. */
-export function relative(t: T, instant: string, now: Date): string {
+const UNITS = { minutes: "minute", hours: "hour", days: "day" } as const;
+
+/** Há quanto tempo ou daqui a quanto, pelo `Intl.RelativeTimeFormat` do idioma de quem lê. */
+export function relative(t: T, locale: string, instant: string, now: Date): string {
   const parts = relativeParts(instant, now);
   if (parts.unit === "now") return t("site.doctor.connector.now");
-  const key = parts.count < 0 ? `site.doctor.connector.ago.${parts.unit}` : `site.doctor.connector.in.${parts.unit}`;
-  return t(key as Parameters<T>[0], { count: Math.abs(parts.count) });
+  return new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(parts.count, UNITS[parts.unit]);
 }
 
 /** O cabeçalho e os fatos de um Conector, iguais na lista e no detalhe. */
@@ -45,7 +46,7 @@ export async function ConnectorSummary({ locale, connector, now, headingId, inte
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         {integration !== undefined && (<><dt className="text-muted-foreground">{t("site.doctor.connector.integration")}</dt><dd className="break-words">{integration}</dd></>)}
         <dt className="text-muted-foreground">{t("site.doctor.connector.lastSync")}</dt>
-        <dd>{connector.last_sync_at ? `${relative(t, connector.last_sync_at, now)} · ${t("site.doctor.executions.events", { count: records })}` : t("site.doctor.connector.neverSynced")}</dd>
+        <dd>{connector.last_sync_at ? `${relative(t, locale, connector.last_sync_at, now)} · ${t("site.doctor.executions.events", { count: records })}` : t("site.doctor.connector.neverSynced")}</dd>
         <dt className="text-muted-foreground">{t("site.doctor.connector.checkpoint")}</dt>
         <dd className={checkpoint && checkpoint !== "saved" ? "font-mono text-xs leading-5" : undefined}>
           {checkpoint === null ? t("site.doctor.connector.noCheckpoint") : checkpoint === "saved" ? t("site.doctor.connector.checkpointSaved") : utcDateTime(locale, checkpoint)}
@@ -53,7 +54,8 @@ export async function ConnectorSummary({ locale, connector, now, headingId, inte
         {integration !== undefined && (<><dt className="text-muted-foreground">{t("site.doctor.connector.interval")}</dt><dd>{t(`site.doctor.connector.every.${interval.unit}`, { count: interval.count })}</dd></>)}
         {connector.status !== "disabled" && !paused && (
           <><dt className="text-muted-foreground">{t("site.doctor.connector.next")}</dt>
-            <dd>{relative(t, connector.next_run_at, now)}{failing && ` ${t("site.doctor.connector.backoff")}`}</dd></>
+            {/* Vencida (pedida agora ou o worker atrasado): "agora", não "há 3 min". */}
+            <dd>{new Date(connector.next_run_at) <= now ? t("site.doctor.connector.due") : relative(t, locale, connector.next_run_at, now)}{failing && ` ${t("site.doctor.connector.backoff")}`}</dd></>
         )}
       </dl>
       {actions}

@@ -6,10 +6,12 @@ type Variant = "success" | "warning" | "destructive" | "secondary" | "outline";
 
 /** `failing` volta a `active` sozinho na próxima Sincronização que der certo; `paused` espera
  * uma pessoa (docs/operations/conectores.md). */
-export function connectorState(connector: { status: string; last_sync_at: string | null }): { key: Key; variant: Variant } {
+export function connectorState(connector: { status: string; last_sync_at: string | null; paused_reason?: string | null }): { key: Key; variant: Variant } {
   if (connector.status === "failing") return { key: "site.doctor.connector.state.failing", variant: "warning" };
   if (connector.status === "paused") return { key: "site.doctor.connector.state.paused", variant: "secondary" };
   if (connector.status === "disabled") return { key: "site.doctor.connector.state.disabled", variant: "destructive" };
+  // Limite diário da API do provedor: a coleta espera a janela seguinte sozinha.
+  if (connector.paused_reason === "api_limit") return { key: "site.doctor.connector.state.limit", variant: "warning" };
   return connector.last_sync_at
     ? { key: "site.doctor.connector.state.healthy", variant: "success" }
     : { key: "site.doctor.connector.state.waiting", variant: "outline" };
@@ -29,9 +31,12 @@ export function relativeParts(instant: string, now: Date): { unit: "now" } | { u
  * Salesforce (#37) tem um ponto por fonte: vale o mais recente. Sem instante, só "gravado". */
 export function checkpointInstant(checkpoint: Record<string, unknown> | null | undefined): string | "saved" | null {
   if (!checkpoint) return null;
-  const sources = checkpoint.sources as Record<string, { at?: unknown }> | undefined;
-  const latest = sources && Object.values(sources).map((mark) => (typeof mark.at === "string" ? mark.at : "")).sort().at(-1);
-  const stamp = latest || checkpoint.timestamp;
+  const sources = checkpoint.sources && typeof checkpoint.sources === "object" ? Object.values(checkpoint.sources as Record<string, unknown>) : [];
+  const latest = sources
+    .map((mark) => (mark && typeof mark === "object" && typeof (mark as { at?: unknown }).at === "string" ? (mark as { at: string }).at : ""))
+    .sort().at(-1);
+  // GCP grava `timestamp`; SAP Integration Suite, `log_end`.
+  const stamp = latest || checkpoint.timestamp || checkpoint.log_end;
   return typeof stamp === "string" && !Number.isNaN(Date.parse(stamp)) ? stamp : "saved";
 }
 
@@ -44,8 +49,9 @@ export function pauseKey(reason: string | null | undefined): Key {
 /** Intervalos oferecidos na tela; a API aceita de 60 s a 1 dia. */
 export const INTERVALS = [60, 300, 900, 3600] as const;
 
-export function intervalParts(seconds: number): { unit: "minutes" | "hours"; count: number } {
-  return seconds % 3600 === 0 ? { unit: "hours", count: seconds / 3600 } : { unit: "minutes", count: Math.round(seconds / 60) };
+export function intervalParts(seconds: number): { unit: "seconds" | "minutes" | "hours"; count: number } {
+  if (seconds % 3600 === 0) return { unit: "hours", count: seconds / 3600 };
+  return seconds % 60 === 0 ? { unit: "minutes", count: seconds / 60 } : { unit: "seconds", count: seconds };
 }
 
 /** O intervalo salvo pode não estar entre os oferecidos: entra na lista para não se perder. */
@@ -94,4 +100,24 @@ export function buildSalesforceCredential(auth: SalesforceAuth, fields: Salesfor
   }
   if (!id || !fields.client_secret.trim() || !fields.refresh_token.trim()) return null;
   return JSON.stringify({ client_id: id, client_secret: fields.client_secret.trim(), refresh_token: fields.refresh_token.trim() });
+}
+
+/** SAP Integration Suite e OData leem a credencial como JSON (`json.loads` no Conector): estes
+ * são os campos de cada um. OData usa Basic (`username`, `password`) ou OAuth (`client_id`,
+ * `client_secret`), conforme o `auth` da config. Outro provedor recebe um texto. */
+export function credentialFields(provider: string, auth: unknown): string[] | null {
+  if (provider === "sap") return ["client_id", "client_secret"];
+  if (provider === "odata") return auth === "basic" ? ["username", "password"] : ["client_id", "client_secret"];
+  return null;
+}
+
+/** O JSON dos campos, só com todos preenchidos. */
+export function pairCredential(names: readonly string[], values: Record<string, string>): string | null {
+  const found: Record<string, string> = {};
+  for (const name of names) {
+    const value = (values[name] ?? "").trim();
+    if (!value) return null;
+    found[name] = value;
+  }
+  return JSON.stringify(found);
 }

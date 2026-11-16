@@ -1,21 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FormField, OptionSelect } from "@/components/molecules";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { buildSalesforceCredential, serviceAccountEmail, type SalesforceAuth, type SalesforceFields } from "@/modules/doctor/connectors";
+import {
+  buildSalesforceCredential, credentialFields, pairCredential, serviceAccountEmail, type SalesforceAuth, type SalesforceFields,
+} from "@/modules/doctor/connectors";
+import type { Key } from "@/modules/i18n";
 import { useT } from "@/modules/i18n";
 
 /** A credencial fica só na memória do componente até ser enviada: nunca em sessionStorage,
  * cookie ou endereço. O Google Cloud recebe a chave JSON da Service Account; o Salesforce, os
  * campos da Connected App; os outros provedores, um texto. */
-export function CredentialField({ provider, onChange }: { provider: string; onChange: (credential: string | null) => void }) {
+export function CredentialField({ provider, auth, onChange }: { provider: string; auth?: unknown; onChange: (credential: string | null) => void }) {
   const t = useT();
   const [account, setAccount] = useState<string | null>(null);
   const [invalid, setInvalid] = useState(false);
+  // Só vale a leitura do último arquivo escolhido: uma anterior, mais lenta, não o sobrescreve.
+  const latest = useRef(0);
 
   if (provider === "salesforce") return <SalesforceCredential onChange={onChange} />;
+  const pair = credentialFields(provider, auth);
+  if (pair) return <PairCredential names={pair} onChange={onChange} />;
   if (provider !== "gcp") {
     return (
       <FormField label={t("site.doctor.credential.secret")} htmlFor="doctor-credential-secret">
@@ -29,7 +36,10 @@ export function CredentialField({ provider, onChange }: { provider: string; onCh
       hint={account ? t("site.doctor.credential.gcpAccount", { account }) : undefined}>
       <Input id="doctor-credential-file" type="file" accept=".json,application/json" required onChange={(event) => {
         const file = event.currentTarget.files?.[0];
+        const round = ++latest.current;
+        onChange(null);
         void (file?.text() ?? Promise.resolve("")).then((text) => {
+          if (round !== latest.current) return;
           const email = serviceAccountEmail(text);
           setAccount(email);
           setInvalid(text !== "" && email === null);
@@ -37,6 +47,33 @@ export function CredentialField({ provider, onChange }: { provider: string; onCh
         });
       }} />
     </FormField>
+  );
+}
+
+const PAIR_LABELS: Record<string, Key> = {
+  client_id: "site.doctor.credential.clientId",
+  client_secret: "site.doctor.credential.clientSecret",
+  username: "site.doctor.credential.username",
+  password: "site.doctor.credential.password",
+};
+
+/** SAP Integration Suite e OData: dois campos que viram o JSON que o Conector lê. */
+function PairCredential({ names, onChange }: { names: string[]; onChange: (credential: string | null) => void }) {
+  const t = useT();
+  const [values, setValues] = useState<Record<string, string>>({});
+  return (
+    <div className="grid gap-3">
+      {names.map((name) => (
+        <FormField key={name} label={t(PAIR_LABELS[name] ?? "site.doctor.credential.secret")} htmlFor={`doctor-credential-${name}`}>
+          <Input id={`doctor-credential-${name}`} type={name.endsWith("secret") || name === "password" ? "password" : "text"} autoComplete="off" autoCapitalize="none" spellCheck={false}
+            value={values[name] ?? ""} onChange={(event) => {
+              const next = { ...values, [name]: event.currentTarget.value };
+              setValues(next);
+              onChange(pairCredential(names, next));
+            }} />
+        </FormField>
+      ))}
+    </div>
   );
 }
 
