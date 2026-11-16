@@ -49,11 +49,60 @@ export function headerColumns(format: "csv" | "ndjson" | "json", text: string): 
   }
   try {
     if (format === "ndjson") return keysOf(JSON.parse(start.split(/\r?\n/, 1)[0] ?? ""));
-    const parsed = JSON.parse(start) as unknown;
-    return keysOf(Array.isArray(parsed) ? parsed[0] : parsed);
+    const first = firstRecord(start);
+    return first === null ? null : keysOf(JSON.parse(first));
   } catch {
     return null;
   }
+}
+
+/** O texto do primeiro registro de um JSON (o objeto da raiz, ou o primeiro de uma lista),
+ * achado pelas chaves sem ler o arquivo inteiro. Cortado antes de fechar: nulo. */
+function firstRecord(text: string): string | null {
+  const open = text.indexOf("{");
+  if (open < 0 || /[^\s[]/.test(text.slice(0, open))) return null;
+  let depth = 0;
+  let inString = false;
+  for (let index = open; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (char === "\\") index += 1;
+      else if (char === '"') inString = false;
+    } else if (char === '"') inString = true;
+    else if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(open, index + 1);
+    }
+  }
+  return null;
+}
+
+/** As colunas que a API aceita no mapeamento: até 200 caracteres, sem espaço nas pontas. */
+export function mappableColumns(columns: readonly string[]): string[] {
+  return columns.filter((column) => column.length > 0 && column.length <= 200 && column === column.trim());
+}
+
+/** O que vai para a Integração: o mapeamento salvo, mudando só os campos que a pessoa escolheu
+ * neste arquivo. Uma sugestão que ninguém tocou não é salva (o worker já reconhece pelo nome), e
+ * o salvo para colunas que este arquivo não tem continua valendo para os outros. */
+export function mergeMapping(saved: Record<string, string>, chosen: Mapping, touched: ReadonlySet<string>): Record<string, string> {
+  const next = { ...saved };
+  for (const field of touched) {
+    const column = chosen[field as ImportField];
+    if (column) next[field] = column;
+    else delete next[field];
+  }
+  return next;
+}
+
+/** Pendente esquecida (o envio falhou ou a aba fechou) não fica para sempre: depois deste prazo,
+ * a página para de reler por causa dela. */
+const PENDING_WINDOW_MS = 30 * 60_000;
+
+export function needsRefresh(imports: readonly { status: string; created_at: string }[], now: Date): boolean {
+  return imports.some((item) => item.status === "uploaded" || item.status === "processing"
+    || (item.status === "pending" && now.getTime() - new Date(item.created_at).getTime() < PENDING_WINDOW_MS));
 }
 
 /** O que a tela propõe: o mapeamento salvo da Integração onde a coluna existe no arquivo; nos
@@ -81,4 +130,3 @@ export function importBadge(status: string): { key: Key; variant: Variant } {
   return { key: `site.doctor.import.status.${status}` as Key, variant: STATUS[status] ?? "secondary" };
 }
 
-export const isRunning = (status: string) => status === "pending" || status === "uploaded" || status === "processing";

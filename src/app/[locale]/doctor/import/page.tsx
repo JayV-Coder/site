@@ -6,7 +6,7 @@ import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { doctorList, type Schemas } from "@/modules/doctor/api";
-import { importBadge, isRunning } from "@/modules/doctor/imports";
+import { importBadge, needsRefresh } from "@/modules/doctor/imports";
 import { environmentKey, isOperator, utcDateTime } from "@/modules/doctor/labels";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
@@ -38,28 +38,30 @@ export default async function ImportPage({ params, searchParams }: PageProps<"/[
   if (!access) return <UnavailablePage locale={locale} />;
   const canImport = isOperator(access.me.active_role);
   const [integrations, imports] = await Promise.all([
-    canImport ? doctorList<Integration[]>("/integrations") : null,
+    // Com as arquivadas: a lista de Importações mostra de qual Integração veio cada uma.
+    doctorList<Integration[]>("/integrations?include_archived=true"),
     doctorList<Import[]>("/imports"),
   ]);
   const failure = DOWNLOAD_FAILURES[typeof query.download === "string" ? query.download : ""];
+  const active = integrations?.filter((item) => !item.archived_at) ?? null;
   const names = new Map((integrations ?? []).map((item) => [item.id, item.name]));
   const number = new Intl.NumberFormat(locale);
 
   return (
     <DoctorShell locale={locale} active={access.active} current="import">
-      {imports?.some((item) => isRunning(item.status)) && <AutoRefresh seconds={5} />}
+      {imports && needsRefresh(imports, new Date()) && <AutoRefresh seconds={5} />}
       <PageHeading title={t("site.doctor.nav.import")} description={t("site.doctor.import.intro")} />
       {failure && <p role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">{t(failure)}</p>}
       <div className="grid gap-6">
         {canImport && integrations === null && <Unavailable locale={locale} title={t("site.doctor.integrations.unavailable")} retry="/doctor/import" />}
-        {canImport && integrations?.length === 0 && (
+        {canImport && active?.length === 0 && (
           <div className="grid justify-items-start gap-3">
             <EmptyText>{t("site.doctor.import.needsIntegration")}</EmptyText>
             <Button asChild variant="outline"><Link href={`/${locale}/doctor/integrations`}>{t("site.doctor.nav.integrations")}</Link></Button>
           </div>
         )}
-        {canImport && integrations && integrations.length > 0 && (
-          <ImportUploader integrations={integrations.map((item) => {
+        {canImport && active && active.length > 0 && (
+          <ImportUploader integrations={active.map((item) => {
             const environment = environmentKey(item.environment);
             return { id: item.id, label: `${item.name} · ${environment ? t(environment) : item.environment}` };
           })} />

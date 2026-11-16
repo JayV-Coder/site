@@ -15,7 +15,8 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[loca
   return new Response(response.body, {
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="rejections-${id.slice(0, 8)}.csv"`,
+      // O nome que a API dá (a partir do arquivo original) vale; sem ele, um pelo id.
+      "content-disposition": response.headers.get("content-disposition") ?? `attachment; filename="rejections-${id.slice(0, 8)}.csv"`,
       "cache-control": "no-store",
     },
   });

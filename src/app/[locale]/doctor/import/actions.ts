@@ -23,8 +23,9 @@ export async function mappingFor(integration: string, columns: string[]): Promis
     doctorGet<ImportMapping>(`/imports/mappings/${encodeURIComponent(integration)}`),
     doctorSearch<MappingSuggestion>("/imports/mapping-suggestion", { columns: columns.slice(0, 200) }),
   ]);
-  if (!saved || saved === "not_found" || !suggestion) return null;
-  return { saved: saved.columns, suggestion: suggestion.columns };
+  // Sem o salvo, não há como mudar só o que a pessoa escolher: a tela não oferece o mapeamento.
+  if (!saved || saved === "not_found") return null;
+  return { saved: saved.columns, suggestion: suggestion?.columns ?? {} };
 }
 
 /** Vale para as próximas Importações da Integração; `{}` volta à detecção pelo nome. */
