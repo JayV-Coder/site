@@ -6,7 +6,7 @@ import type { Schemas } from "@/modules/doctor/api";
 import { providerName, ticketBadge, ticketLine, type Provider } from "@/modules/doctor/reports";
 import { useSay, useT } from "@/modules/i18n";
 import { openTicket } from "../actions";
-import { useKeyedAction } from "./useKeyedAction";
+import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
 
 type Ticket = Schemas["Ticket"];
 

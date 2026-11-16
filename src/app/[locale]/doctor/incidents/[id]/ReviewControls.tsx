@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SYSTEMS, systemName } from "@/modules/doctor/diagnosis";
 import { useSay, useT } from "@/modules/i18n";
 import { promoteIncident, reviewDiagnosis, type Review } from "../actions";
-import { useKeyedAction } from "./useKeyedAction";
+import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
 
 function filled(data: FormData, name: string) {
   const value = data.get(name);

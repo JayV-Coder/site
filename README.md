@@ -28,7 +28,7 @@ defina `DOCTOR_API_URL`. Sem ela, ou com a API fora do ar, as páginas avisam qu
 não respondeu. Por enquanto estão aqui a escolha e a criação de Organização, o painel e os
 Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana, a promoção à Base de
 conhecimento, os chamados no ITSM e o relatório técnico) e Execuções (lista, Timeline e Evento
-original); o resto das telas chega em blocos.
+original) e Integrações (com os Mapas entre sistemas); o resto das telas chega em blocos.
 
 ## Rodar
 
