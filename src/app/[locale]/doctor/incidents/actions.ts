@@ -61,7 +61,9 @@ export type Review =
 /** Revisão humana (#26): uma por revisor e versão; o banco confere de novo. */
 export async function reviewDiagnosis(diagnosisId: string, review: Review, key: string): Promise<Text | null> {
   return sendToDoctor(`/diagnoses/${encodeURIComponent(diagnosisId)}/feedback`, { method: "POST", body: JSON.stringify(review) }, {
-    revalidate: DETAIL, key, invalid: "site.doctor.review.error.correction",
+    revalidate: DETAIL, key,
+    // Na correção, o que falha na validação é faltar a categoria ou a causa; no resto, o genérico.
+    invalid: review.verdict === "corrected" ? "site.doctor.review.error.correction" : undefined,
     known: {
       correction_required: "site.doctor.review.error.correction",
       already_reviewed: "site.doctor.review.error.already",

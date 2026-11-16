@@ -22,6 +22,23 @@ export const isActive = (status: string) => status === "queued" || status === "r
 /** Só o resultado final se revisa; o que falhou não tem o que aceitar. */
 export const reviewable = (status: string) => status === "published" || status === "inconclusive" || status === "failed_llm";
 
+export const clampConfidence = (value: number) => Math.min(Math.max(value, 0), 1);
+
+type Version = { version: number; status: string };
+
+/** A versão desenhada: a do endereço, se existe; senão a final mais nova (para que um novo
+ * Diagnóstico rodando, ou um que falhou, não esconda o resultado e a revisão); sem nenhuma
+ * final, a mais nova. A lista vem da mais nova para a mais antiga. */
+export function shownVersion<V extends Version>(versions: readonly V[], wanted: string | undefined): V | null {
+  return versions.find((item) => String(item.version) === wanted) ?? versions.find((item) => reviewable(item.status)) ?? versions[0] ?? null;
+}
+
+/** Com o que comparar: a final anterior, pulando as que falharam ou ainda rodam. */
+export function comparedWith<V extends Version>(versions: readonly V[], chosen: V): V | undefined {
+  if (!reviewable(chosen.status)) return undefined;
+  return versions.find((item) => item.version < chosen.version && reviewable(item.status));
+}
+
 /** O veredito que vale para a versão: a correção pesa mais que o aceite, que pesa mais que a recusa. */
 export function verdictOf(feedback: readonly { verdict: string }[]): string | null {
   return ["corrected", "accepted", "rejected"].find((verdict) => feedback.some((item) => item.verdict === verdict)) ?? null;
@@ -118,7 +135,7 @@ export function systemName(system: string | null): { name: string } | { key: Key
 }
 
 export function evidenceKind(item: { kind: string; label: string }): { rule: string } | { key: Key } {
-  if (item.kind === "rule_match") return { rule: item.label.split(" · ")[0] ?? item.label };
+  if (item.kind === "rule_match") return { rule: item.label.split(" · ")[0] };
   if (item.kind === "event") return { key: "site.doctor.diagnosis.evidence.event" };
   if (item.kind === "raw_log") return { key: "site.doctor.diagnosis.evidence.log" };
   // Consulta de leitura no destino (#40): o registro está lá, não no Doctor.

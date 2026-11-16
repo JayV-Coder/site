@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  diagnosisBadge, evidenceKind, isActive, reviewable, reviewTimeParts, stageSteps, versionChanges, withoutAiReason,
+  clampConfidence, comparedWith, diagnosisBadge, shownVersion, evidenceKind, isActive, reviewable, reviewTimeParts, stageSteps, versionChanges, withoutAiReason,
 } from "./diagnosis";
 
 const base = {
@@ -92,5 +92,29 @@ describe("Diagnóstico", () => {
     expect(evidenceKind({ kind: "enrichment", label: "x" })).toEqual({ key: "site.doctor.diagnosis.evidence.lookup" });
     expect(evidenceKind({ kind: "chunk", label: "x" })).toEqual({ key: "site.doctor.diagnosis.evidence.knowledge" });
     expect(evidenceKind({ kind: "global_chunk", label: "x" })).toEqual({ key: "site.doctor.diagnosis.evidence.knowledge" });
+  });
+
+  it("sem versão no endereço, mostra a final mais nova; a que roda ou falhou fica no seletor", () => {
+    const versions = [{ version: 3, status: "running" }, { version: 2, status: "failed" }, { version: 1, status: "published" }];
+    expect(shownVersion(versions, undefined)?.version).toBe(1);
+    expect(shownVersion(versions, "2")?.version).toBe(2);
+    expect(shownVersion(versions, "9")?.version).toBe(1);
+    // Sem nenhuma final, a mais nova (o card mostra o andamento).
+    expect(shownVersion([{ version: 1, status: "queued" }], undefined)?.version).toBe(1);
+    expect(shownVersion([], undefined)).toBeNull();
+  });
+
+  it("as diferenças comparam com a final anterior, pulando as que falharam ou rodam", () => {
+    const versions = [{ version: 4, status: "published" }, { version: 3, status: "failed" }, { version: 2, status: "running" }, { version: 1, status: "inconclusive" }];
+    expect(comparedWith(versions, versions[0])?.version).toBe(1);
+    expect(comparedWith(versions, versions[3])).toBeUndefined();
+    // A escolhida que falhou ou roda não tem com o que comparar.
+    expect(comparedWith(versions, versions[1])).toBeUndefined();
+  });
+
+  it("a Confiança fica entre 0 e 1", () => {
+    expect(clampConfidence(1.2)).toBe(1);
+    expect(clampConfidence(-0.1)).toBe(0);
+    expect(clampConfidence(0.68)).toBe(0.68);
   });
 });

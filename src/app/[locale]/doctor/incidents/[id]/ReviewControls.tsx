@@ -6,12 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { SYSTEMS } from "@/modules/doctor/diagnosis";
+import { SYSTEMS, systemName } from "@/modules/doctor/diagnosis";
 import { useSay, useT } from "@/modules/i18n";
 import { promoteIncident, reviewDiagnosis, type Review } from "../actions";
 import { useKeyedAction } from "./useKeyedAction";
-
-const BRANDS: Record<string, string> = { sap: "SAP", salesforce: "Salesforce", gcp: "Google Cloud" };
 
 function filled(data: FormData, name: string) {
   const value = data.get(name);
@@ -59,7 +57,7 @@ function ReviewDialog({ diagnosisId, verdict }: { diagnosisId: string; verdict: 
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!action.busy) { setOpen(next); if (!next) action.reset(); } }}>
+    <Dialog open={open} onOpenChange={(next) => { if (!action.busy) { setOpen(next); if (!next) { action.reset(); setSystem("unknown"); } } }}>
       <DialogTrigger asChild>
         <Button variant="outline">{t(correcting ? "site.doctor.review.correct" : "site.doctor.review.reject")}</Button>
       </DialogTrigger>
@@ -80,7 +78,10 @@ function ReviewDialog({ diagnosisId, verdict }: { diagnosisId: string; verdict: 
                 <OptionSelect id="doctor-review-system" value={system} onChange={setSystem}
                   options={[
                     { value: "unknown", label: t("site.doctor.diagnosis.system.unknown") },
-                    ...SYSTEMS.map((value) => ({ value, label: BRANDS[value] ?? t("site.doctor.diagnosis.system.other") })),
+                    ...SYSTEMS.map((value) => {
+                      const found = systemName(value);
+                      return { value, label: "name" in found ? found.name : t(found.key) };
+                    }),
                   ]} />
               </FormField>
               <FormField label={t("site.doctor.review.comment")} htmlFor="doctor-review-comment">

@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { Schemas } from "@/modules/doctor/api";
 import {
-  diagnosisBadge, evidenceKind, isActive, reviewTimeParts, stageSteps, systemName, versionChanges, withoutAiReason,
+  clampConfidence, diagnosisBadge, evidenceKind, isActive, reviewTimeParts, stageSteps, systemName, versionChanges, withoutAiReason,
 } from "@/modules/doctor/diagnosis";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
@@ -17,7 +17,7 @@ const sectionTitle = "text-sm font-medium";
 /** A Confiança é heurística, nunca probabilidade: o rótulo vai sempre junto do número. */
 function confidenceText(t: T, locale: string, value: number | null) {
   if (value === null) return "—";
-  const shown = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.min(Math.max(value, 0), 1));
+  const shown = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(clampConfidence(value));
   return t("site.doctor.diagnosis.confidenceValue", { value: shown });
 }
 
@@ -34,9 +34,9 @@ export async function DiagnosisCard({ locale, diagnosis }: Props) {
   const t = await getT(locale);
   const badge = diagnosisBadge(diagnosis);
   return (
-    <section aria-labelledby="doctor-diagnosis" className={card}>
+    <section aria-labelledby={`doctor-diagnosis-${diagnosis.id}`} className={card}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="doctor-diagnosis" className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
+        <h2 id={`doctor-diagnosis-${diagnosis.id}`} className="font-mono text-xs tracking-wide text-muted-foreground uppercase">
           {t("site.doctor.diagnosis.header", { version: diagnosis.version, mode: t(`site.doctor.diagnosis.mode.${diagnosis.mode}`) })}
         </h2>
         <Badge variant={badge.variant}>{t(badge.key)}</Badge>
@@ -58,9 +58,9 @@ function Progress({ t, diagnosis }: { t: T; diagnosis: DiagnosisDetail }) {
   return (
     <>
       <p role="status" className="text-sm">
-        {diagnosis.status === "queued" || !current
+        {diagnosis.status === "queued"
           ? t("site.doctor.diagnosis.queuedNow")
-          : t("site.doctor.diagnosis.runningNow", { stage: t(`site.doctor.diagnosis.stage.${current.stage}`) })}
+          : t("site.doctor.diagnosis.runningNow", { stage: current ? t(`site.doctor.diagnosis.stage.${current.stage}`) : t("site.doctor.diagnosis.status.running") })}
       </p>
       <ol aria-label={t("site.doctor.diagnosis.stages")} className="grid gap-1 text-sm">
         {steps.map((step) => (
@@ -79,7 +79,7 @@ function Result({ t, locale, diagnosis }: { t: T; locale: string; diagnosis: Dia
   const withoutAi = withoutAiReason(diagnosis);
   // A correção mais recente, a mesma que a promoção à Base usa.
   const correction = diagnosis.feedback.filter((item) => item.verdict === "corrected").at(-1);
-  const percent = diagnosis.confidence === null ? 0 : Math.round(Math.min(Math.max(diagnosis.confidence, 0), 1) * 100);
+  const percent = diagnosis.confidence === null ? 0 : Math.round(clampConfidence(diagnosis.confidence) * 100);
   const reviewTime = (seconds: number | null) => {
     const parts = reviewTimeParts(seconds);
     if (!parts) return null;
@@ -220,7 +220,8 @@ export async function DiagnosisRecommendations({ locale, diagnosis }: Props) {
 }
 
 export async function DiagnosisEvidence({ locale, diagnosis }: Props) {
-  if (isActive(diagnosis.status)) return null;
+  // Rodando ou falhou: não há resultado, e "nenhuma Evidência" leria como conclusão.
+  if (isActive(diagnosis.status) || diagnosis.status === "failed") return null;
   const t = await getT(locale);
   return (
     <section aria-labelledby="doctor-evidence" className="grid content-start gap-2">

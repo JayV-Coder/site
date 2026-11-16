@@ -4,7 +4,7 @@ import { BackLink, LinkSegments, PageHeading } from "@/components/molecules";
 import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
 import { Badge } from "@/components/ui/badge";
 import { doctorGet, doctorList, type Schemas } from "@/modules/doctor/api";
-import { isActive, reviewable } from "@/modules/doctor/diagnosis";
+import { comparedWith, isActive, reviewable, shownVersion } from "@/modules/doctor/diagnosis";
 import {
   durationParts, environmentKey, executionStatusKey, executionTitle, incidentCode, severityKey, severityVariant, statusKey,
 } from "@/modules/doctor/labels";
@@ -27,6 +27,7 @@ type DiagnosisSummary = Schemas["DiagnosisSummary"];
 type DiagnosisDetail = Schemas["DiagnosisDetail"];
 
 const OPERATORS = ["owner", "admin", "analyst"];
+const FAST_WINDOW_MS = 10 * 60_000;
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/incidents/[id]">): Promise<Metadata> {
   const { locale } = await params;
@@ -52,21 +53,25 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
   const { me } = access;
   const operator = OPERATORS.includes(me.active_role ?? "");
   const wanted = typeof query.version === "string" ? query.version : undefined;
-  const chosen = versions?.find((item) => String(item.version) === wanted) ?? versions?.[0] ?? null;
-  // A anterior só serve para as diferenças: não há o que comparar enquanto a escolhida roda ou
-  // quando ela falhou.
-  const previous = chosen && !isActive(chosen.status) && chosen.status !== "failed" ? versions?.find((item) => item.version === chosen.version - 1) : undefined;
-  const [found, before] = await Promise.all([
+  const chosen = versions ? shownVersion(versions, wanted) : null;
+  const previous = versions && chosen ? comparedWith(versions, chosen) : undefined;
+  // Um Diagnóstico novo rodando aparece em cima do resultado escolhido, com as etapas.
+  const active = versions?.find((item) => isActive(item.status) && item.id !== chosen?.id);
+  const [found, before, progress] = await Promise.all([
     chosen ? doctorGet<DiagnosisDetail>(`/diagnoses/${encodeURIComponent(chosen.id)}`) : null,
     previous ? doctorGet<DiagnosisDetail>(`/diagnoses/${encodeURIComponent(previous.id)}`) : null,
+    active ? doctorGet<DiagnosisDetail>(`/diagnoses/${encodeURIComponent(active.id)}`) : null,
   ]);
   const diagnosis = found === "not_found" ? null : found;
   const earlier = before === "not_found" ? null : before;
+  const running = progress === "not_found" ? null : progress;
   // Revisa-se a versão final mais nova, uma vez por revisor (o banco confere de novo).
   const newestFinal = versions?.find((item) => reviewable(item.status));
   const canReview = operator && diagnosis !== null && diagnosis.id === newestFinal?.id
     && !diagnosis.feedback.some((item) => item.reviewer_id === me.id);
-  const running = versions?.some((item) => isActive(item.status)) ?? false;
+  // Atualiza mais de perto só nos primeiros minutos de um Diagnóstico: preso na fila (worker
+  // fora do ar), a página volta ao ritmo normal em vez de bater na API sem fim.
+  const fresh = versions?.some((item) => isActive(item.status) && Date.now() - new Date(item.created_at).getTime() < FAST_WINDOW_MS) ?? false;
   const label = (key: Key | null, fallback: string) => (key ? t(key) : fallback);
   const when = (iso: string) =>
     `${new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso))} UTC`;
@@ -81,7 +86,7 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
   return (
     <DoctorShell locale={locale} active={access.active} current="incidents">
       {/* Com Diagnóstico rodando, o card acompanha as etapas mais de perto. */}
-      <AutoRefresh seconds={running ? 4 : 20} />
+      <AutoRefresh seconds={fresh ? 4 : 20} />
       <BackLink href={`/${locale}/doctor/incidents`}>{t("site.doctor.nav.incidents")}</BackLink>
       {incident === null ? <Unavailable locale={locale} title={t("site.doctor.incident.unavailable")} retry={`/doctor/incidents/${id}`} /> : (
         <div className="grid gap-5">
@@ -119,6 +124,7 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
                   current: item.id === chosen?.id,
                 }))} />
               )}
+              {running && <DiagnosisCard locale={locale} diagnosis={running} />}
               {diagnosis ? <DiagnosisCard locale={locale} diagnosis={diagnosis} /> : <DiagnosisEmpty locale={locale} failed={versions === null || chosen !== null} />}
               {canReview && <ReviewControls diagnosisId={diagnosis.id} />}
               {/* A API decide pela mesma regra da promoção no banco (versão final mais nova). */}
