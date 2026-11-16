@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import {
   defaultRows, keysFromRows, MAPPING_SYSTEMS, mappingSystemName, type KeyRow, type LookupDraft,
 } from "@/modules/doctor/integrations";
+import { nameOf } from "@/modules/doctor/labels";
 import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
 import { useSay, useT } from "@/modules/i18n";
 import { createMapping } from "../../actions";
@@ -20,7 +21,7 @@ const NONE = "none";
 /** O Mapa novo: uma linha por sistema (origem, middleware, destino), a janela, o aviso de
  * divergência (INT-008) e, opcional, a consulta de leitura no destino. */
 export function NewMapping({ integration, source, target, connectors }: {
-  integration: string; source: string; target: string; connectors: { id: string; name: string }[];
+  integration: string; source: string; target: string; connectors: { id: string; name: string }[] | null;
 }) {
   const t = useT();
   const say = useSay();
@@ -32,12 +33,11 @@ export function NewMapping({ integration, source, target, connectors }: {
   const [lookup, setLookup] = useState(NO_LOOKUP);
   const action = useKeyedAction();
   const reset = () => { setName(""); setRows(defaultRows(source, target)); setWindow("60"); setReconcile(false); setLookup(NO_LOOKUP); action.reset(); };
+  // Mudar qualquer campo é outro pedido: chave nova e o erro anterior some.
+  const touched = () => { if (action.error) action.reset(); };
   const row = (index: number, change: Partial<KeyRow>) => { setRows((current) => current.map((item, at) => (at === index ? { ...item, ...change } : item))); if (action.error) action.reset(); };
   const look = (change: Partial<LookupDraft>) => { setLookup((current) => ({ ...current, ...change })); if (action.error) action.reset(); };
-  const systems = MAPPING_SYSTEMS.map((value) => {
-    const found = mappingSystemName(value);
-    return { value, label: "name" in found ? found.name : t(found.key) };
-  });
+  const systems = MAPPING_SYSTEMS.map((value) => ({ value, label: nameOf(t, mappingSystemName(value)) }));
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (action.busy) return; setOpen(next); if (!next) reset(); }}>
@@ -52,7 +52,7 @@ export function NewMapping({ integration, source, target, connectors }: {
           action.run((key) => createMapping(integration, { name, keys: keysFromRows(rows), window: Number(window), reconcile, lookup }, key), () => { setOpen(false); reset(); });
         }}>
           <FormField label={t("site.doctor.maps.name")} htmlFor="doctor-map-name">
-            <Input id="doctor-map-name" required minLength={2} maxLength={80} placeholder={t("site.doctor.maps.namePlaceholder")} value={name} onChange={(event) => setName(event.currentTarget.value)} />
+            <Input id="doctor-map-name" required minLength={2} maxLength={80} placeholder={t("site.doctor.maps.namePlaceholder")} value={name} onChange={(event) => { setName(event.currentTarget.value); touched(); }} />
           </FormField>
           {rows.map((item, index) => (
             <fieldset key={index} className="grid gap-3 rounded-lg border border-border/60 px-3.5 py-3">
@@ -76,15 +76,15 @@ export function NewMapping({ integration, source, target, connectors }: {
             </fieldset>
           ))}
           <FormField label={t("site.doctor.maps.windowMinutes")} htmlFor="doctor-map-window">
-            <Input id="doctor-map-window" type="number" min={1} max={1440} value={window} onChange={(event) => setWindow(event.currentTarget.value)} />
+            <Input id="doctor-map-window" type="number" required min={1} max={1440} value={window} onChange={(event) => { setWindow(event.currentTarget.value); touched(); }} />
           </FormField>
-          <ToggleRow id="doctor-map-reconcile" label={t("site.doctor.maps.reconcileLabel")} checked={reconcile} onChange={setReconcile} />
+          <ToggleRow id="doctor-map-reconcile" label={t("site.doctor.maps.reconcileLabel")} checked={reconcile} onChange={(value) => { setReconcile(value); touched(); }} />
           <fieldset className="grid gap-3 rounded-lg border border-border/60 px-3.5 py-3">
             <legend className="px-1 text-xs text-muted-foreground">{t("site.doctor.maps.lookupTitle")}</legend>
-            <FormField label={t("site.doctor.maps.connector")} htmlFor="doctor-map-connector" hint={connectors.length === 0 ? t("site.doctor.maps.noConnector") : undefined}>
-              <OptionSelect id="doctor-map-connector" value={lookup.connector || NONE} disabled={connectors.length === 0}
+            <FormField label={t("site.doctor.maps.connector")} htmlFor="doctor-map-connector" hint={connectors === null ? t("site.doctor.maps.connectorsUnavailable") : connectors.length === 0 ? t("site.doctor.maps.noConnector") : undefined}>
+              <OptionSelect id="doctor-map-connector" value={lookup.connector || NONE} disabled={!connectors?.length}
                 onChange={(value) => look({ connector: value === NONE ? "" : value })}
-                options={[{ value: NONE, label: t("site.doctor.maps.noLookup") }, ...connectors.map((item) => ({ value: item.id, label: item.name }))]} />
+                options={[{ value: NONE, label: t("site.doctor.maps.noLookup") }, ...(connectors ?? []).map((item) => ({ value: item.id, label: item.name }))]} />
             </FormField>
             {lookup.connector && (
               <>

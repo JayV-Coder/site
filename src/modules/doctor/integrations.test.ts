@@ -18,11 +18,12 @@ describe("Integrações e Mapas entre sistemas", () => {
 
   it("cada linha preenchida vira uma chave; aparar sempre, e o resto só se pedido", () => {
     expect(keysFromRows([
-      row({ system: "salesforce", field: " attributes.bstkd ", prefix: "SF-", upper: true }),
+      row({ system: "salesforce", field: " attributes.bstkd ", prefix: "sf-", upper: true }),
       row({ field: "" }),
       row({ field: "execution_id", zeros: true }),
     ])).toEqual([
-      { system: "salesforce", field: "attributes.bstkd", transforms: [{ op: "trim" }, { op: "strip_prefix", value: "SF-" }, { op: "upper" }] },
+      // Com maiúsculas, o prefixo também vai em maiúsculas e depois delas: "sf-801" vira "801".
+      { system: "salesforce", field: "attributes.bstkd", transforms: [{ op: "trim" }, { op: "upper" }, { op: "strip_prefix", value: "SF-" }] },
       { system: "sap", field: "execution_id", transforms: [{ op: "trim" }, { op: "strip_leading_zeros" }] },
     ]);
   });
@@ -37,5 +38,7 @@ describe("Integrações e Mapas entre sistemas", () => {
     expect(keyParts({ system: "sap", field: "attributes.bstkd", transforms: [{ op: "trim" }, { op: "strip_prefix", value: "SF-" }, { op: "upper" }, { op: "novo" }] }))
       .toEqual({ system: { name: "SAP" }, field: "attributes.bstkd", steps: [{ key: "site.doctor.mapping.step.strip_prefix", value: "SF-" }, { key: "site.doctor.mapping.step.upper" }] });
     expect(keyParts({ system: "custom", field: "x" }).system).toEqual({ key: "site.doctor.lane.custom" });
+    // Os nomes vêm da mesma lista das raias da Timeline.
+    expect(keyParts({ system: "manual", field: "x" }).system).toEqual({ key: "site.doctor.lane.manual" });
   });
 });

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { doctorGet, doctorList, type Schemas } from "@/modules/doctor/api";
 import { systemName } from "@/modules/doctor/diagnosis";
 import { keyParts, type MappingKey } from "@/modules/doctor/integrations";
-import { canManage } from "@/modules/doctor/labels";
+import { canManage, nameOf } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../../../access";
 import { DoctorShell } from "../../../DoctorShell";
@@ -31,14 +31,17 @@ export default async function MapsPage({ params }: PageProps<"/[locale]/doctor/i
   const access = await requireDoctor(locale, `/doctor/integrations/${id}/maps`);
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-  const manager = canManage(access.me);
+  const canChange = canManage(access.me);
   const [integrations, mappings, connectors] = await Promise.all([
-    doctorList<Integration[]>("/integrations"),
+    // Com as arquivadas: o link antigo de um Mapa continua abrindo (só para leitura).
+    doctorList<Integration[]>("/integrations?include_archived=true"),
     doctorGet<CorrelationMapping[]>(`/integrations/${encodeURIComponent(id)}/correlation-mappings`),
-    manager ? doctorList<Connector[]>("/connectors") : null,
+    canChange ? doctorList<Connector[]>("/connectors") : null,
   ]);
   if (mappings === "not_found") notFound();
   const integration = integrations?.find((item) => item.id === id);
+  // Integração arquivada não muda mais: a tela fica só para leitura.
+  const manager = canChange && !integration?.archived_at;
   const back = <BackLink href={`/${locale}/doctor/integrations`}>{t("site.doctor.nav.integrations")}</BackLink>;
   if (mappings === null || !integration) {
     return (
@@ -48,13 +51,17 @@ export default async function MapsPage({ params }: PageProps<"/[locale]/doctor/i
       </DoctorShell>
     );
   }
-  const name = (found: { name: string } | { key: Parameters<typeof t>[0] }) => ("name" in found ? found.name : t(found.key));
-  // A consulta no destino (#40) usa um Conector de leitura: Salesforce ou OData (SAP).
-  const lookups = (connectors ?? []).filter((item) => item.provider === "salesforce" || item.provider === "odata").map(({ id: connector, name: label }) => ({ id: connector, name: label }));
+  const name = (found: Parameters<typeof nameOf>[1]) => nameOf(t, found);
+  // A consulta no destino (#40) usa um Conector de leitura desta Integração: Salesforce ou OData
+  // (SAP). Sem a lista de Conectores, a janela diz que não carregou, não que não há.
+  const lookups = connectors === null ? null : connectors
+    .filter((item) => item.integration_id === id && (item.provider === "salesforce" || item.provider === "odata"))
+    .map(({ id: connector, name: label }) => ({ id: connector, name: label }));
 
   return (
     <DoctorShell locale={locale} active={access.active} current="integrations">
       {back}
+      {integration.archived_at && <p className="mb-4 rounded-md border border-border bg-secondary px-3 py-2 text-sm">{t("site.doctor.integration.error.archived")}</p>}
       <PageHeading title={t("site.doctor.integrations.maps")}
         description={`${integration.name} · ${name(systemName(integration.source_system))} → ${name(systemName(integration.target_system))}`}>
         {manager && <NewMapping integration={id} source={integration.source_system} target={integration.target_system} connectors={lookups} />}

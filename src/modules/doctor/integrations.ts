@@ -1,25 +1,20 @@
 import type { Key } from "@/modules/i18n";
+import { systemLabel } from "./executions";
 
 /** As regras de tela das Integrações (Tela 10) e dos Mapas entre sistemas (#40) que não
  * dependem de servidor nem de idioma. */
 
-export const INTEGRATION_SYSTEMS = ["sap", "salesforce", "gcp", "other"] as const;
+export { SYSTEMS as INTEGRATION_SYSTEMS } from "./diagnosis";
 
 export function environmentVariant(environment: string): "destructive" | "secondary" | "outline" {
   if (environment === "prd") return "destructive";
   return environment === "hml" ? "secondary" : "outline";
 }
 
-/** Os sistemas de uma chave do Mapa: os da Integração mais os middlewares comuns. */
+/** Os sistemas de uma chave do Mapa: os da Integração mais os middlewares comuns. Os nomes vêm
+ * da mesma lista das raias da Timeline. */
 export const MAPPING_SYSTEMS = ["salesforce", "gcp", "sap", "mulesoft", "aws", "azure", "custom"] as const;
-const BRANDS: Record<string, string> = {
-  salesforce: "Salesforce", gcp: "Google Cloud", sap: "SAP", mulesoft: "MuleSoft", aws: "AWS", azure: "Azure",
-};
-
-export function mappingSystemName(system: string): { name: string } | { key: Key } {
-  if (system === "custom") return { key: "site.doctor.lane.custom" };
-  return { name: BRANDS[system] ?? system };
-}
+export const mappingSystemName = systemLabel;
 
 export type KeyRow = { system: string; field: string; prefix: string; zeros: boolean; upper: boolean };
 export type Transform = { op: string; value?: string };
@@ -34,10 +29,13 @@ export function defaultRows(source: string, target: string): KeyRow[] {
 
 export function keysFromRows(rows: readonly KeyRow[]): MappingKey[] {
   return rows.filter((row) => row.field.trim()).map((row) => {
+    // Os passos rodam na ordem: com maiúsculas, elas vêm antes e o prefixo também vai em
+    // maiúsculas, senão "sf-" não casaria com "SF-".
     const transforms: Transform[] = [{ op: "trim" }];
-    if (row.prefix.trim()) transforms.push({ op: "strip_prefix", value: row.prefix.trim() });
-    if (row.zeros) transforms.push({ op: "strip_leading_zeros" });
     if (row.upper) transforms.push({ op: "upper" });
+    const prefix = row.upper ? row.prefix.trim().toUpperCase() : row.prefix.trim();
+    if (prefix) transforms.push({ op: "strip_prefix", value: prefix });
+    if (row.zeros) transforms.push({ op: "strip_leading_zeros" });
     return { system: row.system, field: row.field.trim(), transforms };
   });
 }

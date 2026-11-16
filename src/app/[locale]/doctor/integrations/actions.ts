@@ -28,9 +28,9 @@ export async function createIntegration(draft: IntegrationDraft, key: string): P
   });
 }
 
-export async function archiveIntegration(id: string): Promise<Text | null> {
+export async function archiveIntegration(id: string, key: string): Promise<Text | null> {
   return sendToDoctor(`/integrations/${encodeURIComponent(id)}/archive`, { method: "POST" }, {
-    revalidate: LIST, known: { integration_archived: "site.doctor.integration.error.archived" },
+    revalidate: LIST, key, known: { integration_archived: "site.doctor.integration.error.archived" },
   });
 }
 
@@ -42,7 +42,8 @@ export async function createMapping(
   return sendToDoctor(`/integrations/${encodeURIComponent(integration)}/correlation-mappings`, {
     method: "POST",
     body: JSON.stringify({
-      name: mapping.name.trim(), keys: mapping.keys, window_minutes: Number.isFinite(mapping.window) ? mapping.window : 60,
+            // Janela vazia ou fora do intervalo vira a padrão (60 min), não um 0 que a API recusa.
+      name: mapping.name.trim(), keys: mapping.keys, window_minutes: Number.isInteger(mapping.window) && mapping.window >= 1 && mapping.window <= 1440 ? mapping.window : 60,
       reconcile: mapping.reconcile, lookup: lookupFromDraft(mapping.lookup),
     }),
   }, {

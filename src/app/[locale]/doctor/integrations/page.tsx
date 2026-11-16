@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { doctorList, type Schemas } from "@/modules/doctor/api";
 import { systemName } from "@/modules/doctor/diagnosis";
 import { environmentVariant } from "@/modules/doctor/integrations";
-import { canManage, environmentKey } from "@/modules/doctor/labels";
+import { canManage, environmentKey, nameOf } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
 import { DoctorShell } from "../DoctorShell";
@@ -32,10 +32,7 @@ export default async function IntegrationsPage({ params }: PageProps<"/[locale]/
   if (!access) return <UnavailablePage locale={locale} />;
   const integrations = await doctorList<Integration[]>("/integrations");
   const manager = canManage(access.me);
-  const system = (value: string) => {
-    const found = systemName(value);
-    return "name" in found ? found.name : t(found.key);
-  };
+  const system = (value: string) => nameOf(t, systemName(value));
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 });
 
   return (

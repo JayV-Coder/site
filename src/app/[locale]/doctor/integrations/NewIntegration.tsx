@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { systemName } from "@/modules/doctor/diagnosis";
 import { INTEGRATION_SYSTEMS } from "@/modules/doctor/integrations";
-import { ENVIRONMENTS } from "@/modules/doctor/labels";
+import { ENVIRONMENTS, nameOf } from "@/modules/doctor/labels";
 import type { Key } from "@/modules/i18n";
 import { useSay, useT } from "@/modules/i18n";
 import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
@@ -24,10 +24,7 @@ export function NewIntegration() {
   const [draft, setDraft] = useState(EMPTY);
   const action = useKeyedAction();
   const set = (field: keyof IntegrationDraft) => (value: string) => { setDraft((current) => ({ ...current, [field]: value })); if (action.error) action.reset(); };
-  const systems = INTEGRATION_SYSTEMS.map((value) => {
-    const found = systemName(value);
-    return { value, label: "name" in found ? found.name : t(found.key) };
-  });
+  const systems = INTEGRATION_SYSTEMS.map((value) => ({ value, label: nameOf(t, systemName(value)) }));
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (action.busy) return; setOpen(next); if (!next) { setDraft(EMPTY); action.reset(); } }}>
