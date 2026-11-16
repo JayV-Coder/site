@@ -13,23 +13,33 @@ const FAILURES: Record<string, string> = {
   rate_limited: "site.doctor.error.rateLimited",
 };
 
-/** Uma escrita na API: devolve `null` quando deu certo, ou o erro já como chave de texto.
- * `known` traduz os `code` próprios da tela; `validation_error` vira `invalid`. */
-export async function sendToDoctor(
-  path: string,
-  init: RequestInit,
-  options: { revalidate: string; known?: Record<string, string>; invalid?: string; key?: string },
-): Promise<Text | null> {
+type Options = { revalidate?: string; known?: Record<string, string>; invalid?: string; key?: string };
+
+async function call(path: string, init: RequestInit, options: Options): Promise<{ response: Response } | { error: Text }> {
   const response = await doctorFetch(path, {
     ...init,
     headers: { ...Object.fromEntries(new Headers(init.headers)), ...(options.key && { "Idempotency-Key": options.key }) },
   }).catch(() => null);
-  if (!response) return { key: "site.doctor.error.offline" };
+  if (!response) return { error: { key: "site.doctor.error.offline" } };
   if (!response.ok) {
     const { code } = (await response.json().catch(() => ({}))) as { code?: string };
-    if (code === "validation_error") return { key: options.invalid ?? "site.doctor.error.validation" };
-    return { key: options.known?.[code ?? ""] ?? FAILURES[code ?? ""] ?? "site.doctor.error.generic" };
+    if (code === "validation_error") return { error: { key: options.invalid ?? "site.doctor.error.validation" } };
+    return { error: { key: options.known?.[code ?? ""] ?? FAILURES[code ?? ""] ?? "site.doctor.error.generic" } };
   }
-  revalidatePath(options.revalidate, "page");
-  return null;
+  if (options.revalidate) revalidatePath(options.revalidate, "page");
+  return { response };
+}
+
+/** Uma escrita na API: devolve `null` quando deu certo, ou o erro já como chave de texto.
+ * `known` traduz os `code` próprios da tela; `validation_error` vira `invalid`. */
+export async function sendToDoctor(path: string, init: RequestInit, options: Options & { revalidate: string }): Promise<Text | null> {
+  const result = await call(path, init, options);
+  return "error" in result ? result.error : null;
+}
+
+/** A mesma escrita, para quem precisa da resposta (o id do relatório, o link criado). */
+export async function sendForResult<T>(path: string, init: RequestInit, options: Options): Promise<{ ok: true; value: T } | { ok: false; error: Text }> {
+  const result = await call(path, init, options);
+  if ("error" in result) return { ok: false, error: result.error };
+  return { ok: true, value: (await result.response.json()) as T };
 }

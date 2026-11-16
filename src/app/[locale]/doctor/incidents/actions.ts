@@ -84,3 +84,10 @@ export async function promoteIncident(id: string, key: string): Promise<Text | n
     },
   });
 }
+
+/** Abre o chamado no ITSM (uma vez por Incidente e provedor); a chave aparece quando o ITSM responde. */
+export async function openTicket(id: string, provider: "jira" | "servicenow", key: string): Promise<Text | null> {
+  return sendToDoctor(`/incidents/${encodeURIComponent(id)}/tickets?provider=${provider}`, { method: "POST" }, {
+    revalidate: DETAIL, key, known: { itsm_not_configured: "site.doctor.ticket.error.notConfigured" },
+  });
+}
