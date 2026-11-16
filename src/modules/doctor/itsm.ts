@@ -15,20 +15,27 @@ export function jiraState(connection: { status: string; project_key: string | nu
 export function serviceNowState(connection: { status: string } | null): { key: Key; variant: Variant } {
   if (!connection) return { key: "site.doctor.itsm.state.none", variant: "secondary" };
   if (connection.status === "needs_reauth") return { key: "site.doctor.itsm.state.credentials", variant: "destructive" };
+  if (connection.status !== "active") return { key: "site.doctor.itsm.state.unverified", variant: "warning" };
   return { key: "site.doctor.itsm.state.connected", variant: "success" };
 }
 
 /** Campos customizados com valor fixo, um por linha: `customfield_10010=Sustentação`. */
 const FIELD = /^(customfield_[0-9]{1,10})\s*=\s*(.+)$/;
 
-export function parseFields(value: string): { ok: true; fields: Record<string, string> } | { ok: false; line: number } {
-  const fields: Record<string, string> = {};
+/** `previous`: os campos salvos. Um valor que já era número ou verdadeiro/falso e cujo texto não
+ * mudou volta com o mesmo tipo (o Jira recusa texto num campo numérico). */
+export type FieldValue = string | number | boolean;
+
+export function parseFields(value: string, previous: Record<string, unknown> = {}): { ok: true; fields: Record<string, FieldValue> } | { ok: false; line: number } {
+  const fields: Record<string, FieldValue> = {};
   for (const [index, raw] of value.split("\n").entries()) {
     const line = raw.trim();
     if (!line) continue;
     const [, name, found] = FIELD.exec(line) ?? [];
     if (!name || !found) return { ok: false, line: index + 1 };
-    fields[name] = found.trim();
+    const text = found.trim();
+    const before = previous[name];
+    fields[name] = (typeof before === "number" || typeof before === "boolean") && String(before) === text ? before : text;
   }
   return { ok: true, fields };
 }

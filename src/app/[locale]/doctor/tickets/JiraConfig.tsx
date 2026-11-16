@@ -30,6 +30,22 @@ export function ConnectJira({ again }: { again: boolean }) {
   );
 }
 
+/** Desconectar com confirmação; também quando a autorização venceu (sem o formulário). */
+export function DisconnectJira() {
+  const t = useT();
+  const say = useSay();
+  const drop = useKeyedAction();
+  return (
+    <div className="grid gap-1">
+      <ConfirmAction title={t("site.doctor.itsm.disconnectTitle", { provider: "Jira" })} description={t("site.doctor.itsm.disconnectBody")}
+        confirm={t("site.doctor.itsm.disconnect")} onConfirm={() => drop.run((key) => disconnectJira(key))}>
+        <Button type="button" variant="outline" loading={drop.busy}>{t("site.doctor.itsm.disconnect")}</Button>
+      </ConfirmAction>
+      {drop.error && <p role="alert" className="text-sm text-destructive">{say(drop.error)}</p>}
+    </div>
+  );
+}
+
 type Site = { id: string; name?: string; url?: string };
 
 export function JiraConfig({ connection }: { connection: Schemas["JiraConnection"] }) {
@@ -46,9 +62,8 @@ export function JiraConfig({ connection }: { connection: Schemas["JiraConnection
   });
   const [saved, setSaved] = useState(false);
   const save = useKeyedAction();
-  const drop = useKeyedAction();
   const change = (next: Partial<typeof draft>) => { setDraft((current) => ({ ...current, ...next })); setSaved(false); if (save.error) save.reset(); };
-  const parsed = parseFields(draft.fields);
+  const parsed = parseFields(draft.fields, connection.custom_fields);
   const valid = draft.site !== "" && validProjectKey(draft.project) && draft.issueType.trim() !== "" && parsed.ok;
 
   return (
@@ -94,13 +109,9 @@ export function JiraConfig({ connection }: { connection: Schemas["JiraConnection
       <ToggleRow id="doctor-jira-sync" label={t("site.doctor.itsm.jiraSync")} checked={draft.sync} onChange={(sync) => change({ sync })} />
       <p className="text-xs text-muted-foreground">{t("site.doctor.itsm.jiraContent")}</p>
       {save.error && <p role="alert" className="text-sm text-destructive">{say(save.error)}</p>}
-      {drop.error && <p role="alert" className="text-sm text-destructive">{say(drop.error)}</p>}
       {saved && <p role="status" className="text-sm text-success">{t("site.doctor.itsm.saved")}</p>}
-      <div className="flex flex-wrap justify-between gap-2">
-        <ConfirmAction title={t("site.doctor.itsm.disconnectTitle", { provider: "Jira" })} description={t("site.doctor.itsm.disconnectBody")}
-          confirm={t("site.doctor.itsm.disconnect")} onConfirm={() => drop.run((key) => disconnectJira(key))}>
-          <Button type="button" variant="outline" loading={drop.busy}>{t("site.doctor.itsm.disconnect")}</Button>
-        </ConfirmAction>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <DisconnectJira />
         <Button type="submit" loading={save.busy} disabled={!valid}>{t("site.doctor.connector.save")}</Button>
       </div>
     </form>

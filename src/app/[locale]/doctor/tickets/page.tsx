@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { PageHeading } from "@/components/molecules";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { doctorList, type Schemas } from "@/modules/doctor/api";
+import { doctorMaybe, type Schemas } from "@/modules/doctor/api";
+import type { Key } from "@/modules/i18n";
 import { jiraState, serviceNowState } from "@/modules/doctor/itsm";
 import { canManage } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
 import { DoctorShell } from "../DoctorShell";
 import { Unavailable, UnavailablePage } from "../Unavailable";
-import { ConnectJira, JiraConfig } from "./JiraConfig";
+import { jiraFailure } from "./actions";
+import { ConnectJira, DisconnectJira, JiraConfig } from "./JiraConfig";
 import { ServiceNowConfig } from "./ServiceNowConfig";
 
 type JiraConnection = Schemas["JiraConnection"];
@@ -29,10 +29,11 @@ export default async function TicketsPage({ params, searchParams }: PageProps<"/
   const access = await requireDoctor(locale, "/doctor/tickets");
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-  // A API devolve `null` sem conexão; sem resposta, o `doctorList` também dá nulo. O `ok` separa.
+  // A API responde `null` sem conexão: `doctorMaybe` separa isso de "a API não respondeu", e só
+  // com a resposta a tela oferece conectar (senão, ofereceria conectar quem já está conectado).
   const [jira, servicenow] = await Promise.all([
-    doctorList<JiraConnection | null>("/itsm/jira").then((value) => ({ ok: true as const, value })).catch(() => ({ ok: false as const })),
-    doctorList<ServiceNowConnection | null>("/itsm/servicenow").then((value) => ({ ok: true as const, value })).catch(() => ({ ok: false as const })),
+    doctorMaybe<JiraConnection>("/itsm/jira"),
+    doctorMaybe<ServiceNowConnection>("/itsm/servicenow"),
   ]);
   const manager = canManage(access.me);
   const jiraConnection = jira.ok ? jira.value : null;
@@ -41,12 +42,14 @@ export default async function TicketsPage({ params, searchParams }: PageProps<"/
   const snBadge = serviceNowState(snConnection);
   const box = "grid content-start gap-3 rounded-lg border border-border bg-card px-4 py-4";
   const result = typeof query.jira === "string" ? query.jira : null;
+  const reason = typeof query.reason === "string" ? await jiraFailure(query.reason) : null;
+  const jiraSites = (jiraConnection?.sites ?? []) as unknown[];
 
   return (
     <DoctorShell locale={locale} active={access.active} current="tickets">
       <PageHeading title={t("site.doctor.nav.tickets")} description={t("site.doctor.itsm.intro")} />
       {result === "connected" && <p role="status" className="mb-4 rounded-md border border-success/30 bg-success/10 px-3 py-2 text-sm">{t("site.doctor.itsm.jiraConnected")}</p>}
-      {result === "failed" && <p role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">{t("site.doctor.itsm.jiraFailed")}</p>}
+      {result === "failed" && <p role="alert" className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">{t((reason ?? "site.doctor.itsm.jiraFailed") as Key)}</p>}
       {(!jira.ok || !servicenow.ok) && <Unavailable locale={locale} title={t("site.doctor.itsm.unavailable")} retry="/doctor/tickets" />}
       <div className="grid gap-4 @4xl:grid-cols-2">
         <section aria-labelledby="doctor-jira" className={box}>
@@ -62,8 +65,15 @@ export default async function TicketsPage({ params, searchParams }: PageProps<"/
           )}
           {/* O erro vem do Jira como está. */}
           {jiraConnection?.last_error && <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm break-words">{jiraConnection.last_error}</p>}
-          {manager && jira.ok && (!jiraConnection || jiraConnection.status === "needs_reauth") && <ConnectJira again={Boolean(jiraConnection)} />}
-          {manager && jiraConnection && jiraConnection.status !== "needs_reauth" && <JiraConfig connection={jiraConnection} />}
+          {/* Sem site na autorização (a conta não tem Jira Service Management): conectar com outra. */}
+          {jiraConnection && jiraConnection.status !== "needs_reauth" && jiraSites.length === 0 && <p className="text-sm text-muted-foreground">{t("site.doctor.itsm.noSites")}</p>}
+          {manager && jira.ok && (!jiraConnection || jiraConnection.status === "needs_reauth" || jiraSites.length === 0) && (
+            <div className="flex flex-wrap items-start gap-2">
+              <ConnectJira again={Boolean(jiraConnection)} />
+              {jiraConnection && <DisconnectJira />}
+            </div>
+          )}
+          {manager && jiraConnection && jiraConnection.status !== "needs_reauth" && jiraSites.length > 0 && <JiraConfig connection={jiraConnection} />}
           {!manager && !jiraConnection && <p className="text-sm text-muted-foreground">{t("site.doctor.itsm.askJira")}</p>}
         </section>
 
@@ -79,14 +89,14 @@ export default async function TicketsPage({ params, searchParams }: PageProps<"/
             </dl>
           )}
           {snConnection?.last_error && <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm break-words">{snConnection.last_error}</p>}
-          {manager && servicenow.ok && <ServiceNowConfig connection={snConnection} />}
+          {/* A chave segue a conexão: depois de desconectar, o formulário recomeça vazio. */}
+          {manager && servicenow.ok && <ServiceNowConfig key={snConnection ? `${snConnection.instance_url}-${snConnection.client_id}` : "new"} connection={snConnection} />}
           {!manager && !snConnection && <p className="text-sm text-muted-foreground">{t("site.doctor.itsm.askServiceNow")}</p>}
         </section>
 
         <section aria-labelledby="doctor-generic-webhook" className={box}>
           <h2 id="doctor-generic-webhook" className="font-medium">{t("site.doctor.itsm.webhook")}</h2>
           <p className="text-sm text-muted-foreground">{t("site.doctor.itsm.webhookHint")}</p>
-          {manager && <Button asChild variant="outline" size="sm" className="justify-self-start"><Link href={`/${locale}/doctor/webhooks`}>{t("site.doctor.itsm.webhooks")}</Link></Button>}
         </section>
       </div>
     </DoctorShell>

@@ -1,20 +1,27 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { sendForResult, sendToDoctor } from "@/modules/doctor/send";
+import { sendForResult, sendToDoctor, type Result } from "@/modules/doctor/send";
 import type { Schemas } from "@/modules/doctor/api";
 import type { Text } from "@/modules/i18n/types";
 
 type ServiceNowSaved = Schemas["ServiceNowSaved"];
 
 const PAGE = "/[locale]/doctor/tickets";
-const KNOWN = {
+/** Os códigos que a tela explica; a volta do consentimento do Jira também os usa. */
+const KNOWN: Record<string, string> = {
   invalid_site: "site.doctor.itsm.error.site",
   jira_unavailable: "site.doctor.itsm.error.jiraUnavailable",
   jira_unreachable: "site.doctor.itsm.error.jiraUnreachable",
   jira_denied: "site.doctor.itsm.error.jiraDenied",
   secret_required: "site.doctor.itsm.error.secret",
+  invalid_state: "site.doctor.itsm.error.state",
 };
+
+/** O texto de um código vindo da volta do Jira (`?code=`), ou nulo para um que a tela não conhece. */
+export async function jiraFailure(code: string): Promise<string | null> {
+  return KNOWN[code] ?? null;
+}
 
 /** O consentimento é no Atlassian: a API devolve o endereço com o `state` de uso único. */
 export async function connectJira(): Promise<Text | null> {
@@ -32,7 +39,7 @@ export async function disconnectJira(key: string): Promise<Text | null> {
 }
 
 /** O secret vai para o cofre e não volta; o endereço da Business Rule aparece uma vez. */
-export async function configureServiceNow(config: Schemas["ServiceNowConfig"], key: string): Promise<{ ok: true; value: ServiceNowSaved } | { ok: false; error: Text }> {
+export async function configureServiceNow(config: Schemas["ServiceNowConfig"], key: string): Promise<Result<ServiceNowSaved>> {
   return sendForResult<ServiceNowSaved>("/itsm/servicenow", { method: "PUT", body: JSON.stringify(config) }, {
     revalidate: PAGE, key, known: KNOWN, invalid: "site.doctor.itsm.error.serviceNowInvalid",
   });

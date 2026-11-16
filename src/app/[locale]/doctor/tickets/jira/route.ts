@@ -10,10 +10,16 @@ export async function GET(request: NextRequest, { params }: RouteContext<"/[loca
   const code = request.nextUrl.searchParams.get("code");
   const state = request.nextUrl.searchParams.get("state");
   let result = "failed";
+  let reason = "";
   if (code && state) {
     const response = await doctorFetch("/itsm/jira/callback", { method: "POST", body: JSON.stringify({ code, state }) }).catch(() => null);
     if (response?.ok) result = "connected";
+    // O código do erro (state já usado, recusa do Atlassian…) vai junto para a tela explicar.
+    else if (response) reason = ((await response.json().catch(() => ({}))) as { code?: string }).code ?? "";
   }
   const base = await requestOrigin().catch(() => request.nextUrl.origin);
-  return NextResponse.redirect(new URL(`/${locale}/doctor/tickets?jira=${result}`, base), 303);
+  const target = new URL(`/${locale}/doctor/tickets`, base);
+  target.searchParams.set("jira", result);
+  if (/^[a-z_]{1,40}$/.test(reason)) target.searchParams.set("reason", reason);
+  return NextResponse.redirect(target, 303);
 }

@@ -40,6 +40,8 @@ export function ServiceNowConfig({ connection }: { connection: Schemas["ServiceN
         client_secret: draft.secret.trim() || null,
         assignment_groups: Object.fromEntries(Object.entries(draft.groups).map(([system, group]) => [system, group.trim()]).filter(([, group]) => group)),
         default_group: draft.defaultGroup.trim() || null, sync_status: draft.sync, rotate_hook: draft.rotate,
+        // A tela não edita os pesos de impact/urgency: os que já estão seguem como estão.
+        ...(connection?.impact_map && { impact_map: connection.impact_map }),
       };
       save.run(async (key) => {
         const outcome = await configureServiceNow(config, key);
