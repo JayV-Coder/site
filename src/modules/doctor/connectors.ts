@@ -54,6 +54,12 @@ export function intervalParts(seconds: number): { unit: "seconds" | "minutes" | 
   return seconds % 60 === 0 ? { unit: "minutes", count: seconds / 60 } : { unit: "seconds", count: seconds };
 }
 
+/** O intervalo em texto; `t` é o tradutor de quem desenha. */
+export function intervalText(t: (key: Key, params?: Record<string, string | number>) => string, seconds: number): string {
+  const parts = intervalParts(seconds);
+  return t(`site.doctor.connector.every.${parts.unit}` as Key, { count: parts.count });
+}
+
 /** O intervalo salvo pode não estar entre os oferecidos: entra na lista para não se perder. */
 export function intervalOptions(current: number): number[] {
   return (INTERVALS as readonly number[]).includes(current) ? [...INTERVALS] : [...INTERVALS, current];

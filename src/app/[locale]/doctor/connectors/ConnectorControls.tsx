@@ -6,15 +6,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField, OptionSelect } from "@/components/molecules";
 import { Input } from "@/components/ui/input";
 import type { Schemas } from "@/modules/doctor/api";
-import { intervalOptions, intervalParts } from "@/modules/doctor/connectors";
-import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
+import { intervalOptions, intervalText } from "@/modules/doctor/connectors";
+import { OFFLINE, useKeyedAction } from "@/modules/doctor/useKeyedAction";
 import { useSay, useT } from "@/modules/i18n";
 import type { Text } from "@/modules/i18n/types";
 import { editConnector, replaceCredential, runConnectorAction, testSavedConnection } from "./actions";
 import { CredentialField } from "./CredentialField";
 
 type TestResult = Schemas["TestResult"];
-const OFFLINE: Text = { key: "site.doctor.error.offline" };
 
 /** Sincronizar, pausar ou retomar, com chave de idempotência (repetir depois de uma resposta
  * perdida devolve o mesmo resultado). O aviso de pedido feito some sozinho; o status de verdade
@@ -117,10 +116,6 @@ export function EditConnector({ id, name, interval }: { id: string; name: string
   const [draft, setDraft] = useState({ name, interval: String(interval) });
   const save = useKeyedAction();
   const change = (next: Partial<typeof draft>) => { setDraft((current) => ({ ...current, ...next })); if (save.error) save.reset(); };
-  const label = (seconds: number) => {
-    const parts = intervalParts(seconds);
-    return t(`site.doctor.connector.every.${parts.unit}`, { count: parts.count });
-  };
   return (
     <Dialog open={open} onOpenChange={(next) => { if (save.busy) return; setOpen(next); if (next) setDraft({ name, interval: String(interval) }); else save.reset(); }}>
       <DialogTrigger asChild><Button variant="outline" size="sm">{t("site.doctor.connector.edit")}</Button></DialogTrigger>
@@ -135,7 +130,7 @@ export function EditConnector({ id, name, interval }: { id: string; name: string
           </FormField>
           <FormField label={t("site.doctor.connector.interval")} htmlFor="doctor-connector-interval">
             <OptionSelect id="doctor-connector-interval" value={draft.interval} onChange={(value) => change({ interval: value })}
-              options={intervalOptions(interval).map((seconds) => ({ value: String(seconds), label: label(seconds) }))} />
+              options={intervalOptions(interval).map((seconds) => ({ value: String(seconds), label: intervalText(t, seconds) }))} />
           </FormField>
           {save.error && <p role="alert" className="text-sm text-destructive">{say(save.error)}</p>}
           <DialogFooter><Button type="submit" loading={save.busy}>{t("site.doctor.connector.save")}</Button></DialogFooter>
