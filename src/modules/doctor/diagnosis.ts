@@ -143,12 +143,15 @@ export function evidenceKind(item: { kind: string; label: string }): { rule: str
   return { key: "site.doctor.diagnosis.evidence.knowledge" };
 }
 
-/** Da Evidência ao Evento original num toque (o instante leva a consulta à partição dele) ou à
- * Execução. A consulta no destino (#40) está lá, não no Doctor; a Base ainda não tem tela aqui. */
+/** Da Evidência ao Evento original num toque (o instante leva a consulta à partição dele), à
+ * Execução ou à Base de conhecimento, na aba certa. A consulta no destino (#40) está lá, não no
+ * Doctor. */
 export function evidenceHref(base: string, item: {
   kind: string; event_id: string | null; event_timestamp: string | null; execution_id: string | null;
 }): string | null {
-  if (item.kind === "enrichment" || item.kind === "chunk" || item.kind === "global_chunk") return null;
+  if (item.kind === "enrichment") return null;
+  if (item.kind === "chunk") return `${base}/doctor/knowledge`;
+  if (item.kind === "global_chunk") return `${base}/doctor/knowledge?tab=global`;
   if (item.event_id) return `${base}/doctor/events/${item.event_id}${item.event_timestamp ? `?at=${encodeURIComponent(item.event_timestamp)}` : ""}`;
   return item.execution_id ? `${base}/doctor/executions/${item.execution_id}` : null;
 }
