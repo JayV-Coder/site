@@ -9,7 +9,7 @@ import { doctorGet, doctorList, type Schemas } from "@/modules/doctor/api";
 import { ticketProviders } from "@/modules/doctor/reports";
 import { comparedWith, isActive, reviewable, shownVersion } from "@/modules/doctor/diagnosis";
 import {
-  durationParts, environmentKey, isOperator, utcDateTime, executionStatusKey, executionTitle, incidentCode, severityKey, severityVariant, statusKey,
+  durationText, environmentKey, isOperator, utcDateTime, executionStatusKey, executionTitle, incidentCode, severityKey, severityVariant, statusKey,
 } from "@/modules/doctor/labels";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
@@ -86,12 +86,7 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
   const providers = ticketProviders(tickets ?? [], jira, servicenow, operator);
   const label = (key: Key | null, fallback: string) => (key ? t(key) : fallback);
   const when = (iso: string) => utcDateTime(locale, iso);
-  const duration = (ms: number) => {
-    const parts = durationParts(ms);
-    if (parts.unit === "ms") return t("site.doctor.duration.ms", { value: parts.value });
-    if (parts.unit === "s") return t("site.doctor.duration.seconds", { value: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(parts.value) });
-    return t("site.doctor.duration.minutesSeconds", { minutes: parts.minutes, seconds: parts.seconds });
-  };
+  const duration = (ms: number) => durationText(t, locale, ms);
   const who = (actor: string | null) => (actor === null ? t("site.doctor.incident.platform") : actor === me.id ? t("site.doctor.incident.you") : t("site.doctor.incident.member"));
 
   return (
@@ -173,11 +168,13 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
               <h2 id="doctor-executions" className="text-sm font-medium">{t("site.doctor.incident.executions")}</h2>
               <ul className="grid gap-2">
                 {incident.executions.map((execution) => (
-                  <li key={execution.id} className="grid gap-1 rounded-lg border border-border bg-card px-4 py-3">
-                    <span className="truncate font-mono text-xs">{executionTitle(execution.id, execution.correlation_keys) ?? t("site.doctor.incident.execution", { id: execution.id.slice(0, 8) })}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {label(executionStatusKey(execution.status), execution.status)} · {duration(execution.duration_ms)} · {when(execution.first_event_at)}
-                    </span>
+                  <li key={execution.id}>
+                    <Link href={`/${locale}/doctor/executions/${execution.id}`} className="grid gap-1 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary/40">
+                      <span className="truncate font-mono text-xs">{executionTitle(execution.id, execution.correlation_keys) ?? t("site.doctor.incident.execution", { id: execution.id.slice(0, 8) })}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {label(executionStatusKey(execution.status), execution.status)} · {duration(execution.duration_ms)} · {when(execution.first_event_at)}
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>

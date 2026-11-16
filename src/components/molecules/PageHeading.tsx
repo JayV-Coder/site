@@ -14,7 +14,7 @@ export function PageHeading({ eyebrow, title, description, mark, children }: {
   const text = (
     <div className="min-w-0">
       {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-      <h1 className="flex min-w-0 gap-[1ch] text-h2 font-semibold"><span aria-hidden="true" className="text-go">❯</span><span className="break-words">{title}</span></h1>
+      <h1 className="flex min-w-0 gap-[1ch] text-h2 font-semibold"><span aria-hidden="true" className="text-go">❯</span><span className="min-w-0 break-words">{title}</span></h1>
       {description && <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
     </div>
   );

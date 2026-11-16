@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import type { Schemas } from "@/modules/doctor/api";
 import {
-  clampConfidence, diagnosisBadge, evidenceKind, isActive, reviewTimeParts, stageSteps, systemName, versionChanges, withoutAiReason,
+  clampConfidence, diagnosisBadge, evidenceHref, evidenceKind, isActive, reviewTimeParts, stageSteps, systemName, versionChanges, withoutAiReason,
 } from "@/modules/doctor/diagnosis";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
@@ -230,13 +231,20 @@ export async function DiagnosisEvidence({ locale, diagnosis }: Props) {
         <ul className="grid gap-2">
           {diagnosis.evidence.map((item) => {
             const kind = evidenceKind(item);
-            return (
-              <li key={item.rank} className="grid gap-1 rounded-lg border border-border bg-card px-4 py-3">
+            const href = evidenceHref(`/${locale}`, item);
+            const body = (
+              <>
                 <span className="flex flex-wrap items-center gap-2">
                   {"rule" in kind ? <Badge variant="outline" mono>{kind.rule}</Badge> : <Badge variant="secondary">{t(kind.key)}</Badge>}
                   <span className="min-w-0 text-sm break-words">{item.finding}</span>
                 </span>
                 <span className="text-xs break-words text-muted-foreground">{item.label}</span>
+              </>
+            );
+            const box = "grid gap-1 rounded-lg border border-border bg-card px-4 py-3";
+            return (
+              <li key={item.rank}>
+                {href ? <Link href={href} className={`${box} transition-colors hover:bg-secondary/40`}>{body}</Link> : <div className={box}>{body}</div>}
               </li>
             );
           })}

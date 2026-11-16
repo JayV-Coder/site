@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ageParts, bucketLabel, isOperator, utcDateTime, canManage, changeArrow, durationParts, executionStatusKey, executionTitle, incidentCode, initials, isManager,
+  ageParts, bucketLabel, durationText, isOpenIncident, isOperator, utcDateTime, canManage, changeArrow, durationParts, executionStatusKey, executionTitle, incidentCode, initials, isManager,
   mttrParts, NEXT_STATUSES, peak, slugify,
 } from "./labels";
 
@@ -90,5 +90,19 @@ describe("rótulos de Incidente e Execução", () => {
   it("data e hora curtas em UTC, no formato do idioma", () => {
     expect(utcDateTime("pt-BR", "2026-11-16T01:49:00Z")).toBe("16/11/2026, 01:49 UTC");
     expect(utcDateTime("en", "2026-11-16T01:49:00Z")).toBe("11/16/26, 1:49 AM UTC");
+  });
+
+  it("Incidente ativo é o aberto ou em análise", () => {
+    expect(isOpenIncident("open")).toBe(true);
+    expect(isOpenIncident("investigating")).toBe(true);
+    expect(isOpenIncident("resolved")).toBe(false);
+    expect(isOpenIncident("dismissed")).toBe(false);
+  });
+
+  it("a duração em texto, na unidade que cabe e no formato do idioma", () => {
+    const t = (key: string, params?: Record<string, unknown>) => `${key.split(".").at(-1)}:${JSON.stringify(params)}`;
+    expect(durationText(t, "pt-BR", 420)).toBe('ms:{"value":420}');
+    expect(durationText(t, "pt-BR", 2400)).toBe('seconds:{"value":"2,4"}');
+    expect(durationText(t, "en", 125_000)).toBe('minutesSeconds:{"minutes":2,"seconds":5}');
   });
 });

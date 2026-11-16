@@ -90,6 +90,21 @@ export function utcDateTime(locale: string, iso: string): string {
   return `${new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short", timeZone: "UTC" }).format(new Date(iso))} UTC`;
 }
 
+/** Incidente ativo: aberto ou em análise. Resolvido ou descartado não é problema ativo. */
+export function isOpenIncident(status: string): boolean {
+  return status === "open" || status === "investigating";
+}
+
+/** A duração em texto, na maior unidade que cabe; `t` é o tradutor de quem desenha. */
+export function durationText(t: (key: Key, params?: Record<string, string | number>) => string, locale: string, ms: number): string {
+  const parts = durationParts(ms);
+  if (parts.unit === "ms") return t("site.doctor.duration.ms", { value: parts.value });
+  if (parts.unit === "s") {
+    return t("site.doctor.duration.seconds", { value: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(parts.value) });
+  }
+  return t("site.doctor.duration.minutesSeconds", { minutes: parts.minutes, seconds: parts.seconds });
+}
+
 export const SLUG_MAX = 40;
 
 function plain(text: string): string {
