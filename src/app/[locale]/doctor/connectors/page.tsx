@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PlusIcon } from "lucide-react";
 import { PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
@@ -35,7 +36,9 @@ export default async function ConnectorsPage({ params }: PageProps<"/[locale]/do
     <DoctorShell locale={locale} active={access.active} current="connectors">
       {/* O status muda com as Sincronizações: a página relê pela API. */}
       <AutoRefresh />
-      <PageHeading title={t("site.doctor.nav.connectors")} description={t("site.doctor.connectors.intro")} />
+      <PageHeading title={t("site.doctor.nav.connectors")} description={t("site.doctor.connectors.intro")}>
+        {manager && <Button asChild size="sm"><Link href={`/${locale}/doctor/connectors/new`}><PlusIcon />{t("site.doctor.connectors.add")}</Link></Button>}
+      </PageHeading>
       {connectors === null && <Unavailable locale={locale} title={t("site.doctor.connectors.unavailable")} retry="/doctor/connectors" />}
       {connectors?.length === 0 && <EmptyText>{t(manager ? "site.doctor.connectors.emptyManager" : "site.doctor.connectors.empty")}</EmptyText>}
       {connectors && connectors.length > 0 && (

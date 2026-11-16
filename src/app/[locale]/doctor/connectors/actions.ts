@@ -37,3 +37,20 @@ export async function editConnector(id: string, change: { name: string; sync_int
     revalidate: LIST, layout: true, key, known: KNOWN, invalid: "site.doctor.connector.error.edit",
   });
 }
+
+/** O assistente testa provedor, config e credencial antes de salvar; a API não grava nada. */
+export async function testNewConnection(
+  provider: "gcp" | "salesforce", config: Record<string, unknown>, credential: string,
+): Promise<{ ok: true; value: TestResult } | { ok: false; error: Text }> {
+  return sendForResult<TestResult>("/connectors/test", { method: "POST", body: JSON.stringify({ provider, config, credential }) }, { known: KNOWN });
+}
+
+/** Ativar: a credencial vai para o cofre e a primeira Sincronização começa em seguida. */
+export async function createConnector(request: {
+  provider: "gcp" | "salesforce"; integration_id: string; name: string; config: Record<string, unknown>;
+  sync_interval_seconds: number; credential: string;
+}, key: string): Promise<{ ok: true; value: { id: string } } | { ok: false; error: Text }> {
+  return sendForResult<{ id: string }>("/connectors", { method: "POST", body: JSON.stringify(request) }, {
+    revalidate: LIST, layout: true, key, known: KNOWN, invalid: "site.doctor.wizard.error.invalid",
+  });
+}
