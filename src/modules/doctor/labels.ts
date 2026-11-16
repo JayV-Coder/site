@@ -105,6 +105,11 @@ export function durationText(t: (key: Key, params?: Record<string, string | numb
   return t("site.doctor.duration.minutesSeconds", { minutes: parts.minutes, seconds: parts.seconds });
 }
 
+/** Um nome que é marca (não se traduz) ou chave de texto: o texto final sai pelo `t`. */
+export function nameOf(t: (key: Key) => string, found: { name: string } | { key: Key }): string {
+  return "name" in found ? found.name : t(found.key);
+}
+
 export const SLUG_MAX = 40;
 
 function plain(text: string): string {

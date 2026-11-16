@@ -73,6 +73,13 @@ const KNOWN: Lane[] = [
   { system: "custom", key: "site.doctor.lane.custom", short: "Out" },
 ];
 
+/** O nome de um sistema, igual na Timeline e nos Mapas: a marca, ou a chave de texto. */
+export function systemLabel(system: string): { name: string } | { key: Key } {
+  const lane = KNOWN.find((item) => item.system === system);
+  if (!lane) return { name: system };
+  return "name" in lane ? { name: lane.name } : { key: lane.key };
+}
+
 export function laneOf(event: { source: Record<string, unknown> }): string {
   const provider = event.source.provider;
   return typeof provider === "string" && provider ? provider : "custom";

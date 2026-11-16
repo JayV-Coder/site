@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useSay, useT } from "@/modules/i18n";
 import { requestDiagnosis } from "../actions";
-import { useKeyedAction } from "./useKeyedAction";
+import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
 
 const MODES = ["hybrid", "rules_only"] as const;
 type Mode = (typeof MODES)[number];
