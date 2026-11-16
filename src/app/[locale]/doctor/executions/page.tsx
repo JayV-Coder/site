@@ -53,7 +53,7 @@ export default async function ExecutionsPage({ params, searchParams }: PageProps
       {page === null && <Unavailable locale={locale} title={t("site.doctor.executions.unavailable")} retry="/doctor/executions" />}
       {page && page.items.length === 0 && !filtered
         ? <EmptyText>{t("site.doctor.executions.empty")}</EmptyText>
-        : page && <ExecutionList key={JSON.stringify(filters)} filters={filters} since={since} initial={page} />}
+        : page && <ExecutionList key={`${JSON.stringify(filters)}-${since}`} filters={filters} since={since} initial={page} />}
     </DoctorShell>
   );
 }

@@ -21,9 +21,10 @@ export function ExecutionFiltersDialog({ base, filters, integrations }: {
   const t = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Required<Record<keyof ExecutionFilters, string>>>({
+  const current = () => ({
     integration: filters.integration ?? ANY, environment: filters.environment ?? ANY, status: filters.status ?? ANY, period: filters.period ?? ANY,
   });
+  const [draft, setDraft] = useState<Required<Record<keyof ExecutionFilters, string>>>(current);
   const set = (key: keyof ExecutionFilters) => (value: string) => setDraft((current) => ({ ...current, [key]: value }));
   const any = { value: ANY, label: t("site.doctor.executions.any") };
 
@@ -36,7 +37,8 @@ export function ExecutionFiltersDialog({ base, filters, integrations }: {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    // Abre sempre com os filtros do endereço: um filtro rápido pode ter mudado desde a última vez.
+    <Dialog open={open} onOpenChange={(next) => { if (next) setDraft(current()); setOpen(next); }}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm"><SlidersHorizontalIcon />{t("site.doctor.executions.filters")}</Button>
       </DialogTrigger>

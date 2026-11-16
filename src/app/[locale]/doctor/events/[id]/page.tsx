@@ -25,11 +25,11 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/e
  * lote de onde ele veio) é de Analyst para cima e sai por link de 5 min. */
 export default async function EventPage({ params, searchParams }: PageProps<"/[locale]/doctor/events/[id]">) {
   const [{ locale, id }, query] = await Promise.all([params, searchParams]);
-  const access = await requireDoctor(locale, `/doctor/events/${id}`);
+  // O instante (vindo da Timeline) leva a consulta direto à partição do Evento; o login volta com ele.
+  const at = typeof query.at === "string" && !Number.isNaN(Date.parse(query.at)) ? query.at : null;
+  const access = await requireDoctor(locale, `/doctor/events/${id}${at ? `?at=${encodeURIComponent(at)}` : ""}`);
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-  // O instante (vindo da Timeline) leva a consulta direto à partição do Evento.
-  const at = typeof query.at === "string" && !Number.isNaN(Date.parse(query.at)) ? query.at : null;
   const event = await doctorGet<EventDetail>(`/events/${encodeURIComponent(id)}${at ? `?at=${encodeURIComponent(at)}` : ""}`);
   if (event === "not_found") notFound();
   if (event === null) {
@@ -57,7 +57,7 @@ export default async function EventPage({ params, searchParams }: PageProps<"/[l
         ? <BackLink href={`/${locale}/doctor/executions/${event.execution_ref}`}>{t("site.doctor.event.back")}</BackLink>
         : <BackLink href={`/${locale}/doctor/executions`}>{t("site.doctor.nav.executions")}</BackLink>}
       <div className="grid gap-5">
-        <EventView event={normalized} rawLogId={raw && operator ? raw.id : null} sanitization={lines} />
+        <EventView event={normalized} raw={!operator ? { state: "forbidden" } : raw ? { state: "available", id: raw.id } : { state: "expired" }} sanitization={lines} />
         <section aria-labelledby="doctor-event-origin" className="grid gap-2 rounded-lg border border-border bg-card px-4 py-4">
           <h2 id="doctor-event-origin" className="text-sm font-medium">{t("site.doctor.event.origin")}</h2>
           {raw ? (

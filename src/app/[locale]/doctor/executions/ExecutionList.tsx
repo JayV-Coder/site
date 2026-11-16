@@ -9,15 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Schemas } from "@/modules/doctor/api";
 import type { ExecutionFilters } from "@/modules/doctor/executions";
-import { durationParts, environmentKey, executionStatusKey, executionStatusVariant, executionTitle, severityVariant } from "@/modules/doctor/labels";
+import {
+  durationText, environmentKey, executionStatusKey, executionStatusVariant, executionTitle, isOpenIncident, severityVariant, utcDateTime,
+} from "@/modules/doctor/labels";
 import { useHref, useLocale, useT } from "@/modules/i18n";
 import { findExecutions } from "./actions";
 
 type ExecutionPage = Schemas["ExecutionPage"];
 type ExecutionSummary = Schemas["ExecutionSummary"];
 
-/** Incidente resolvido ou descartado não marca a Execução como problema ativo. */
-const ACTIVE = new Set(["open", "investigating"]);
 
 export function ExecutionList({ filters, since, initial }: { filters: ExecutionFilters; since: string; initial: ExecutionPage }) {
   const t = useT();
@@ -64,24 +64,20 @@ function ExecutionCard({ item }: { item: ExecutionSummary }) {
   const locale = useLocale();
   const status = executionStatusKey(item.status);
   const environment = environmentKey(item.environment);
-  const parts = durationParts(item.duration_ms);
-  const duration = parts.unit === "ms" ? t("site.doctor.duration.ms", { value: parts.value })
-    : parts.unit === "s" ? t("site.doctor.duration.seconds", { value: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(parts.value) })
-      : t("site.doctor.duration.minutesSeconds", { minutes: parts.minutes, seconds: parts.seconds });
-  const time = new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: "UTC" }).format(new Date(item.first_event_at));
+  const duration = durationText(t, locale, item.duration_ms);
   const title = executionTitle(item.id, item.correlation_keys) ?? t("site.doctor.incident.execution", { id: item.id.slice(0, 8) });
   return (
     <Link href={href(`/doctor/executions/${item.id}`)}
       className="grid gap-1.5 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary/40">
       <span className="flex flex-wrap items-center justify-between gap-2">
         <Badge variant={executionStatusVariant(item.status)}>{status ? t(status) : item.status}</Badge>
-        {item.incident && ACTIVE.has(item.incident.status) && (
+        {item.incident && isOpenIncident(item.incident.status) && (
           <Badge variant={severityVariant(item.incident.severity)}>{t("site.doctor.incident.title")}</Badge>
         )}
       </span>
       <span className="truncate font-mono text-xs">{title}</span>
       <span className="text-xs text-muted-foreground">
-        {item.integration_name} · {environment ? t(environment) : item.environment} · {duration} · {t("site.doctor.executions.events", { count: item.event_count })} · {time} UTC
+        {item.integration_name} · {environment ? t(environment) : item.environment} · {duration} · {t("site.doctor.executions.events", { count: item.event_count })} · {utcDateTime(locale, item.first_event_at)}
       </span>
     </Link>
   );

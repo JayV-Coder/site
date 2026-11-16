@@ -11,6 +11,8 @@ describe("Execuções e Eventos", () => {
     expect(readExecutionFilters({ status: "failed", integration: UUID, environment: "prd", period: "24h", q: "4500012345" }))
       .toEqual({ status: "failed", integration: UUID, environment: "prd", period: "24h" });
     expect(readExecutionFilters({ status: "xyz", integration: "not-a-uuid", environment: ["prd"], period: "1y" })).toEqual({});
+    // Propriedade herdada não é período.
+    expect(readExecutionFilters({ period: "constructor" })).toEqual({});
   });
 
   it("o período vira o início da busca, contado do instante da primeira página", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { CopyIcon } from "lucide-react";
 import { SegmentedControl } from "@/components/molecules";
 import { Button } from "@/components/ui/button";
@@ -21,16 +21,25 @@ const TOKEN_CLASS: Record<JsonToken["kind"], string> = {
   redacted: "rounded-sm bg-destructive/10 text-destructive",
 };
 
-export function EventView({ event, rawLogId, sanitization }: { event: EventDetail; rawLogId: string | null; sanitization: string[] }) {
+export type RawLog = { state: "available"; id: string } | { state: "expired" } | { state: "forbidden" };
+
+export function EventView({ event, raw, sanitization }: { event: EventDetail; raw: RawLog; sanitization: string[] }) {
   const t = useT();
   const [tab, setTab] = useState<"normalized" | "raw">("normalized");
   const [copied, setCopied] = useState<"ok" | "failed" | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, startBusy] = useTransition();
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  // O aviso dura 2 s a partir do resultado (a permissão da área de transferência pode demorar).
+  const show = (result: "ok" | "failed") => {
+    window.clearTimeout(timer.current);
+    setCopied(result);
+    timer.current = window.setTimeout(() => setCopied(null), 2000);
+  };
   const copy = () => {
-    navigator.clipboard.writeText(JSON.stringify(event, null, 2)).then(() => setCopied("ok"), () => setCopied("failed"));
-    window.setTimeout(() => setCopied(null), 2000);
+    navigator.clipboard.writeText(JSON.stringify(event, null, 2)).then(() => show("ok"), () => show("failed"));
   };
 
   return (
@@ -55,15 +64,15 @@ export function EventView({ event, rawLogId, sanitization }: { event: EventDetai
         <section aria-label={t("site.doctor.event.raw")} className="grid justify-items-start gap-3 rounded-lg border border-border bg-card px-4 py-4">
           <p className="text-sm leading-relaxed">{t("site.doctor.event.rawBody")}</p>
           {failed && <p role="alert" className="text-sm text-destructive">{t("site.doctor.event.rawFailed")}</p>}
-          {rawLogId ? (
+          {raw.state === "available" ? (
             <Button loading={busy} onClick={() => startBusy(async () => {
-              const url = await rawLogUrl(rawLogId).catch(() => null);
+              const url = await rawLogUrl(raw.id).catch(() => null);
               setFailed(url === null);
               if (url) window.location.assign(url);
             })}>
               {t("site.doctor.event.rawDownload")}
             </Button>
-          ) : <p className="text-sm text-muted-foreground">{t("site.doctor.event.rawRoles")}</p>}
+          ) : <p className="text-sm text-muted-foreground">{t(raw.state === "expired" ? "site.doctor.event.rawExpired" : "site.doctor.event.rawRoles")}</p>}
         </section>
       )}
       <section aria-labelledby="doctor-event-sanitization" className="grid gap-1.5 rounded-lg border border-border bg-card px-4 py-4">

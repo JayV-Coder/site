@@ -28,7 +28,7 @@ export function readExecutionFilters(params: Record<string, string | string[] | 
   if (status && (EXECUTION_STATUSES as readonly string[]).includes(status)) filters.status = status;
   if (integration && UUID.test(integration)) filters.integration = integration;
   if (environment && (ENVIRONMENTS as readonly string[]).includes(environment)) filters.environment = environment;
-  if (period && period in PERIOD_HOURS) filters.period = period;
+  if (period && Object.hasOwn(PERIOD_HOURS, period)) filters.period = period;
   return filters;
 }
 

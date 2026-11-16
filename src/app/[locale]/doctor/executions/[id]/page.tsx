@@ -7,7 +7,7 @@ import { doctorGet, type Schemas } from "@/modules/doctor/api";
 import {
   correlationKey, crossKeysText, errorSummary, eventSeverityVariant, eventSource, laneOf, lanes, type Lane,
 } from "@/modules/doctor/executions";
-import { durationParts, environmentKey, executionStatusKey, executionTitle, severityKey } from "@/modules/doctor/labels";
+import { durationText, environmentKey, executionStatusKey, executionTitle, isOpenIncident, severityKey, severityVariant } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { cn } from "@/lib/utils";
 import { requireDoctor } from "../../access";
@@ -44,7 +44,7 @@ export default async function ExecutionPage({ params }: PageProps<"/[locale]/doc
 
   const keys = execution.correlation_keys;
   // Resolvido ou descartado não é problema ativo.
-  const incident = execution.incident && ["open", "investigating"].includes(execution.incident.status) ? execution.incident : null;
+  const incident = execution.incident && isOpenIncident(execution.incident.status) ? execution.incident : null;
   const systems = lanes(execution.events);
   const laned = systems.length > 1;
   const laneName = (lane: Lane) => ("name" in lane ? lane.name : t(lane.key));
@@ -54,10 +54,7 @@ export default async function ExecutionPage({ params }: PageProps<"/[locale]/doc
   };
   const status = executionStatusKey(execution.status);
   const environment = environmentKey(execution.environment);
-  const parts = durationParts(execution.duration_ms);
-  const duration = parts.unit === "ms" ? t("site.doctor.duration.ms", { value: parts.value })
-    : parts.unit === "s" ? t("site.doctor.duration.seconds", { value: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(parts.value) })
-      : t("site.doctor.duration.minutesSeconds", { minutes: parts.minutes, seconds: parts.seconds });
+  const duration = durationText(t, locale, execution.duration_ms);
   const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC" });
   const title = executionTitle(execution.id, keys) ?? t("site.doctor.incident.execution", { id: execution.id.slice(0, 8) });
   const severity = incident ? severityKey(incident.severity) : null;
@@ -67,7 +64,7 @@ export default async function ExecutionPage({ params }: PageProps<"/[locale]/doc
       {back}
       <div className="grid gap-5">
         <div className="grid gap-2">
-          {incident && <div><Badge variant="destructive">{t("site.doctor.incident.title")}</Badge></div>}
+          {incident && <div><Badge variant={severityVariant(incident.severity)}>{t("site.doctor.incident.title")}</Badge></div>}
           <PageHeading title={title} />
         </div>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
