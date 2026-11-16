@@ -173,11 +173,13 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
               <h2 id="doctor-executions" className="text-sm font-medium">{t("site.doctor.incident.executions")}</h2>
               <ul className="grid gap-2">
                 {incident.executions.map((execution) => (
-                  <li key={execution.id} className="grid gap-1 rounded-lg border border-border bg-card px-4 py-3">
-                    <span className="truncate font-mono text-xs">{executionTitle(execution.id, execution.correlation_keys) ?? t("site.doctor.incident.execution", { id: execution.id.slice(0, 8) })}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {label(executionStatusKey(execution.status), execution.status)} · {duration(execution.duration_ms)} · {when(execution.first_event_at)}
-                    </span>
+                  <li key={execution.id}>
+                    <Link href={`/${locale}/doctor/executions/${execution.id}`} className="grid gap-1 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary/40">
+                      <span className="truncate font-mono text-xs">{executionTitle(execution.id, execution.correlation_keys) ?? t("site.doctor.incident.execution", { id: execution.id.slice(0, 8) })}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {label(executionStatusKey(execution.status), execution.status)} · {duration(execution.duration_ms)} · {when(execution.first_event_at)}
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>

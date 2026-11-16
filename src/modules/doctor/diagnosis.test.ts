@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  clampConfidence, comparedWith, diagnosisBadge, shownVersion, evidenceKind, isActive, reviewable, reviewTimeParts, stageSteps, versionChanges, withoutAiReason,
+  clampConfidence, comparedWith, diagnosisBadge, evidenceHref, shownVersion, evidenceKind, isActive, reviewable, reviewTimeParts, stageSteps, versionChanges, withoutAiReason,
 } from "./diagnosis";
 
 const base = {
@@ -116,5 +116,13 @@ describe("Diagnóstico", () => {
     expect(clampConfidence(1.2)).toBe(1);
     expect(clampConfidence(-0.1)).toBe(0);
     expect(clampConfidence(0.68)).toBe(0.68);
+  });
+
+  it("a Evidência leva ao Evento (com o instante, para a partição) ou à Execução; Base e consulta não têm tela", () => {
+    const item = { kind: "event", event_id: "e1", event_timestamp: "2026-11-16T01:00:00Z", execution_id: "x1" };
+    expect(evidenceHref("/pt-BR", item)).toBe("/pt-BR/doctor/events/e1?at=2026-11-16T01%3A00%3A00Z");
+    expect(evidenceHref("/pt-BR", { ...item, kind: "rule_match", event_id: null, event_timestamp: null })).toBe("/pt-BR/doctor/executions/x1");
+    expect(evidenceHref("/pt-BR", { ...item, kind: "enrichment" })).toBeNull();
+    expect(evidenceHref("/pt-BR", { ...item, kind: "chunk", event_id: null, execution_id: null })).toBeNull();
   });
 });
