@@ -30,7 +30,8 @@ Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana, a promoção
 conhecimento, os chamados no ITSM e o relatório técnico) e Execuções (lista, Timeline e Evento
 original) Integrações (com os Mapas entre sistemas) e
 Conectores (lista, histórico, o assistente de novo Conector do Google Cloud e do Salesforce e os
-agentes locais) e Importação (com o mapeamento de colunas); o resto das telas chega em blocos.
+agentes locais), Importação (com o mapeamento de colunas) e Chamados (Jira e ServiceNow); o resto
+das telas chega em blocos. A volta do consentimento do Jira é `APP_URL/doctor/tickets/jira`.
 
 ## Rodar
 
