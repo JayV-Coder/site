@@ -35,7 +35,12 @@ export function AgentActions({ id, name }: { id: string; name: string }) {
       </div>
       {rotate.error && <p role="alert" className="text-sm text-destructive">{say(rotate.error)}</p>}
       {revoke.error && <p role="alert" className="text-sm text-destructive">{say(revoke.error)}</p>}
-      {token && <InstallCommand token={token} />}
+      {token && (
+        <div className="grid gap-2">
+          <InstallCommand token={token} />
+          <Button variant="ghost" size="sm" className="justify-self-start" onClick={() => setToken(null)}>{t("site.doctor.agent.done")}</Button>
+        </div>
+      )}
     </div>
   );
 }

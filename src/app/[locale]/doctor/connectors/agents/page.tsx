@@ -17,6 +17,7 @@ import { relative } from "../ConnectorCard";
 import { AgentActions } from "./AgentActions";
 
 type Agent = Schemas["Agent"];
+type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/connectors/agents">): Promise<Metadata> {
   const { locale } = await params;
@@ -28,10 +29,14 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/c
  * com MFA cadastram, renovam o token e revogam. */
 export default async function AgentsPage({ params }: PageProps<"/[locale]/doctor/connectors/agents">) {
   const { locale } = await params;
-  const access = await requireDoctor(locale, "/doctor/connectors/agents");
-  const t = await getT(locale);
+  const [access, t] = await Promise.all([requireDoctor(locale, "/doctor/connectors/agents"), getT(locale)]);
   if (!access) return <UnavailablePage locale={locale} />;
-  const agents = await doctorList<Agent[]>("/agents");
+  const [agents, integrations] = await Promise.all([
+    doctorList<Agent[]>("/agents"),
+    // Com as arquivadas: o card diz de qual Integração o agente é, para não confundir dois iguais.
+    doctorList<Integration[]>("/integrations?include_archived=true"),
+  ]);
+  const names = new Map((integrations ?? []).map((item) => [item.id, item.name]));
   const manager = canManage(access.me);
   const now = new Date();
 
@@ -57,6 +62,7 @@ export default async function AgentsPage({ params }: PageProps<"/[locale]/doctor
                     <Badge variant={state.variant}>{t(state.key)}</Badge>
                   </div>
                   <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                    {names.has(agent.integration_id) && (<><dt className="text-muted-foreground">{t("site.doctor.connector.integration")}</dt><dd className="break-words">{names.get(agent.integration_id)}</dd></>)}
                     <dt className="text-muted-foreground">{t("site.doctor.agent.lastSeen")}</dt>
                     <dd>{agent.last_seen_at ? relative(t, locale, agent.last_seen_at, now) : t("site.doctor.agent.never")}</dd>
                     <dt className="text-muted-foreground">{t("site.doctor.agent.version")}</dt>
@@ -68,7 +74,8 @@ export default async function AgentsPage({ params }: PageProps<"/[locale]/doctor
                     </dd>
                     {agent.cert_fingerprint && (<><dt className="text-muted-foreground">{t("site.doctor.agent.key")}</dt><dd className="font-mono text-xs leading-5">{agent.cert_fingerprint.slice(0, 16)}…</dd></>)}
                   </dl>
-                  {manager && agent.status !== "revoked" && <AgentActions id={agent.id} name={agent.name} />}
+                  {/* A chave muda quando o agente se registra: o comando de um token já usado some. */}
+                  {manager && agent.status !== "revoked" && <AgentActions key={`${agent.id}-${agent.status}-${agent.registered_at ?? ""}`} id={agent.id} name={agent.name} />}
                 </article>
               </li>
             );

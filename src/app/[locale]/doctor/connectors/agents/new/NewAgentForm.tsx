@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import type { Schemas } from "@/modules/doctor/api";
-import { buildCollections, validFunction, validPath, type CollectionDraft } from "@/modules/doctor/agents";
+import { buildCollections, validAgentName, validFunction, validPath, validPattern, type CollectionDraft } from "@/modules/doctor/agents";
 import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
-import { validName } from "@/modules/doctor/wizard";
 import { useHref, useSay, useT } from "@/modules/i18n";
 import { createAgent } from "../actions";
 import { InstallCommand } from "../InstallCommand";
@@ -27,7 +26,7 @@ export function NewAgentForm({ integrations }: { integrations: { id: string; lab
   const save = useKeyedAction();
   const change = (next: Partial<CollectionDraft>) => { setDraft((current) => ({ ...current, ...next })); if (save.error) save.reset(); };
   const collections = buildCollections(draft);
-  const valid = name.trim().length >= 2 && validName(name) && validPath(draft.directory) && validFunction(draft.fn) && collections.length > 0;
+  const valid = validAgentName(name) && validPath(draft.directory) && validPattern(draft.pattern) && validFunction(draft.fn) && collections.length > 0;
 
   if (token) {
     return (
@@ -40,7 +39,8 @@ export function NewAgentForm({ integrations }: { integrations: { id: string; lab
   return (
     <form className="grid max-w-2xl gap-4" onSubmit={(event) => {
       event.preventDefault();
-      const request = { name, integration_id: integration, collections };
+      // A impressão é do pedido como sai (nome aparado): um espaço a mais não vira outro agente.
+      const request = { name: name.trim(), integration_id: integration, collections };
       save.run(async (key) => {
         const issued = await createAgent(request, key);
         if (!issued.ok) return issued.error;
@@ -49,10 +49,10 @@ export function NewAgentForm({ integrations }: { integrations: { id: string; lab
       }, undefined, JSON.stringify(request));
     }}>
       <FormField label={t("site.doctor.agent.name")} htmlFor="doctor-agent-name">
-        <Input id="doctor-agent-name" required minLength={2} maxLength={80} placeholder="SAP ECC Campinas" value={name} onChange={(event) => setName(event.currentTarget.value)} />
+        <Input id="doctor-agent-name" required minLength={2} maxLength={80} placeholder="SAP ECC Campinas" value={name} onChange={(event) => { setName(event.currentTarget.value); if (save.error) save.reset(); }} />
       </FormField>
       <FormField label={t("site.doctor.connector.integration")} htmlFor="doctor-agent-integration">
-        <OptionSelect id="doctor-agent-integration" value={integration} onChange={setIntegration} options={integrations.map((item) => ({ value: item.id, label: item.label }))} />
+        <OptionSelect id="doctor-agent-integration" value={integration} onChange={(value) => { setIntegration(value); if (save.error) save.reset(); }} options={integrations.map((item) => ({ value: item.id, label: item.label }))} />
       </FormField>
       <fieldset className="grid gap-3 rounded-lg border border-border/60 px-3.5 py-3">
         <legend className="px-1 text-xs text-muted-foreground">{t("site.doctor.agent.allowlist")}</legend>
@@ -60,7 +60,7 @@ export function NewAgentForm({ integrations }: { integrations: { id: string; lab
           <FormField label={t("site.doctor.agent.directory")} htmlFor="doctor-agent-directory" error={validPath(draft.directory) ? null : t("site.doctor.agent.directoryInvalid")}>
             <Input id="doctor-agent-directory" className="font-mono" placeholder="/exports/sap" autoCapitalize="none" spellCheck={false} value={draft.directory} onChange={(event) => change({ directory: event.currentTarget.value })} />
           </FormField>
-          <FormField label={t("site.doctor.agent.pattern")} htmlFor="doctor-agent-pattern">
+          <FormField label={t("site.doctor.agent.pattern")} htmlFor="doctor-agent-pattern" error={validPattern(draft.pattern) ? null : t("site.doctor.agent.patternInvalid")}>
             <Input id="doctor-agent-pattern" className="font-mono" autoCapitalize="none" spellCheck={false} value={draft.pattern} onChange={(event) => change({ pattern: event.currentTarget.value })} />
           </FormField>
         </div>

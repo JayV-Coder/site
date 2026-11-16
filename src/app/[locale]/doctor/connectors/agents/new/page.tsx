@@ -4,7 +4,7 @@ import { BackLink, PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
 import { doctorList, type Schemas } from "@/modules/doctor/api";
-import { canManage, environmentKey } from "@/modules/doctor/labels";
+import { canManage, integrationOptions } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../../../access";
 import { DoctorShell } from "../../../DoctorShell";
@@ -21,8 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/c
 
 export default async function NewAgentPage({ params }: PageProps<"/[locale]/doctor/connectors/agents/new">) {
   const { locale } = await params;
-  const access = await requireDoctor(locale, "/doctor/connectors/agents/new");
-  const t = await getT(locale);
+  const [access, t] = await Promise.all([requireDoctor(locale, "/doctor/connectors/agents/new"), getT(locale)]);
   if (!access) return <UnavailablePage locale={locale} />;
   const shell = (children: React.ReactNode) => (
     <DoctorShell locale={locale} active={access.active} current="connectors">
@@ -44,10 +43,7 @@ export default async function NewAgentPage({ params }: PageProps<"/[locale]/doct
   return shell(
     <>
       <PageHeading title={t("site.doctor.agents.new")} />
-      <NewAgentForm integrations={integrations.map((item) => {
-        const environment = environmentKey(item.environment);
-        return { id: item.id, label: `${item.name} · ${environment ? t(environment) : item.environment}` };
-      })} />
+      <NewAgentForm integrations={integrationOptions(t, integrations)} />
     </>,
   );
 }

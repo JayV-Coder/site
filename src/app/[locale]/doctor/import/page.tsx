@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { doctorList, type Schemas } from "@/modules/doctor/api";
 import { importBadge, needsRefresh } from "@/modules/doctor/imports";
-import { environmentKey, isOperator, utcDateTime } from "@/modules/doctor/labels";
+import { integrationOptions, isOperator, utcDateTime } from "@/modules/doctor/labels";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
@@ -61,10 +61,7 @@ export default async function ImportPage({ params, searchParams }: PageProps<"/[
           </div>
         )}
         {canImport && active && active.length > 0 && (
-          <ImportUploader integrations={active.map((item) => {
-            const environment = environmentKey(item.environment);
-            return { id: item.id, label: `${item.name} · ${environment ? t(environment) : item.environment}` };
-          })} />
+          <ImportUploader integrations={integrationOptions(t, active)} />
         )}
         {!canImport && <p className="text-sm text-muted-foreground">{t("site.doctor.import.viewerHint")}</p>}
 
