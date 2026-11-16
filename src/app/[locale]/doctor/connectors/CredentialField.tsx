@@ -82,24 +82,35 @@ const EMPTY: SalesforceFields = { client_id: "", username: "", private_key: "", 
 function SalesforceCredential({ onChange }: { onChange: (credential: string | null) => void }) {
   const t = useT();
   const [auth, setAuth] = useState<SalesforceAuth>("jwt_bearer");
+  return (
+    <div className="grid gap-3">
+      <FormField label={t("site.doctor.credential.sfAuth")} htmlFor="doctor-sf-auth">
+        <OptionSelect id="doctor-sf-auth" value={auth} onChange={(mode) => { setAuth(mode); onChange(null); }}
+          options={[{ value: "jwt_bearer", label: t("site.doctor.credential.sfJwt") }, { value: "web_server", label: t("site.doctor.credential.sfWeb") }]} />
+      </FormField>
+      <SalesforceSecret key={auth} auth={auth} onChange={onChange} />
+    </div>
+  );
+}
+
+/** Os campos da Connected App para um modo de autenticação já escolhido (o assistente escolhe o
+ * modo junto com a config). Trocar de modo recomeça os campos. */
+export function SalesforceSecret({ auth, onChange }: { auth: SalesforceAuth; onChange: (credential: string | null) => void }) {
+  const t = useT();
   const [fields, setFields] = useState(EMPTY);
-  const change = (next: Partial<SalesforceFields>, mode = auth) => {
+  const change = (next: Partial<SalesforceFields>) => {
     const merged = { ...fields, ...next };
     setFields(merged);
-    onChange(buildSalesforceCredential(mode, merged));
+    onChange(buildSalesforceCredential(auth, merged));
   };
   const input = (name: keyof SalesforceFields, label: string, secret = false) => (
     <FormField label={label} htmlFor={`doctor-sf-${name}`}>
-      <Input id={`doctor-sf-${name}`} type={secret ? "password" : name === "username" ? "email" : "text"} autoComplete="off"
+      <Input id={`doctor-sf-${name}`} type={secret ? "password" : name === "username" ? "email" : "text"} autoComplete="off" autoCapitalize="none" spellCheck={false}
         value={fields[name]} onChange={(event) => change({ [name]: event.currentTarget.value })} />
     </FormField>
   );
   return (
     <div className="grid gap-3">
-      <FormField label={t("site.doctor.credential.sfAuth")} htmlFor="doctor-sf-auth">
-        <OptionSelect id="doctor-sf-auth" value={auth} onChange={(mode) => { setAuth(mode); change({}, mode); }}
-          options={[{ value: "jwt_bearer", label: t("site.doctor.credential.sfJwt") }, { value: "web_server", label: t("site.doctor.credential.sfWeb") }]} />
-      </FormField>
       {input("client_id", t("site.doctor.credential.sfClientId"))}
       {auth === "jwt_bearer" ? (
         <>
