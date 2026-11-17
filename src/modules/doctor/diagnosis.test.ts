@@ -118,11 +118,13 @@ describe("Diagnóstico", () => {
     expect(clampConfidence(0.68)).toBe(0.68);
   });
 
-  it("a Evidência leva ao Evento (com o instante, para a partição) ou à Execução; Base e consulta não têm tela", () => {
+  it("a Evidência leva ao Evento (com o instante, para a partição), à Execução ou à Base; a consulta no destino não tem tela", () => {
     const item = { kind: "event", event_id: "e1", event_timestamp: "2026-11-16T01:00:00Z", execution_id: "x1" };
     expect(evidenceHref("/pt-BR", item)).toBe("/pt-BR/doctor/events/e1?at=2026-11-16T01%3A00%3A00Z");
     expect(evidenceHref("/pt-BR", { ...item, kind: "rule_match", event_id: null, event_timestamp: null })).toBe("/pt-BR/doctor/executions/x1");
     expect(evidenceHref("/pt-BR", { ...item, kind: "enrichment" })).toBeNull();
-    expect(evidenceHref("/pt-BR", { ...item, kind: "chunk", event_id: null, execution_id: null })).toBeNull();
+    // A Base abre na aba certa.
+    expect(evidenceHref("/pt-BR", { ...item, kind: "chunk", event_id: null, execution_id: null })).toBe("/pt-BR/doctor/knowledge");
+    expect(evidenceHref("/pt-BR", { ...item, kind: "global_chunk", event_id: null, execution_id: null })).toBe("/pt-BR/doctor/knowledge?tab=global");
   });
 });

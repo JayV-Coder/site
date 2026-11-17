@@ -30,8 +30,15 @@ Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana, a promoção
 conhecimento, os chamados no ITSM e o relatório técnico), Execuções (lista, Timeline e Evento
 original), Integrações (com os Mapas entre sistemas), Conectores (lista, histórico, o assistente
 de novo Conector do Google Cloud e do Salesforce e os agentes locais), Alertas (regras, canais,
+push neste aparelho e silêncio), Webhooks de saída (com as entregas), Importação (com o mapeamento de colunas), Chamados (Jira e ServiceNow) e a Base de conhecimento; o resto das
+telas chega em blocos. A volta do consentimento do Jira é `APP_URL/doctor/tickets/jira`.
+=======
+conhecimento, os chamados no ITSM e o relatório técnico), Execuções (lista, Timeline e Evento
+original), Integrações (com os Mapas entre sistemas), Conectores (lista, histórico, o assistente
+de novo Conector do Google Cloud e do Salesforce e os agentes locais), Alertas (regras, canais,
 push neste aparelho e silêncio), Webhooks de saída (com as entregas), Importação (com o mapeamento de colunas) e Chamados (Jira e ServiceNow); o resto das
 telas chega em blocos.
+>>>>>>> claude/doctor-itsm
 
 ## Rodar
 
