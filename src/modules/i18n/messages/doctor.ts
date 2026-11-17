@@ -987,4 +987,10 @@ export const doctor = {
   "site.doctor.invite.error.mismatch": "This invitation is for another email. Sign in with the invited email, after confirming it.",
   "site.doctor.invite.error.gone": "This invitation expired or was already used. Ask for a new one.",
   "site.doctor.members.expiresIn": { one: "expires in {count} day", other: "expires in {count} days" },
+  "site.doctor.shared.title": "Technical report",
+  "site.doctor.shared.intro": "An Integration AI Doctor Organization shared this link with you. It's valid for 7 days and can be revoked by whoever created it.",
+  "site.doctor.shared.download": "Download report",
+  "site.doctor.shared.invalid": "This link is invalid, expired or was revoked. Ask whoever sent it for a new one.",
+  "site.doctor.shared.failed": "Couldn't download now. Try again.",
+  "site.doctor.shared.done": "Download started.",
 } satisfies Record<string, Message>;

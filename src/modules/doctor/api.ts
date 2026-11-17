@@ -32,6 +32,16 @@ async function clientHeaders(): Promise<Record<string, string>> {
 
 /** Chamada à API do Doctor (`/api/v1` + `path`). A autorização é sempre a da sessão;
  * os headers de quem chama (ex.: `Idempotency-Key`) entram. */
+/** Sem sessão: as portas anônimas da API (o link compartilhado do Relatório). Leva o IP de quem
+ * pediu, para o limite por IP e a Trilha de auditoria da Organização dona. */
+export async function doctorPublicFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(`${DOCTOR_API_URL}/api/v1${path}`, {
+    ...init,
+    cache: "no-store",
+    headers: { "content-type": "application/json", ...(await clientHeaders()), ...Object.fromEntries(new Headers(init.headers)) },
+  });
+}
+
 export async function doctorFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const session = await auth();
   return fetch(`${DOCTOR_API_URL}/api/v1${path}`, {
