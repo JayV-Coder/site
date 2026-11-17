@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ageParts, bucketLabel, durationText, isOpenIncident, isOperator, utcDateTime, canManage, changeArrow, durationParts, executionStatusKey, executionTitle, incidentCode, initials, isManager,
+  ageParts, bucketLabel, durationText, integrationOptions, isOpenIncident, isOperator, utcDateTime, canManage, changeArrow, durationParts, executionStatusKey, executionTitle, incidentCode, initials, isManager,
   mttrParts, NEXT_STATUSES, peak, slugify,
 } from "./labels";
 
@@ -104,5 +104,13 @@ describe("rótulos de Incidente e Execução", () => {
     expect(durationText(t, "pt-BR", 420)).toBe('ms:{"value":420}');
     expect(durationText(t, "pt-BR", 2400)).toBe('seconds:{"value":"2,4"}');
     expect(durationText(t, "en", 125_000)).toBe('minutesSeconds:{"minutes":2,"seconds":5}');
+  });
+
+  it("as Integrações das telas: só as ativas, com o Ambiente no rótulo", () => {
+    const t = (key: string) => key.split(".").at(-1) ?? key;
+    expect(integrationOptions(t, [
+      { id: "a", name: "Pedidos", environment: "prd", archived_at: null },
+      { id: "b", name: "Velha", environment: "hml", archived_at: "2026-11-01T00:00:00Z" },
+    ])).toEqual([{ id: "a", label: "Pedidos · prd" }]);
   });
 });
