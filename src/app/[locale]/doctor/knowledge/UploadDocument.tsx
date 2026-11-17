@@ -27,11 +27,14 @@ export function UploadDocument() {
     const created = await createDocument({ title: titleOf(file.name), filename: file.name, content_type: type, size_bytes: file.size });
     if (!created.ok) return created.error;
     const { id, upload_url } = created.value;
-    const failed = (await putSigned(upload_url, file, type, setProgress)) ? await finishDocument(id) : { key: "site.doctor.import.error.upload" } as const;
-    // Sem o arquivo, o documento ficaria "Aguardando o arquivo" para sempre: sai da lista, e
-    // escolher o arquivo de novo começa do zero.
-    if (failed) await deleteDocument(id, crypto.randomUUID()).catch(() => null);
-    return failed;
+    if (!(await putSigned(upload_url, file, type, setProgress))) {
+      // Sem o arquivo, o documento ficaria "Aguardando o arquivo" para sempre: sai da lista, e
+      // escolher o arquivo de novo começa do zero. Com o arquivo enviado, não se apaga: a
+      // conclusão pode ter chegado à API mesmo sem resposta, e o documento já estar indexando.
+      await deleteDocument(id, crypto.randomUUID()).catch(() => null);
+      return { key: "site.doctor.import.error.upload" };
+    }
+    return finishDocument(id);
   };
 
   const choose = (event: ChangeEvent<HTMLInputElement>) => {
