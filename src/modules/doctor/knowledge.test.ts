@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contentTypeOf, documentKind, documentState, KNOWLEDGE_MAX_BYTES, titleOf } from "./knowledge";
+import { contentTypeOf, documentKind, documentState, KNOWLEDGE_ACCEPT as ACCEPT, KNOWLEDGE_MAX_BYTES, needsRefresh, titleOf } from "./knowledge";
 
 describe("Base de conhecimento", () => {
   it("o tipo do arquivo pela extensão; outros não sobem", () => {
@@ -26,5 +26,29 @@ describe("Base de conhecimento", () => {
   it("o título vem do nome do arquivo, sem a extensão", () => {
     expect(titleOf("Runbook SAP.v2.pdf")).toBe("Runbook SAP.v2");
     expect(titleOf("leia-me")).toBe("leia-me");
+  });
+
+  it("sem ponto não há extensão: um arquivo chamado só `pdf` não é PDF", () => {
+    expect(contentTypeOf("pdf")).toBeNull();
+    expect(contentTypeOf("notas.MD")).toBe("text/markdown");
+  });
+
+  it("o seletor de arquivo aceita os mesmos formatos que a tela", () => {
+    expect(ACCEPT).toBe(".pdf,.md,.markdown,.txt,.docx");
+  });
+
+  it("o título sai do nome do arquivo, sem espaços nas pontas, com até 200 caracteres", () => {
+    expect(titleOf("  Runbook SAP .md")).toBe("Runbook SAP");
+    expect(titleOf(".md")).toBe(".md");
+    expect(titleOf(" .pdf")).toBe(".pdf");
+    expect(titleOf(`${"a".repeat(250)}.pdf`)).toHaveLength(200);
+  });
+
+  it("a página relê enquanto indexa; documento esquecido em pendente só por 30 minutos", () => {
+    const now = new Date("2026-11-17T12:00:00Z");
+    expect(needsRefresh([{ status: "indexing", created_at: "2026-11-01T00:00:00Z" }], now)).toBe(true);
+    expect(needsRefresh([{ status: "pending", created_at: "2026-11-17T11:50:00Z" }], now)).toBe(true);
+    expect(needsRefresh([{ status: "pending", created_at: "2026-11-17T11:00:00Z" }], now)).toBe(false);
+    expect(needsRefresh([{ status: "ready", created_at: "2026-11-17T11:59:00Z" }], now)).toBe(false);
   });
 });
