@@ -5,6 +5,7 @@ import { createSHA256 } from "hash-wasm";
 import { UploadIcon } from "lucide-react";
 import { FormField, OptionSelect } from "@/components/molecules";
 import { Button } from "@/components/ui/button";
+import { putSigned } from "@/modules/doctor/upload";
 import { OFFLINE } from "@/modules/doctor/useKeyedAction";
 import {
   formatOf, headerColumns, IMPORT_FIELDS, initialMapping, mappableColumns, MAX_BYTES, mappingChanged, mergeMapping, type ImportField, type Mapping,
@@ -27,19 +28,6 @@ async function sha256(file: File): Promise<string> {
     if (done) return hasher.digest("hex");
     hasher.update(value);
   }
-}
-
-/** O arquivo vai direto do navegador para o Storage, pela URL assinada: não passa pela API. */
-function put(url: string, file: File, onProgress: (ratio: number) => void): Promise<boolean> {
-  return new Promise((resolve) => {
-    const request = new XMLHttpRequest();
-    request.open("PUT", url);
-    request.setRequestHeader("content-type", file.type || "application/octet-stream");
-    request.upload.onprogress = (event) => { if (event.lengthComputable) onProgress(event.loaded / event.total); };
-    request.onload = () => resolve(request.status >= 200 && request.status < 300);
-    request.onerror = () => resolve(false);
-    request.send(file);
-  });
 }
 
 /** `touched`: os campos que a pessoa mudou; só eles mudam o mapeamento salvo da Integração.
@@ -110,7 +98,7 @@ export function ImportUploader({ integrations }: { integrations: { id: string; l
       if (created.value.status !== "pending") { setDraft(null); return; }
       const url = await uploadUrl(created.value.id);
       if (!url.ok) { setError(url.error); return; }
-      if (!(await put(url.value.upload_url, draft.file, setProgress))) { setError({ key: "site.doctor.import.error.upload" }); return; }
+      if (!(await putSigned(url.value.upload_url, draft.file, draft.file.type || "application/octet-stream", setProgress))) { setError({ key: "site.doctor.import.error.upload" }); return; }
       const failed = await completeImport(created.value.id);
       setError(failed);
       if (failed === null) setDraft(null);
