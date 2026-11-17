@@ -4,11 +4,37 @@
 export const MAX_PATTERNS = 20;
 export const MAX_PATTERN_LENGTH = 200;
 const KIND = /^[a-z][a-z0-9_]{1,30}$/;
-/** O mesmo do Sanitizer: quantificador sobre grupo que já tem um, como `(a+)+`. */
-const NESTED_QUANTIFIER = /\([^)]*[+*}][^)]*\)\s*[+*{]/;
+/** Quantificador sobre um grupo que já tem um dentro, como `(a+)+` ou `((a+))+`: backtracking
+ * catastrófico. Lê o padrão ignorando o que está escapado (`\(`) e dentro de `[...]`. */
+function nestedQuantifier(pattern: string): boolean {
+  const open: { quantified: boolean }[] = [];
+  let inClass = false;
+  let lastClosed: { quantified: boolean } | null = null;
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    if (char === "\\") { index += 1; lastClosed = null; continue; }
+    if (inClass) { if (char === "]") inClass = false; continue; }
+    if (char === "[") { inClass = true; lastClosed = null; continue; }
+    if (char === "(") { open.push({ quantified: false }); lastClosed = null; continue; }
+    if (char === ")") { lastClosed = open.pop() ?? null; if (lastClosed?.quantified && open.length > 0) open[open.length - 1]!.quantified = true; continue; }
+    if (char === "+" || char === "*" || char === "{" || (char === "?" && pattern[index - 1] !== "(")) {
+      // `?` depois de outro quantificador (`+?`) é preguiçoso, não repete nada.
+      const repeats = char !== "?";
+      if (lastClosed?.quantified && repeats) return true;
+      if (repeats && open.length > 0) open[open.length - 1]!.quantified = true;
+      lastClosed = null;
+      continue;
+    }
+    lastClosed = null;
+  }
+  return false;
+}
 
 export type Row = { kind: string; pattern: string };
 export type RowProblem = "kind" | "empty" | "length" | "nested" | "matchesEmpty" | "duplicate" | "tooMany";
+/** Em que campo da linha o problema aparece. */
+export type RowField = "kind" | "pattern";
+const FIELD: Record<RowProblem, RowField> = { kind: "kind", duplicate: "kind", tooMany: "kind", empty: "pattern", length: "pattern", nested: "pattern", matchesEmpty: "pattern" };
 
 export function readRows(patterns: Record<string, string> | undefined | null): Row[] {
   return Object.entries(patterns ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([kind, pattern]) => ({ kind, pattern }));
@@ -19,32 +45,54 @@ function compiled(pattern: string, flags = ""): RegExp | null {
   try { return new RegExp(pattern, flags); } catch { return null; }
 }
 
-export function rowsPayload(rows: readonly Row[]): { ok: true; patterns: Record<string, string> } | { ok: false; index: number; reason: RowProblem } {
+/** `count`: as linhas preenchidas (a vazia é ignorada); o botão de adicionar usa o mesmo número. */
+export function rowsPayload(rows: readonly Row[]):
+  | { ok: true; patterns: Record<string, string>; count: number }
+  | { ok: false; index: number; reason: RowProblem; field: RowField } {
   const patterns: Record<string, string> = {};
   let count = 0;
+  const fail = (index: number, reason: RowProblem) => ({ ok: false as const, index, reason, field: FIELD[reason] });
   for (const [index, row] of rows.entries()) {
     const kind = row.kind.trim();
     const pattern = row.pattern;
     if (!kind && !pattern.trim()) continue;
-    if (++count > MAX_PATTERNS) return { ok: false, index, reason: "tooMany" };
-    if (!KIND.test(kind)) return { ok: false, index, reason: "kind" };
-    if (Object.hasOwn(patterns, kind)) return { ok: false, index, reason: "duplicate" };
-    if (!pattern.trim()) return { ok: false, index, reason: "empty" };
-    if (pattern.length > MAX_PATTERN_LENGTH) return { ok: false, index, reason: "length" };
-    if (NESTED_QUANTIFIER.test(pattern)) return { ok: false, index, reason: "nested" };
-    if (compiled(pattern)?.test("")) return { ok: false, index, reason: "matchesEmpty" };
+    if (++count > MAX_PATTERNS) return fail(index, "tooMany");
+    if (!KIND.test(kind)) return fail(index, "kind");
+    if (Object.hasOwn(patterns, kind)) return fail(index, "duplicate");
+    if (!pattern.trim()) return fail(index, "empty");
+    if (pattern.length > MAX_PATTERN_LENGTH) return fail(index, "length");
+    if (nestedQuantifier(pattern)) return fail(index, "nested");
+    if (compiled(pattern)?.test("")) return fail(index, "matchesEmpty");
     patterns[kind] = pattern;
   }
-  return { ok: true, patterns };
+  return { ok: true, patterns, count };
 }
 
-/** A prévia no navegador: cada padrão troca o que acha por `[REMOVIDO:<tipo>]`, como no worker. */
+/** A prévia no navegador, com as regras do worker para os padrões próprios: tudo é achado no
+ * texto original, na sobreposição vale a linha de cima, e cada trecho vira `[REMOVIDO:<tipo>]`.
+ * Só entram as linhas que podem ser salvas (e que o navegador compila); os detectores da
+ * plataforma ficam de fora. */
 export function previewSanitized(sample: string, rows: readonly Row[]): string {
-  let text = sample;
+  const spans: { start: number; end: number; kind: string }[] = [];
+  const seen = new Set<string>();
   for (const row of rows) {
     const kind = row.kind.trim();
-    const pattern = KIND.test(kind) && row.pattern && !NESTED_QUANTIFIER.test(row.pattern) ? compiled(row.pattern, "g") : null;
-    if (pattern && !pattern.test("")) text = text.replace(pattern, `[REMOVIDO:${kind}]`);
+    if (!kind || seen.has(kind) || !rowsPayload([row]).ok) continue;
+    seen.add(kind);
+    const pattern = compiled(row.pattern, "g");
+    if (!pattern) continue;
+    for (const match of sample.matchAll(pattern)) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      if (end > start && !spans.some((span) => start < span.end && end > span.start)) spans.push({ start, end, kind });
+    }
   }
-  return text;
+  spans.sort((a, b) => a.start - b.start);
+  let text = "";
+  let at = 0;
+  for (const span of spans) {
+    text += `${sample.slice(at, span.start)}[REMOVIDO:${span.kind}]`;
+    at = span.end;
+  }
+  return text + sample.slice(at);
 }
