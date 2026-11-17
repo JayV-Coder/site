@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ActivityIcon, BellIcon, Building2Icon, CableIcon, FileUpIcon, LibraryIcon, PlugIcon, SirenIcon, TicketIcon, WebhookIcon, WorkflowIcon } from "lucide-react";
+import { ActivityIcon, BellIcon, Building2Icon, CableIcon, FileUpIcon, GaugeIcon, LibraryIcon, PlugIcon, ShieldCheckIcon, SirenIcon, TicketIcon, WebhookIcon, WorkflowIcon } from "lucide-react";
 import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import type { Organization } from "@/modules/doctor/api";
 import { getT } from "@/modules/i18n/server";
 
-export type DoctorSection = "overview" | "incidents" | "executions" | "integrations" | "connectors" | "import" | "alerts" | "webhooks" | "tickets" | "knowledge";
+export type DoctorSection = "overview" | "incidents" | "executions" | "integrations" | "connectors" | "import" | "alerts" | "webhooks" | "tickets" | "knowledge" | "usage" | "subprocessors";
 
 /** A moldura do Doctor: a Organização ativa em cima (o botão leva à troca), as seções e a
  * página. No celular as seções são uma faixa que rola de lado; a partir de `md`, uma coluna.
@@ -27,6 +27,8 @@ export async function DoctorShell({ locale, active, current, children }: {
     { id: "webhooks" as const, href: `${base}/webhooks`, label: t("site.doctor.nav.webhooks"), Icon: WebhookIcon },
     { id: "tickets" as const, href: `${base}/tickets`, label: t("site.doctor.nav.tickets"), Icon: TicketIcon },
     { id: "knowledge" as const, href: `${base}/knowledge`, label: t("site.doctor.nav.knowledge"), Icon: LibraryIcon },
+    { id: "usage" as const, href: `${base}/usage`, label: t("site.doctor.nav.usage"), Icon: GaugeIcon },
+    { id: "subprocessors" as const, href: `${base}/subprocessors`, label: t("site.doctor.nav.subprocessors"), Icon: ShieldCheckIcon },
   ];
 
   return (
