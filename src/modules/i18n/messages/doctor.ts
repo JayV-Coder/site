@@ -1046,9 +1046,4 @@ export const doctor = {
   "site.doctor.privacy.days": { one: "{count} day", other: "{count} days" },
   "site.doctor.subject.found": { one: "{count} Event with this reference.", other: "{count} Events with this reference." },
   "site.doctor.subject.erased": { one: "{count} Event erased.", other: "{count} Events erased." },
-  "site.doctor.shared.title": "Technical report",
-  "site.doctor.shared.intro": "This link was shared by an Integration AI Doctor Organization. It is valid for 7 days and can be revoked by whoever created it.",
-  "site.doctor.shared.download": "Download report",
-  "site.doctor.shared.invalid": "Invalid, expired or revoked link.",
-  "site.doctor.shared.failed": "Couldn't download right now. Try again.",
 } satisfies Record<string, Message>;
