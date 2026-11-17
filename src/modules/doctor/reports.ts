@@ -53,3 +53,8 @@ export function ticketProviders(
   if (operator) for (const provider of connected) shown.add(provider);
   return [...shown].map((provider) => ({ provider, canOpen: operator && connected.has(provider) }));
 }
+
+/** O nome do arquivo no `content-disposition` do link compartilhado; sem ele, "report". */
+export function dispositionName(disposition: string | null): string {
+  return /filename="([^"]+)"/.exec(disposition ?? "")?.[1] ?? "report";
+}

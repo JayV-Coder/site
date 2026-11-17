@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { downloadName, formatName, providerName, reportState, ticketBadge, ticketLine, ticketProviders } from "./reports";
+import { dispositionName, downloadName, formatName, providerName, reportState, ticketBadge, ticketLine, ticketProviders } from "./reports";
 
 describe("relatórios e chamados", () => {
   it("o formato tem nome próprio, igual em todo idioma", () => {
@@ -44,5 +44,13 @@ describe("relatórios e chamados", () => {
     expect(ticketProviders([{ provider: "servicenow" }], { ...jira, project_key: null }, null, true))
       .toEqual([{ provider: "servicenow", canOpen: false }]);
     expect(ticketProviders([], { ...jira, status: "needs_reauth" }, null, true)).toEqual([]);
+  });
+});
+
+describe("link compartilhado", () => {
+  it("lê o nome do arquivo do cabeçalho e cai num nome padrão", () => {
+    expect(dispositionName('attachment; filename="incident-12.pdf"')).toBe("incident-12.pdf");
+    expect(dispositionName("attachment")).toBe("report");
+    expect(dispositionName(null)).toBe("report");
   });
 });
