@@ -5,21 +5,18 @@ import { UploadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { contentTypeOf, KNOWLEDGE_ACCEPT, KNOWLEDGE_MAX_BYTES, titleOf } from "@/modules/doctor/knowledge";
+import { putSigned } from "@/modules/doctor/upload";
 import { OFFLINE } from "@/modules/doctor/useKeyedAction";
 import { useSay, useT } from "@/modules/i18n";
 import type { Text } from "@/modules/i18n/types";
-import { createDocument, finishDocument } from "./actions";
-
-/** O arquivo vai direto do navegador para o Storage, pela URL assinada: não passa pela API. */
-function put(url: string, file: File, type: string): Promise<boolean> {
-  return fetch(url, { method: "PUT", headers: { "content-type": type }, body: file }).then((response) => response.ok).catch(() => false);
-}
+import { createDocument, deleteDocument, finishDocument } from "./actions";
 
 export function UploadDocument() {
   const t = useT();
   const say = useSay();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const busy = progress !== null;
   const [error, setError] = useState<Text | null>(null);
   const [sent, setSent] = useState<string | null>(null);
 
@@ -29,8 +26,15 @@ export function UploadDocument() {
     if (file.size > KNOWLEDGE_MAX_BYTES) return { key: "site.doctor.knowledge.error.size" };
     const created = await createDocument({ title: titleOf(file.name), filename: file.name, content_type: type, size_bytes: file.size });
     if (!created.ok) return created.error;
-    if (!(await put(created.value.upload_url, file, type))) return { key: "site.doctor.import.error.upload" };
-    return finishDocument(created.value.id);
+    const { id, upload_url } = created.value;
+    if (!(await putSigned(upload_url, file, type, setProgress))) {
+      // Sem o arquivo, o documento ficaria "Aguardando o arquivo" para sempre: sai da lista, e
+      // escolher o arquivo de novo começa do zero. Com o arquivo enviado, não se apaga: a
+      // conclusão pode ter chegado à API mesmo sem resposta, e o documento já estar indexando.
+      await deleteDocument(id, crypto.randomUUID()).catch(() => null);
+      return { key: "site.doctor.import.error.upload" };
+    }
+    return finishDocument(id);
   };
 
   const choose = (event: ChangeEvent<HTMLInputElement>) => {
@@ -38,13 +42,13 @@ export function UploadDocument() {
     const file = input.files?.[0];
     input.value = "";
     if (!file) return;
-    setBusy(true);
+    setProgress(0);
     setError(null);
     setSent(null);
     void send(file).catch(() => OFFLINE).then((failed) => {
       setError(failed);
       if (failed === null) setSent(file.name);
-    }).finally(() => setBusy(false));
+    }).finally(() => setProgress(null));
   };
 
   return (
@@ -61,7 +65,7 @@ export function UploadDocument() {
           <span className="text-xs text-muted-foreground">{t("site.doctor.knowledge.formats")}</span>
           <input type="file" accept={KNOWLEDGE_ACCEPT} className="sr-only" disabled={busy} onChange={choose} />
         </label>
-        {busy && <p role="status" className="text-sm text-muted-foreground">{t("site.doctor.import.sending")}</p>}
+        {progress !== null && <p role="status" className="text-sm text-muted-foreground">{t("site.doctor.import.progress", { percent: Math.round(progress * 100) })}</p>}
         {error && <p role="alert" className="text-sm text-destructive">{say(error)}</p>}
         {sent && <p role="status" className="text-sm text-success">{t("site.doctor.knowledge.sent", { name: sent })}</p>}
       </DialogContent>
