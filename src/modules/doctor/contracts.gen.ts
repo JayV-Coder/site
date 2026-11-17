@@ -300,6 +300,67 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/imports/mapping-suggestion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Suggest Mapping
+     * @description A sugestão pelo nome das colunas do cabeçalho (o mesmo que o worker reconheceria).
+     */
+    post: operations["suggest_mapping_api_v1_imports_mapping_suggestion_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/imports/mappings/{target}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Mapping */
+    get: operations["get_mapping_api_v1_imports_mappings__target__get"];
+    /**
+     * Put Mapping
+     * @description Vale para as próximas Importações da Integração; vazio volta à detecção pelo nome.
+     */
+    put: operations["put_mapping_api_v1_imports_mappings__target__put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/imports/{target}/rejections": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Download Rejections
+     * @description As linhas recusadas, em CSV (`linha,motivo`), para corrigir o arquivo e importar de novo.
+     */
+    get: operations["download_rejections_api_v1_imports__target__rejections_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/imports/{target}/upload-url": {
     parameters: {
       query?: never;
@@ -1415,6 +1476,30 @@ export interface paths {
      * @description Perfil de IA (ADR-0018): Owner com MFA troca entre o padrão e o Brasil.
      */
     put: operations["put_ai_profile_api_v1_privacy_ai_profile_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/privacy/sanitization": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Sanitization
+     * @description Padrões extras e IPs internos (#13); sem configuração, os padrões do Sanitizer.
+     */
+    get: operations["get_sanitization_api_v1_privacy_sanitization_get"];
+    /**
+     * Put Sanitization
+     * @description Vale para os Eventos que chegarem daqui em diante; os já gravados não mudam.
+     */
+    put: operations["put_sanitization_api_v1_privacy_sanitization_put"];
     post?: never;
     delete?: never;
     options?: never;
@@ -2840,6 +2925,24 @@ export interface components {
        */
       created_at: string;
     };
+    /** ImportMapping */
+    ImportMapping: {
+      /** Columns */
+      columns: {
+        [key: string]: string;
+      };
+      /** Fields */
+      fields?: {
+        [key: string]: string[];
+      };
+    };
+    /** ImportMappingChange */
+    ImportMappingChange: {
+      /** Columns */
+      columns: {
+        [key: string]: string;
+      };
+    };
     /** IncidentChange */
     IncidentChange: {
       /** Status */
@@ -3381,6 +3484,18 @@ export interface components {
        */
       reconcile: boolean;
       lookup?: components["schemas"]["Lookup"] | null;
+    };
+    /** MappingSuggestion */
+    MappingSuggestion: {
+      /** Columns */
+      columns: {
+        [key: string]: string;
+      };
+    };
+    /** MappingSuggestionRequest */
+    MappingSuggestionRequest: {
+      /** Columns */
+      columns: string[];
     };
     /** Me */
     Me: {
@@ -3958,6 +4073,26 @@ export interface components {
       description: string;
       /** Matched Event Ids */
       matched_event_ids: string[];
+    };
+    /**
+     * SanitizationRules
+     * @description Regras de Sanitização da Organização (#13), aplicadas antes de gravar o Evento.
+     */
+    SanitizationRules: {
+      /** Extra Patterns */
+      extra_patterns?: {
+        [key: string]: string;
+      };
+      /**
+       * Detect Ips
+       * @default true
+       */
+      detect_ips: boolean;
+      /**
+       * Allow Private Ips
+       * @default false
+       */
+      allow_private_ips: boolean;
     };
     /** ScimToken */
     ScimToken: {
@@ -5079,6 +5214,143 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["CreatedImport"];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  suggest_mapping_api_v1_imports_mapping_suggestion_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MappingSuggestionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MappingSuggestion"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_mapping_api_v1_imports_mappings__target__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        target: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportMapping"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  put_mapping_api_v1_imports_mappings__target__put: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+        "idempotency-key"?: string | null;
+      };
+      path: {
+        target: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ImportMappingChange"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportMapping"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  download_rejections_api_v1_imports__target__rejections_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        target: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {
@@ -7902,6 +8174,73 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_sanitization_api_v1_privacy_sanitization_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SanitizationRules"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  put_sanitization_api_v1_privacy_sanitization_put: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+        "idempotency-key"?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SanitizationRules"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SanitizationRules"];
+        };
       };
       /** @description Validation Error */
       422: {

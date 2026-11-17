@@ -30,8 +30,8 @@ Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana, a promoção
 conhecimento, os chamados no ITSM e o relatório técnico) e Execuções (lista, Timeline e Evento
 original) Integrações (com os Mapas entre sistemas) e
 Conectores (lista, histórico e o assistente de novo Conector do Google Cloud e do Salesforce),
-Alertas (regras, canais, push neste aparelho e silêncio) e Webhooks de saída (com as entregas);
-o resto das telas chega em blocos.
+Alertas (regras, canais, push neste aparelho e silêncio), Webhooks de saída (com as entregas) e
+Importação (com o mapeamento de colunas); o resto das telas chega em blocos.
 
 ## Rodar
 
