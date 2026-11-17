@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PROVIDER_NAMES } from "@/components/atoms";
 import { ProviderButton } from "@/components/molecules";
+import { callbackPath } from "@/modules/auth/next";
 import { authFailure } from "@/modules/auth/errors";
 import { PROVIDERS, type Provider } from "@/modules/auth/identities";
 import { useFeedback } from "@/modules/feedback";
@@ -19,7 +20,7 @@ export function ProviderButtons({ next, disabled }: { next: string; disabled?: b
 
   const go = async (provider: Provider) => {
     setChosen(provider);
-    const redirectTo = `${window.location.origin}/${locale}/auth/callback?next=${encodeURIComponent(next)}`;
+    const redirectTo = `${window.location.origin}${callbackPath(locale, next)}`;
     const { error } = await browserSupabase().auth.signInWithOAuth({ provider, options: { redirectTo } });
     if (error) {
       setChosen(null);

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { SitePage } from "@/components/organisms/SitePage";
-import { provisionNext } from "@/modules/doctor/ssoLogin";
+import { provisionNext, provisionPath } from "@/modules/doctor/ssoLogin";
 import { getT } from "@/modules/i18n/server";
 import { Provision } from "./Provision";
 
@@ -17,7 +17,8 @@ export default async function ProvisionPage({ params, searchParams }: PageProps<
   const [{ locale }, query] = await Promise.all([params, searchParams]);
   const next = provisionNext(locale, typeof query.next === "string" ? query.next : null);
   const session = await auth();
-  if (!session?.accessToken) redirect(`/${locale}/login?next=${encodeURIComponent(`/${locale}/doctor`)}`);
+  // Sem sessão (cookie perdido na volta do IdP), entra de novo e volta para cá, com o destino.
+  if (!session?.accessToken) redirect(`/${locale}/login?next=${encodeURIComponent(provisionPath(locale, next))}`);
   const t = await getT(locale);
   return (
     <SitePage locale={locale}>

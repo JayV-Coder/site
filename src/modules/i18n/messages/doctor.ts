@@ -995,7 +995,7 @@ export const doctor = {
   "site.doctor.shared.done": "Download started.",
   "site.doctor.shared.tooMany": "Too many tries from this network. Wait a few minutes and try again.",
   "site.doctor.ssoLogin.available": "{domain} can sign in with your company's SSO.",
-  "site.doctor.ssoLogin.required": "{domain} signs in with your company's SSO. Continue to sign in with the identity provider.",
+  "site.doctor.ssoLogin.required": "{domain} enters the Integration AI Doctor through your company's SSO. Your password still works for the rest of the site.",
   "site.doctor.ssoLogin.continue": "Continue with company SSO",
   "site.doctor.ssoLogin.title": "Signing in with SSO",
   "site.doctor.ssoLogin.provisioning": "Joining your Organization…",
