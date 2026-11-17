@@ -1060,4 +1060,7 @@ export const doctor = {
   "site.doctor.sso.error.group.length": "Up to 200 characters.",
   "site.doctor.sso.error.group.tooMany": "Up to {max} groups.",
   "site.doctor.sso.members": "SSO and SCIM",
+  "site.doctor.sso.setUpMfa": "Set up two-step verification",
+  "site.doctor.sso.errorNoDetail": "The platform couldn't register the identity provider. Check the metadata URL and save again.",
+  "site.doctor.sso.checkFailed": "Not verified yet. Check that the TXT record is published exactly as shown and try again.",
 } satisfies Record<string, Message>;

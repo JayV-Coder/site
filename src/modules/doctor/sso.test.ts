@@ -18,6 +18,7 @@ describe("SSO da Organização", () => {
 
   it("domínio em minúsculas, sem espaços, no formato que a API aceita", () => {
     expect(normalizeDomain("  ACME.com.BR ")).toBe("acme.com.br");
+    expect(normalizeDomain("acme.com.")).toBe("acme.com");
     expect(validDomain("acme.com.br")).toBe(true);
     expect(validDomain("acme")).toBe(false);
     expect(validDomain("-acme.com")).toBe(false);

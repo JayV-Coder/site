@@ -24,7 +24,8 @@ export function validMetadataUrl(url: string): boolean {
   return url.length <= 500 && /^https:\/\/[^\s@]+$/.test(url);
 }
 
-export const normalizeDomain = (domain: string) => domain.trim().toLowerCase();
+/** Em minúsculas e sem o ponto final que alguns painéis de DNS mostram (`acme.com.`). */
+export const normalizeDomain = (domain: string) => domain.trim().toLowerCase().replace(/\.$/, "");
 export const validDomain = (domain: string) => domain.length <= 253 && DOMAIN.test(domain);
 
 /** "Exigir SSO" sem domínio verificado deixaria a regra sem efeito: a API recusa. */

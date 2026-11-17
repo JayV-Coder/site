@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { EmptyText } from "@/components/atoms";
 import { PageHeading } from "@/components/molecules";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +29,9 @@ export default async function SsoPage({ params }: PageProps<"/[locale]/doctor/ss
   const [access, t] = await Promise.all([requireDoctor(locale, "/doctor/sso"), getT(locale)]);
   if (!access) return <UnavailablePage locale={locale} />;
   const response = await doctorFetch("/sso").catch(() => null);
-  const forbidden = response?.status === 403;
+  // 403: sem MFA, a saída é cadastrar o app autenticador; sem o Papel, renovar o acesso.
+  const denied = response?.status === 403 ? (((await response.json().catch(() => ({}))) as { code?: string }).code ?? "forbidden") : null;
+  const forbidden = denied !== null;
   const settings = response?.ok ? ((await response.json().catch(() => null)) as Schemas["SsoSettings"] | null) : null;
   const state = ssoState(settings?.connection ?? null);
 
@@ -38,16 +42,20 @@ export default async function SsoPage({ params }: PageProps<"/[locale]/doctor/ss
       </PageHeading>
       {forbidden && (
         <div className="grid justify-items-start gap-3">
-          <EmptyText>{t("site.doctor.sso.ownerOnly")}</EmptyText>
-          <RenewAccess />
+          <EmptyText>{t(denied === "mfa_required" ? "site.doctor.error.mfaRequired" : "site.doctor.sso.ownerOnly")}</EmptyText>
+          {denied === "mfa_required"
+            ? <Button asChild variant="outline"><Link href={`/${locale}/dashboard/account`}>{t("site.doctor.sso.setUpMfa")}</Link></Button>
+            : <RenewAccess />}
         </div>
       )}
       {!forbidden && !settings && <Unavailable locale={locale} title={t("site.doctor.sso.unavailable")} retry="/doctor/sso" />}
       {settings && (
         <div className="grid max-w-2xl gap-6">
           {settings.connection?.status === "pending_platform" && <p role="status" className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-sm">{t("site.doctor.sso.pendingNote")}</p>}
-          {settings.connection?.status === "error" && settings.connection.last_error && (
-            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words">{t("site.doctor.sso.errorNote", { error: settings.connection.last_error })}</p>
+          {settings.connection?.status === "error" && (
+            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm break-words">
+              {settings.connection.last_error ? t("site.doctor.sso.errorNote", { error: settings.connection.last_error }) : t("site.doctor.sso.errorNoDetail")}
+            </p>
           )}
           {/* Remonta só quando a conexão nasce ou some: salvar não apaga o "salvo" da tela. */}
           <ConnectionForm key={settings.connection?.id ?? "new"} connection={settings.connection} canRequire={canRequireSso(settings.domains)} />

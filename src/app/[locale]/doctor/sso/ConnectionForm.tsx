@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConfirmAction, FormField, OptionSelect, ToggleRow } from "@/components/molecules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,10 @@ export function ConnectionForm({ connection, canRequire }: { connection: Connect
   const [requireSso, setRequireSso] = useState(connection?.require_sso ?? false);
   const [role, setRole] = useState<SsoRole | "none">(connection?.default_role ?? "none");
   const [saved, setSaved] = useState(false);
+  // O servidor desliga "Exigir SSO" quando sai o último domínio verificado: a tela acompanha,
+  // senão o próximo Salvar religaria sem ninguém pedir.
+  const serverRequire = connection?.require_sso ?? false;
+  useEffect(() => { setRequireSso(serverRequire); }, [serverRequire]);
   const url = metadata.trim();
   const urlError = url && !validMetadataUrl(url) ? t("site.doctor.sso.error.metadata") : null;
   const touch = () => { setSaved(false); save.reset(); };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/modules/i18n";
@@ -12,8 +12,12 @@ export function CopyValue({ label, value }: { label: string; value: string }) {
   const timer = useRef<number | undefined>(undefined);
   const copy = () => {
     const show = (result: "ok" | "failed") => { window.clearTimeout(timer.current); setCopied(result); timer.current = window.setTimeout(() => setCopied(null), 2000); };
-    navigator.clipboard.writeText(value).then(() => show("ok"), () => show("failed"));
+    // Fora de HTTPS não há `navigator.clipboard`: aí a pessoa copia à mão.
+    const writing = navigator.clipboard?.writeText(value);
+    if (!writing) { show("failed"); return; }
+    writing.then(() => show("ok"), () => show("failed"));
   };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   return (
     <div className="grid gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
