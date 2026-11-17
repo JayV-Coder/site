@@ -145,6 +145,7 @@ export function PrivacyPanel({ locale, settings, manager, owner, slug }: { local
         <AiProfile settings={settings} owner={owner} locale={locale} />
         <ul className="grid gap-2 text-sm">
           <li><Link className="underline underline-offset-4" href={`/${locale}/doctor/subprocessors`}>{t("site.doctor.nav.subprocessors")}</Link></li>
+          <li><Link className="underline underline-offset-4" href={`/${locale}/doctor/privacy/sanitization`}>{t("site.doctor.sanitization.title")}</Link> <span className="text-muted-foreground">— {t("site.doctor.sanitization.hint")}</span></li>
           {manager && <li><Link className="underline underline-offset-4" href={`/${locale}/doctor/subject`}>{t("site.doctor.subject.title")}</Link> <span className="text-muted-foreground">— {t("site.doctor.subject.hint")}</span></li>}
         </ul>
       </section>
