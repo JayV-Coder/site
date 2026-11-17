@@ -993,4 +993,5 @@ export const doctor = {
   "site.doctor.shared.invalid": "This link is invalid, expired or was revoked. Ask whoever sent it for a new one.",
   "site.doctor.shared.failed": "Couldn't download now. Try again.",
   "site.doctor.shared.done": "Download started.",
+  "site.doctor.shared.tooMany": "Too many tries from this network. Wait a few minutes and try again.",
 } satisfies Record<string, Message>;

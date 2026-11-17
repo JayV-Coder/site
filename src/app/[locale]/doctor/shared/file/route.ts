@@ -8,7 +8,12 @@ export async function POST(request: Request): Promise<Response> {
   const token = typeof body.token === "string" ? shareToken(body.token) : null;
   if (!token) return new Response(null, { status: 404 });
   const response = await doctorPublicFetch("/shared-reports", { method: "POST", body: JSON.stringify({ token }) }).catch(() => null);
-  if (!response?.ok || !response.body) return new Response(null, { status: response?.status === 404 ? 404 : 502 });
+  // 404: inválido, vencido ou revogado; 429: o limite por IP da porta anônima (com o tempo de espera).
+  if (!response?.ok || !response.body) {
+    const status = response?.status === 404 || response?.status === 429 ? response.status : 502;
+    const retry = response?.headers.get("retry-after");
+    return new Response(null, { status, headers: retry ? { "retry-after": retry } : {} });
+  }
   return new Response(response.body, {
     headers: {
       "content-type": response.headers.get("content-type") ?? "application/octet-stream",

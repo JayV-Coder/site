@@ -7,12 +7,18 @@ export function shareToken(hash: string): string | null {
   return /^[A-Za-z0-9_-]{32,128}$/.test(token) ? token : null;
 }
 
-/** O nome do arquivo que a API dá (`filename*` com acentos, senão `filename`), sem caminho. */
-export function downloadName(disposition: string | null): string {
-  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition ?? "")?.[1];
-  let name = /filename="([^"]+)"/i.exec(disposition ?? "")?.[1] ?? "";
+const EXTENSIONS: Record<string, string> = { "application/pdf": ".pdf", "text/markdown": ".md" };
+
+/** O nome do arquivo do `content-disposition` (`filename*` com acentos, senão `filename`, com ou
+ * sem aspas), sem caminho. Sem nome, `report` com a extensão do tipo. */
+export function dispositionFilename(disposition: string | null, contentType: string | null): string {
+  const header = disposition ?? "";
+  const encoded = /filename\*\s*=\s*UTF-8'[^']*'([^;]+)/i.exec(header)?.[1];
+  let name = /filename\s*=\s*"([^"]*)"/i.exec(header)?.[1] ?? /filename\s*=\s*([^;"\s]+)/i.exec(header)?.[1] ?? "";
   if (encoded) {
-    try { name = decodeURIComponent(encoded); } catch { /* fica o `filename` */ }
+    try { name = decodeURIComponent(encoded.trim()); } catch { /* fica o `filename` */ }
   }
-  return name.split(/[\\/]/).pop()?.trim() || "report";
+  const base = name.split(/[\\/]/).pop()?.trim();
+  if (base) return base;
+  return `report${EXTENSIONS[(contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? ""] ?? ""}`;
 }
