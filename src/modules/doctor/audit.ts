@@ -5,6 +5,9 @@ import type { Key } from "@/modules/i18n";
 export const AUDIT_CATEGORIES = ["security", "diagnosis", "connectors", "data", "incidents"] as const;
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number];
 
+/** O termo de busca que a API aceita (`AuditSearch.q`): mais que isso, ela recusa. */
+export const AUDIT_TERM_MAX = 200;
+
 export function readCategory(value: unknown): AuditCategory | null {
   return typeof value === "string" && (AUDIT_CATEGORIES as readonly string[]).includes(value) ? (value as AuditCategory) : null;
 }

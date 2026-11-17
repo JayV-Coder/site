@@ -36,7 +36,8 @@ export default async function AuditPage({ params, searchParams }: PageProps<"/[l
           { href: base, label: t("site.doctor.audit.category.all"), current: category === null },
           ...AUDIT_CATEGORIES.map((value) => ({ href: `${base}?category=${value}`, label: t(`site.doctor.audit.category.${value}`), current: category === value })),
         ]} />
-        {exported && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">{t(exported === "forbidden" ? "site.doctor.audit.forbidden" : "site.doctor.audit.exportFailed")}</p>}
+        {/* Sem acesso, a página já diz por quê: o aviso da exportação repetiria. */}
+        {exported && page !== "forbidden" && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm">{t(exported === "forbidden" ? "site.doctor.audit.forbidden" : "site.doctor.audit.exportFailed")}</p>}
         {page === "forbidden" && (
           <div className="grid justify-items-start gap-3">
             <EmptyText>{t("site.doctor.audit.forbidden")}</EmptyText>

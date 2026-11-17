@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { doctorFetch } from "@/modules/doctor/api";
-import { readCategory } from "@/modules/doctor/audit";
+import { AUDIT_TERM_MAX, readCategory } from "@/modules/doctor/audit";
 import { requestOrigin } from "@/modules/git/server";
 
 /** O CSV da Trilha de auditoria: o formulário manda os filtros no corpo (o termo não vai para a
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/[loc
     return typeof found === "string" && found.trim() ? found.trim() : undefined;
   };
   const category = readCategory(text("category"));
-  const q = text("q");
+  const q = text("q")?.slice(0, AUDIT_TERM_MAX);
   const response = await doctorFetch("/audit-logs/export", {
     method: "POST",
     body: JSON.stringify({ ...(category && { category }), ...(q && { q }) }),

@@ -5,7 +5,7 @@ import { DownloadIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Schemas } from "@/modules/doctor/api";
-import { actorOf, auditTone, describeEntry } from "@/modules/doctor/audit";
+import { AUDIT_TERM_MAX, actorOf, auditTone, describeEntry } from "@/modules/doctor/audit";
 import { roleKey, utcDateTime } from "@/modules/doctor/labels";
 import { useT } from "@/modules/i18n";
 import { cn } from "@/lib/utils";
@@ -26,14 +26,18 @@ export function AuditList({ locale, category, initial }: { locale: string; categ
   const [submitted, setSubmitted] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, startBusy] = useTransition();
+  // Qual pedido está em andamento: cada botão mostra só o seu, e "Carregar mais" espera a busca.
+  const [pending, setPending] = useState<"search" | "more" | null>(null);
   // Só a resposta do último pedido vale (uma busca nova enquanto a anterior não voltou).
   const round = useRef(0);
 
   const run = (q: string | null, after: string | null) => {
     const mine = ++round.current;
+    setPending(after ? "more" : "search");
     startBusy(async () => {
       const page = await findAudit(category, q, after).catch(() => null);
       if (mine !== round.current) return;
+      setPending(null);
       if (page === null || page === "forbidden") { setFailed(true); return; }
       setFailed(false);
       setSubmitted(q);
@@ -59,8 +63,8 @@ export function AuditList({ locale, category, initial }: { locale: string; categ
       <div className="flex flex-wrap items-start gap-2">
         <form role="search" className="flex min-w-0 flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); run(term.trim() || null, null); }}>
           <Input type="search" autoCapitalize="none" spellCheck={false} aria-label={t("site.doctor.audit.filter")} placeholder={t("site.doctor.audit.filterHint")}
-            value={term} onChange={(event) => setTerm(event.currentTarget.value)} />
-          <Button type="submit" variant="outline" loading={busy} aria-label={t("site.doctor.audit.filter")}><SearchIcon /></Button>
+            maxLength={AUDIT_TERM_MAX} value={term} onChange={(event) => setTerm(event.currentTarget.value)} />
+          <Button type="submit" variant="outline" loading={busy && pending === "search"} aria-label={t("site.doctor.audit.filter")}><SearchIcon /></Button>
         </form>
         <form method="post" action={`/${locale}/doctor/audit/export`}>
           <input type="hidden" name="category" value={category ?? ""} />
@@ -92,7 +96,7 @@ export function AuditList({ locale, category, initial }: { locale: string; categ
           })}
         </ol>
       )}
-      {cursor && <Button type="button" variant="outline" className="justify-self-start" loading={busy} onClick={() => run(submitted, cursor)}>{t("site.doctor.audit.loadMore")}</Button>}
+      {cursor && <Button type="button" variant="outline" className="justify-self-start" loading={busy && pending === "more"} disabled={busy} onClick={() => run(submitted, cursor)}>{t("site.doctor.audit.loadMore")}</Button>}
     </div>
   );
 }
