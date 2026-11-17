@@ -10,12 +10,13 @@ const TYPES: Record<string, { label: string; type: string }> = {
   docx: { label: "DOCX", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
 };
 
-export const KNOWLEDGE_ACCEPT = ".pdf,.md,.markdown,.txt,.docx";
+export const KNOWLEDGE_ACCEPT = Object.keys(TYPES).map((extension) => `.${extension}`).join(",");
 export const KNOWLEDGE_MAX_BYTES = 20 * 1024 * 1024;
 
 export function contentTypeOf(filename: string): string | null {
-  const extension = filename.split(".").pop()?.toLowerCase() ?? "";
-  return TYPES[extension]?.type ?? null;
+  // Sem ponto não há extensão: um arquivo chamado só "pdf" não é PDF.
+  const extension = /\.([^.]+)$/.exec(filename)?.[1]?.toLowerCase() ?? "";
+  return Object.hasOwn(TYPES, extension) ? TYPES[extension].type : null;
 }
 
 /** INC é um caso promovido de um Incidente resolvido; o resto, o tipo do arquivo. */
@@ -31,4 +32,18 @@ export function documentState(status: string): { key: Key; variant: Variant } {
   return { key: `site.doctor.knowledge.state.${status}` as Key, variant: STATES[status] ?? "outline" };
 }
 
-export const titleOf = (filename: string) => filename.replace(/\.[^.]+$/, "");
+/** O título vem do nome do arquivo sem a extensão. A API pede de 1 a 200 caracteres sem espaço
+ * nas pontas: sem nada além da extensão (".md"), o título é o nome inteiro. */
+export function titleOf(filename: string): string {
+  const title = filename.replace(/\.[^.]+$/, "").trim() || filename.trim();
+  return [...title].slice(0, 200).join("").trim();
+}
+
+/** Documento pendente esquecido (o envio falhou ou a aba fechou) não fica para sempre: depois deste
+ * prazo, a página para de reler por causa dele. */
+const PENDING_WINDOW_MS = 30 * 60_000;
+
+export function needsRefresh(documents: readonly { status: string; created_at: string }[], now: Date): boolean {
+  return documents.some((item) => item.status === "indexing"
+    || (item.status === "pending" && now.getTime() - new Date(item.created_at).getTime() < PENDING_WINDOW_MS));
+}

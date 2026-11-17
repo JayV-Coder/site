@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { SearchIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,17 @@ export function KnowledgeSearch() {
   const [results, setResults] = useState<Schemas["KnowledgeResults"] | null>(null);
   const [failed, setFailed] = useState(false);
   const [busy, startBusy] = useTransition();
+  // Só a resposta da última busca vale: uma anterior mais lenta não troca o resultado.
+  const round = useRef(0);
   return (
     <section aria-label={t("site.doctor.knowledge.search")} className="grid gap-3">
       <form role="search" className="flex gap-2" onSubmit={(event) => {
         event.preventDefault();
         if (term.trim().length < 2) return;
+        const mine = ++round.current;
         startBusy(async () => {
           const found = await searchKnowledge(term).catch(() => null);
+          if (mine !== round.current) return;
           setFailed(found === null);
           setResults(found);
         });
