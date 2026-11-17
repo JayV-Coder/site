@@ -143,7 +143,7 @@ export default async function IncidentPage({ params, searchParams }: PageProps<"
               {/* A API decide pela mesma regra da promoção no banco (versão final mais nova). */}
               {operator && incident.promotable && <PromoteButton incidentId={incident.id} />}
               {incident.knowledge_document_id && (
-                <p className="rounded-md border border-border bg-secondary px-3 py-2 text-sm">{t("site.doctor.promote.inKnowledge")}</p>
+                <Link href={`/${locale}/doctor/knowledge`} className="rounded-md border border-border bg-secondary px-3 py-2 text-sm transition-colors hover:bg-secondary/70">{t("site.doctor.promote.inKnowledge")}</Link>
               )}
               {earlier && diagnosis && <VersionDifferences locale={locale} before={earlier} after={diagnosis} />}
               {diagnosis && <DiagnosisHypotheses locale={locale} diagnosis={diagnosis} />}

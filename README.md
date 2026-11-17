@@ -30,8 +30,8 @@ Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana, a promoção
 conhecimento, os chamados no ITSM e o relatório técnico), Execuções (lista, Timeline e Evento
 original), Integrações (com os Mapas entre sistemas), Conectores (lista, histórico, o assistente
 de novo Conector do Google Cloud e do Salesforce e os agentes locais), Alertas (regras, canais,
-push neste aparelho e silêncio), Webhooks de saída (com as entregas), Importação (com o mapeamento de colunas), Chamados (Jira e ServiceNow), Uso e cotas e Subprocessadores; o resto das
-telas chega em blocos.
+push neste aparelho e silêncio), Webhooks de saída (com as entregas), Importação (com o mapeamento de colunas), Chamados (Jira e ServiceNow), a Base de conhecimento, Uso e cotas e Subprocessadores; o resto das
+telas chega em blocos. A volta do consentimento do Jira é `APP_URL/doctor/tickets/jira`.
 
 ## Rodar
 
