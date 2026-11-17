@@ -54,6 +54,14 @@ export async function doctorGet<T>(path: string): Promise<T | "not_found" | null
   return response?.ok ? ((await response.json()) as T) : null;
 }
 
+/** Para rotas que respondem `null` quando não há o recurso (a conexão com o ITSM, por exemplo):
+ * separa "não há" (`ok: true, value: null`) de "a API não respondeu" (`ok: false`). */
+export async function doctorMaybe<T>(path: string): Promise<{ ok: true; value: T | null } | { ok: false }> {
+  const response = await doctorFetch(path).catch(() => null);
+  if (!response?.ok) return { ok: false };
+  return { ok: true, value: (await response.json().catch(() => null)) as T | null };
+}
+
 /** Lista ou objeto sem o caso "não existe": `null` quando a API não respondeu ou recusou. */
 export async function doctorList<T>(path: string): Promise<T | null> {
   const response = await doctorFetch(path).catch(() => null);

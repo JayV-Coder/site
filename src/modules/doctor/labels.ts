@@ -110,6 +110,14 @@ export function nameOf(t: (key: Key) => string, found: { name: string } | { key:
   return "name" in found ? found.name : t(found.key);
 }
 
+/** As opções de Integração das telas: só as ativas, com o Ambiente no rótulo. */
+export function integrationOptions(t: (key: Key) => string, integrations: readonly { id: string; name: string; environment: string; archived_at?: string | null }[]): { id: string; label: string }[] {
+  return integrations.filter((item) => !item.archived_at).map((item) => {
+    const environment = environmentKey(item.environment);
+    return { id: item.id, label: `${item.name} · ${environment ? t(environment) : item.environment}` };
+  });
+}
+
 export const SLUG_MAX = 40;
 
 function plain(text: string): string {

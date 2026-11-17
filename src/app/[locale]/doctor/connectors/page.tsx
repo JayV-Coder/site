@@ -37,6 +37,7 @@ export default async function ConnectorsPage({ params }: PageProps<"/[locale]/do
       {/* O status muda com as Sincronizações: a página relê pela API. */}
       <AutoRefresh />
       <PageHeading title={t("site.doctor.nav.connectors")} description={t("site.doctor.connectors.intro")}>
+        <Button asChild variant="outline" size="sm"><Link href={`/${locale}/doctor/connectors/agents`}>{t("site.doctor.agents.title")}</Link></Button>
         {manager && <Button asChild size="sm"><Link href={`/${locale}/doctor/connectors/new`}><PlusIcon />{t("site.doctor.connectors.add")}</Link></Button>}
       </PageHeading>
       {connectors === null && <Unavailable locale={locale} title={t("site.doctor.connectors.unavailable")} retry="/doctor/connectors" />}

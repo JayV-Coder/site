@@ -38,8 +38,10 @@ export async function sendToDoctor(path: string, init: RequestInit, options: Opt
   return "error" in result ? result.error : null;
 }
 
+export type Result<T> = { ok: true; value: T } | { ok: false; error: Text };
+
 /** A mesma escrita, para quem precisa da resposta (o id do relatório, o link criado). */
-export async function sendForResult<T>(path: string, init: RequestInit, options: Options): Promise<{ ok: true; value: T } | { ok: false; error: Text }> {
+export async function sendForResult<T>(path: string, init: RequestInit, options: Options): Promise<Result<T>> {
   const result = await call(path, init, options);
   if ("error" in result) return { ok: false, error: result.error };
   return { ok: true, value: (await result.response.json()) as T };

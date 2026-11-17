@@ -27,11 +27,11 @@ sessão do site. Elas falam com a API do `JayV-Coder/jayv-doctor`, pelo servidor
 defina `DOCTOR_API_URL`. Sem ela, ou com a API fora do ar, as páginas avisam que o serviço
 não respondeu. Por enquanto estão aqui a escolha e a criação de Organização, o painel e os
 Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana, a promoção à Base de
-conhecimento, os chamados no ITSM e o relatório técnico) e Execuções (lista, Timeline e Evento
-original) Integrações (com os Mapas entre sistemas) e
-Conectores (lista, histórico e o assistente de novo Conector do Google Cloud e do Salesforce),
-Alertas (regras, canais, push neste aparelho e silêncio), Webhooks de saída (com as entregas) e
-Importação (com o mapeamento de colunas), Uso e cotas e Subprocessadores; o resto das telas chega em blocos.
+conhecimento, os chamados no ITSM e o relatório técnico), Execuções (lista, Timeline e Evento
+original), Integrações (com os Mapas entre sistemas), Conectores (lista, histórico, o assistente
+de novo Conector do Google Cloud e do Salesforce e os agentes locais), Alertas (regras, canais,
+push neste aparelho e silêncio), Webhooks de saída (com as entregas), Importação (com o mapeamento de colunas), Chamados (Jira e ServiceNow), Uso e cotas e Subprocessadores; o resto das
+telas chega em blocos.
 
 ## Rodar
 

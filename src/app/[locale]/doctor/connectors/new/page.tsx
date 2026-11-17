@@ -4,7 +4,7 @@ import { BackLink, LinkSegments, PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
 import { doctorList, type Schemas } from "@/modules/doctor/api";
-import { canManage, environmentKey } from "@/modules/doctor/labels";
+import { canManage, integrationOptions } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../../access";
 import { DoctorShell } from "../../DoctorShell";
@@ -42,10 +42,7 @@ export default async function NewConnectorPage({ params, searchParams }: PagePro
       </div>,
     );
   }
-  const options = integrations.map((integration) => {
-    const environment = environmentKey(integration.environment);
-    return { id: integration.id, label: `${integration.name} · ${environment ? t(environment) : integration.environment}` };
-  });
+  const options = integrationOptions(t, integrations);
   const base = `/${locale}/doctor/connectors/new`;
   return shell(
     <>
