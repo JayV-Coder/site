@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormField, OptionSelect } from "@/components/molecules";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -88,16 +88,20 @@ function SalesforceCredential({ onChange }: { onChange: (credential: string | nu
         <OptionSelect id="doctor-sf-auth" value={auth} onChange={(mode) => { setAuth(mode); onChange(null); }}
           options={[{ value: "jwt_bearer", label: t("site.doctor.credential.sfJwt") }, { value: "web_server", label: t("site.doctor.credential.sfWeb") }]} />
       </FormField>
-      <SalesforceSecret key={auth} auth={auth} onChange={onChange} />
+      <SalesforceSecret auth={auth} onChange={onChange} />
     </div>
   );
 }
 
 /** Os campos da Connected App para um modo de autenticação já escolhido (o assistente escolhe o
- * modo junto com a config). Trocar de modo recomeça os campos. */
+ * modo junto com a config). */
 export function SalesforceSecret({ auth, onChange }: { auth: SalesforceAuth; onChange: (credential: string | null) => void }) {
   const t = useT();
   const [fields, setFields] = useState(EMPTY);
+  // Trocar de modo mantém o que vale nos dois (Consumer Key, usuário) e refaz a credencial.
+  const report = useRef(onChange);
+  report.current = onChange;
+  useEffect(() => { report.current(buildSalesforceCredential(auth, fields)); }, [auth]); // eslint-disable-line react-hooks/exhaustive-deps
   const change = (next: Partial<SalesforceFields>) => {
     const merged = { ...fields, ...next };
     setFields(merged);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormField, OptionSelect } from "@/components/molecules";
@@ -8,18 +8,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Schemas } from "@/modules/doctor/api";
-import { INTERVALS, intervalParts } from "@/modules/doctor/connectors";
-import { buildGcpConfig, EMPTY_GCP, GCP_DRAFT_KEY, gcloudCommands, readGcpDraft, SEVERITIES, validProject, type GcpDraft } from "@/modules/doctor/wizard";
+import { INTERVALS, intervalText } from "@/modules/doctor/connectors";
+import { OFFLINE, useKeyedAction } from "@/modules/doctor/useKeyedAction";
+import { buildGcpConfig, EMPTY_GCP, GCP_DRAFT_KEY, gcloudCommands, readGcpDraft, SEVERITIES, validName, validProject, type GcpDraft } from "@/modules/doctor/wizard";
 import { useHref, useSay, useT } from "@/modules/i18n";
 import type { Text } from "@/modules/i18n/types";
+import { cn } from "@/lib/utils";
 import { createConnector, testNewConnection } from "../actions";
 import { CredentialField } from "../CredentialField";
 import { CopyCommand, TestOutcome, WizardActions, WizardDone, WizardStep } from "./WizardParts";
 
 type TestResult = Schemas["TestResult"];
-const OFFLINE: Text = { key: "site.doctor.error.offline" };
 
-function save(key: string, draft: GcpDraft) {
+function store(key: string, draft: GcpDraft) {
   try { sessionStorage.setItem(key, JSON.stringify(draft)); } catch { /* Sem sessionStorage: perde-se só o progresso. */ }
 }
 
@@ -35,13 +36,22 @@ export function GcpWizard({ tenantId, integrations }: { tenantId: string; integr
   const [credential, setCredential] = useState<string | null>(null);
   const [connection, setConnection] = useState<{ result: TestResult | null; error: Text | null }>({ result: null, error: null });
   const [preview, setPreview] = useState<{ result: TestResult | null; error: Text | null }>({ result: null, error: null });
-  const [error, setError] = useState<Text | null>(null);
   const [resumed, setResumed] = useState(false);
-  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
   const [busy, startBusy] = useTransition();
+  const save = useKeyedAction();
+  // Cada mudança na config ou na chave invalida os testes em andamento: a resposta de um teste
+  // antigo não libera o passo seguinte para o que ainda não foi testado.
+  const round = useRef(0);
+  const restored = useRef(false);
+  const clear = { result: null, error: null };
+  const untest = () => { round.current += 1; setConnection(clear); setPreview(clear); };
+  const unpreview = () => { round.current += 1; setPreview(clear); };
   const titles = [t("site.doctor.wizard.gcp.step1"), t("site.doctor.wizard.gcp.step2"), t("site.doctor.wizard.gcp.step3"), t("site.doctor.wizard.step4")];
 
   useEffect(() => {
+    // Uma vez só: a página redesenhada pelo servidor (ao ativar, por exemplo) não volta o passo.
+    if (restored.current) return;
+    restored.current = true;
     let saved = EMPTY_GCP;
     try { saved = readGcpDraft(sessionStorage.getItem(key)); } catch { /* Sem sessionStorage: começa do zero. */ }
     // A Integração do rascunho pode ter sido arquivada desde então.
@@ -54,34 +64,36 @@ export function GcpWizard({ tenantId, integrations }: { tenantId: string; integr
   const update = (change: Partial<GcpDraft>) => {
     const next = { ...draft, ...change };
     setDraft(next);
-    setError(null);
-    setRequestKey(crypto.randomUUID());
-    save(key, next);
+    if (save.error) save.reset();
+    store(key, next);
   };
   const go = (step: GcpDraft["step"]) => { update({ step }); setResumed(false); };
   const config = buildGcpConfig(draft);
   const test = (set: typeof setConnection) => {
     if (credential === null) return;
+    const mine = round.current;
     startBusy(async () => {
       const outcome = await testNewConnection("gcp", config, credential).catch(() => ({ ok: false as const, error: OFFLINE }));
+      if (mine !== round.current) return;
       set(outcome.ok ? { result: outcome.value, error: null } : { result: null, error: outcome.error });
     });
   };
   const activate = () => {
     if (credential === null) return;
-    startBusy(async () => {
-      const created = await createConnector({
-        provider: "gcp", integration_id: draft.integration_id, name: draft.name.trim() || draft.project_id, config,
-        sync_interval_seconds: draft.sync_interval_seconds, credential,
-      }, requestKey).catch(() => ({ ok: false as const, error: OFFLINE }));
-      if (!created.ok) { setError(created.error); return; }
+    const request = {
+      provider: "gcp" as const, integration_id: draft.integration_id, name: draft.name.trim() || draft.project_id, config,
+      sync_interval_seconds: draft.sync_interval_seconds, credential,
+    };
+    let created: string | null = null;
+    save.run(async (requestKey) => {
+      const outcome = await createConnector(request, requestKey);
+      if (!outcome.ok) return outcome.error;
+      created = outcome.value.id;
+      return null;
+    }, () => {
       try { sessionStorage.removeItem(key); } catch { /* Sem sessionStorage não há rascunho. */ }
-      router.push(href(`/doctor/connectors/${created.value.id}`));
-    });
-  };
-  const interval = (seconds: number) => {
-    const parts = intervalParts(seconds);
-    return t(`site.doctor.connector.every.${parts.unit}`, { count: parts.count });
+      if (created) router.push(href(`/doctor/connectors/${created}`));
+    }, JSON.stringify(request));
   };
   const project = t("site.doctor.wizard.gcp.doneProject", { project: draft.project_id });
 
@@ -91,26 +103,26 @@ export function GcpWizard({ tenantId, integrations }: { tenantId: string; integr
         <form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); go(2); }}>
           <FormField label={t("site.doctor.wizard.gcp.project")} htmlFor="doctor-gcp-project" hint={t("site.doctor.wizard.gcp.projectHint")}>
             <Input id="doctor-gcp-project" required autoCapitalize="none" spellCheck={false} className="font-mono" value={draft.project_id}
-              onChange={(event) => { update({ project_id: event.currentTarget.value.trim() }); setConnection({ result: null, error: null }); setPreview({ result: null, error: null }); }} />
+              onChange={(event) => { update({ project_id: event.currentTarget.value.trim() }); untest(); }} />
           </FormField>
-          <FormField label={t("site.doctor.wizard.name")} htmlFor="doctor-gcp-name">
+          <FormField label={t("site.doctor.wizard.name")} htmlFor="doctor-gcp-name" error={validName(draft.name) ? null : t("site.doctor.connector.error.edit")}>
             <Input id="doctor-gcp-name" minLength={2} maxLength={80} placeholder={draft.project_id || "acme-integracoes"} value={draft.name}
               onChange={(event) => update({ name: event.currentTarget.value })} />
           </FormField>
           <WizardActions>
             <Button asChild variant="outline"><Link href={href("/doctor/connectors")}>{t("common.cancel")}</Link></Button>
-            <Button type="submit" disabled={!validProject(draft.project_id)}>{t("site.doctor.wizard.continue")}</Button>
+            <Button type="submit" disabled={!validProject(draft.project_id) || !validName(draft.name)}>{t("site.doctor.wizard.continue")}</Button>
           </WizardActions>
         </form>
       )}
 
-      {draft.step === 2 && (
-        <div className="grid gap-3">
+      {/* O passo 2 fica montado escondido nos outros: a chave escolhida continua à vista ao voltar. */}
+      <div className={cn("grid gap-3", draft.step !== 2 && "hidden")}>
           {resumed && <p role="status" className="rounded-md border border-border bg-secondary px-3 py-2 text-sm">{t("site.doctor.wizard.resumed")}</p>}
           <p className="text-sm text-muted-foreground">{t("site.doctor.wizard.gcp.keyHint")}</p>
           <p className="text-sm">{t("site.doctor.wizard.gcp.commands")}</p>
           {gcloudCommands(draft.project_id).map((command) => <CopyCommand key={command} command={command} />)}
-          <CredentialField provider="gcp" onChange={(value) => { setCredential(value); setConnection({ result: null, error: null }); setPreview({ result: null, error: null }); }} />
+          <CredentialField provider="gcp" onChange={(value) => { setCredential(value); untest(); }} />
           <TestOutcome {...connection} />
           <Button variant="outline" className="justify-self-start" loading={busy} disabled={credential === null} onClick={() => test(setConnection)}>{t("site.doctor.connector.test")}</Button>
           <WizardActions>
@@ -118,27 +130,26 @@ export function GcpWizard({ tenantId, integrations }: { tenantId: string; integr
             <Button disabled={!connection.result?.ok} onClick={() => go(3)}>{t("site.doctor.wizard.continue")}</Button>
           </WizardActions>
         </div>
-      )}
 
       {draft.step === 3 && (
         <div className="grid gap-3">
           <WizardDone items={[project, t("site.doctor.wizard.doneTested")]} />
           <FormField label={t("site.doctor.wizard.gcp.services")} htmlFor="doctor-gcp-services">
             <Input id="doctor-gcp-services" autoCapitalize="none" spellCheck={false} placeholder="sap-order-sync, sf-customer-sync" value={draft.services}
-              onChange={(event) => { update({ services: event.currentTarget.value }); setPreview({ result: null, error: null }); }} />
+              onChange={(event) => { update({ services: event.currentTarget.value }); unpreview(); }} />
           </FormField>
           <FormField label={t("site.doctor.wizard.gcp.severity")} htmlFor="doctor-gcp-severity">
-            <OptionSelect id="doctor-gcp-severity" value={draft.min_severity} onChange={(value) => { update({ min_severity: value }); setPreview({ result: null, error: null }); }}
+            <OptionSelect id="doctor-gcp-severity" value={draft.min_severity} onChange={(value) => { update({ min_severity: value }); unpreview(); }}
               options={SEVERITIES.map((value) => ({ value, label: value === "DEFAULT" ? t("site.doctor.wizard.gcp.allSeverities") : value }))} />
           </FormField>
           <FormField label={t("site.doctor.wizard.gcp.filter")} htmlFor="doctor-gcp-filter">
             <Textarea id="doctor-gcp-filter" rows={2} maxLength={2000} spellCheck={false} className="font-mono text-xs" value={draft.filter}
-              onChange={(event) => { update({ filter: event.currentTarget.value }); setPreview({ result: null, error: null }); }} />
+              onChange={(event) => { update({ filter: event.currentTarget.value }); unpreview(); }} />
           </FormField>
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField label={t("site.doctor.connector.interval")} htmlFor="doctor-gcp-interval">
               <OptionSelect id="doctor-gcp-interval" value={String(draft.sync_interval_seconds)} onChange={(value) => update({ sync_interval_seconds: Number(value) })}
-                options={INTERVALS.map((seconds) => ({ value: String(seconds), label: interval(seconds) }))} />
+                options={INTERVALS.map((seconds) => ({ value: String(seconds), label: intervalText(t, seconds) }))} />
             </FormField>
             <FormField label={t("site.doctor.wizard.gcp.backfill")} htmlFor="doctor-gcp-backfill">
               <OptionSelect id="doctor-gcp-backfill" value={String(draft.backfill_hours)} onChange={(value) => update({ backfill_hours: value === "168" ? 168 : 24 })}
@@ -166,10 +177,10 @@ export function GcpWizard({ tenantId, integrations }: { tenantId: string; integr
               options={[{ value: "none", label: t("site.doctor.wizard.choose"), disabled: true }, ...integrations.map((item) => ({ value: item.id, label: item.label }))]} />
           </FormField>
           <p className="text-sm text-muted-foreground">{t(draft.backfill_hours === 168 ? "site.doctor.wizard.gcp.activateHint7d" : "site.doctor.wizard.gcp.activateHint24h")}</p>
-          {error && <p role="alert" className="text-sm text-destructive">{say(error)}</p>}
+          {save.error && <p role="alert" className="text-sm text-destructive">{say(save.error)}</p>}
           <WizardActions>
             <Button variant="outline" onClick={() => go(3)}>{t("site.doctor.wizard.back")}</Button>
-            <Button loading={busy} disabled={draft.integration_id === "" || credential === null} onClick={activate}>{t("site.doctor.wizard.activate")}</Button>
+            <Button loading={save.busy} disabled={draft.integration_id === "" || credential === null} onClick={activate}>{t("site.doctor.wizard.activate")}</Button>
           </WizardActions>
         </div>
       )}
