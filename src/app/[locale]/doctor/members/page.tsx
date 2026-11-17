@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { KeyRoundIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { doctorList, type Schemas } from "@/modules/doctor/api";
@@ -29,7 +32,10 @@ export default async function MembersPage({ params }: PageProps<"/[locale]/docto
 
   return (
     <DoctorShell locale={locale} active={access.active} current="members">
-      <PageHeading title={t("site.doctor.nav.members")} description={t("site.doctor.members.intro")} />
+      <PageHeading title={t("site.doctor.nav.members")} description={t("site.doctor.members.intro")}>
+        {/* O SSO é do Owner; a tela dele explica para quem não é. */}
+        {role === "owner" && <Button asChild variant="outline" size="sm"><Link href={`/${locale}/doctor/sso`}><KeyRoundIcon />{t("site.doctor.sso.members")}</Link></Button>}
+      </PageHeading>
       {members && invitations && role ? <MembersPanel members={members} invitations={invitations} viewerRole={role} /> : (
         <div className="grid justify-items-start gap-3">
           <EmptyText>{t("site.doctor.members.managersOnly")}</EmptyText>
