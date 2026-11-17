@@ -783,6 +783,7 @@ export const doctor = {
   "site.doctor.knowledge.uploadHint": "The document is indexed and the next Diagnoses consult it.",
   "site.doctor.knowledge.formats": "PDF, Markdown, TXT or DOCX · up to 20 MB",
   "site.doctor.knowledge.sent": "{name} sent. Indexing starts right away.",
+  "site.doctor.knowledge.remove": "Remove",
   "site.doctor.knowledge.deleteTitle": "Remove {title}",
   "site.doctor.knowledge.deleteBody": "The document leaves the knowledge base, and the next Diagnoses no longer consult it.",
   "site.doctor.knowledge.error.type": "Use PDF, Markdown, TXT or DOCX.",
