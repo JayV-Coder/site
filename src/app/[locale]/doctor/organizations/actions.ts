@@ -1,6 +1,7 @@
 "use server";
 
 import { doctorFetch } from "@/modules/doctor/api";
+import { isSegment, segmentValue, type Segment } from "@/modules/doctor/segments";
 import { failureText, renewSession } from "@/modules/doctor/session";
 import type { Text } from "@/modules/i18n/types";
 
@@ -24,19 +25,17 @@ export async function switchOrganization(tenantId: string): Promise<Text | null>
   return renewSession();
 }
 
-/** O Segmento é texto na API; estes são os valores que as Organizações já criadas têm. */
-const SEGMENTS = { consulting: "Consultoria de integração", industry: "Indústria", retail: "Varejo" } as const;
-export type Segment = keyof typeof SEGMENTS;
+export type { Segment };
 export type Provider = "anthropic" | "vertex";
 
 export interface DoctorSettings { segment: Segment; llmProvider: Provider; dpaAccepted: true }
 
 function settingsBody(settings: DoctorSettings) {
-  return { segment: SEGMENTS[settings.segment], llm_provider: settings.llmProvider, dpa_accepted: settings.dpaAccepted };
+  return { segment: segmentValue(settings.segment), llm_provider: settings.llmProvider, dpa_accepted: settings.dpaAccepted };
 }
 
 export async function createOrganization(input: { name: string; slug: string } & DoctorSettings): Promise<Text | null> {
-  if (!(input.segment in SEGMENTS)) return { key: "site.doctor.error.validation" };
+  if (!isSegment(input.segment)) return { key: "site.doctor.error.validation" };
   const response = await doctorFetch("/orgs", {
     method: "POST",
     body: JSON.stringify({ name: input.name, slug: input.slug, ...settingsBody(input) }),
@@ -48,7 +47,7 @@ export async function createOrganization(input: { name: string; slug: string } &
 /** Ativa o Doctor numa Organização que já existe no jayv-coder (só o owner de lá): os membros
  * entram com o Papel equivalente, e ela fica ativa para quem ativou. */
 export async function enableOrganization(orgId: string, settings: DoctorSettings): Promise<Text | null> {
-  if (!(settings.segment in SEGMENTS)) return { key: "site.doctor.error.validation" };
+  if (!isSegment(settings.segment)) return { key: "site.doctor.error.validation" };
   const response = await doctorFetch(`/orgs/${encodeURIComponent(orgId)}/enable`, {
     method: "POST",
     body: JSON.stringify(settingsBody(settings)),
