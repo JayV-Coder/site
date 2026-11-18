@@ -25,3 +25,22 @@ describe("segmentos da Organização", () => {
     expect(segmentValue("retail")).toBe("Varejo");
   });
 });
+
+describe("isSegment e segmentOptions", () => {
+  it("não aceita nomes herdados de Object.prototype", async () => {
+    const { isSegment } = await import("./segments");
+    expect(isSegment("toString")).toBe(false);
+    expect(isSegment("__proto__")).toBe(false);
+    expect(isSegment("health")).toBe(true);
+  });
+
+  it("ordena pelo rótulo no idioma de quem vê, com 'Outro' por último", async () => {
+    const { segmentOptions } = await import("./segments");
+    const labels: Record<string, string> = { consulting: "Integration consulting", industry: "Industry", retail: "Retail", finance: "Financial services", health: "Healthcare", logistics: "Logistics", energy: "Energy", telecom: "Telecommunications", technology: "Technology", public: "Public sector", agribusiness: "Agribusiness", education: "Education", other: "Other" };
+    const options = segmentOptions((key) => labels[key.split(".").at(-1) ?? ""] ?? key, "en");
+    const names = options.map(({ label }) => label);
+    expect(names.at(-1)).toBe("Other");
+    expect(names.slice(0, -1)).toEqual([...names.slice(0, -1)].sort((a, b) => a.localeCompare(b, "en")));
+    expect(names[0]).toBe("Agribusiness");
+  });
+});

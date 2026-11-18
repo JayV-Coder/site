@@ -5,9 +5,8 @@ import { FormField, SegmentedControl } from "@/components/molecules";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SEGMENTS } from "@/modules/doctor/segments";
-import type { Key } from "@/modules/i18n";
-import { useT } from "@/modules/i18n";
+import { segmentOptions } from "@/modules/doctor/segments";
+import { useLocale, useT } from "@/modules/i18n";
 import type { DoctorSettings, Provider, Segment } from "./actions";
 
 /** O que o Doctor pede de uma Organização, para criar uma nova ou ativar numa que já existe:
@@ -25,7 +24,8 @@ export function useDoctorSettings() {
 
 export function DoctorSettingsFields({ id, state }: { id: string; state: ReturnType<typeof useDoctorSettings> }) {
   const t = useT();
-  const segments = SEGMENTS.map((value) => ({ value, label: t(`site.doctor.org.segment.${value}` as Key) }));
+  const locale = useLocale();
+  const segments = segmentOptions(t, locale);
   return (
     <>
       <FormField label={t("site.doctor.org.segment")} htmlFor={`${id}-segment`}>
