@@ -114,3 +114,13 @@ describe("rótulos de Incidente e Execução", () => {
     ])).toEqual([{ id: "a", label: "Pedidos · prd" }]);
   });
 });
+
+describe("coderRoleKey", () => {
+  it("dá o rótulo do Papel do jayv-coder, ou nulo para um Papel que o site não conhece", async () => {
+    const { coderRoleKey } = await import("./labels");
+    expect(coderRoleKey("owner")).toBe("org.role.owner");
+    expect(coderRoleKey("maintainer")).toBe("org.role.maintainer");
+    expect(coderRoleKey("member")).toBe("org.role.member");
+    expect(coderRoleKey("billing")).toBeNull();
+  });
+});

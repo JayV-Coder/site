@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { initials } from "@/modules/doctor/labels";
+import { coderRoleKey, initials } from "@/modules/doctor/labels";
 import type { AvailableOrganization } from "@/modules/doctor/organizations";
-import type { Key } from "@/modules/i18n";
 import { useHref, useSay, useT } from "@/modules/i18n";
 import type { Text } from "@/modules/i18n/types";
 import { enableOrganization } from "./actions";
@@ -24,6 +23,7 @@ export function AvailableOrganizations({ activatable, waiting }: { activatable: 
 
 function Heading({ organization }: { organization: AvailableOrganization }) {
   const t = useT();
+  const role = coderRoleKey(organization.coder_role);
   return (
     <div className="flex min-w-0 items-center gap-3">
       <span aria-hidden="true" className="grid size-9 flex-none place-items-center rounded-md bg-secondary text-xs font-semibold">{initials(organization.name)}</span>
@@ -31,7 +31,7 @@ function Heading({ organization }: { organization: AvailableOrganization }) {
         <strong className="truncate text-sm font-medium">{organization.name}</strong>
         <span className="truncate font-mono text-xs text-muted-foreground">@{organization.slug}</span>
       </span>
-      <Badge variant="outline">{t(`org.role.${organization.coder_role}` as Key)}</Badge>
+      <Badge variant="outline">{role ? t(role) : organization.coder_role}</Badge>
     </div>
   );
 }
@@ -45,6 +45,17 @@ function Activatable({ organization }: { organization: AvailableOrganization }) 
   const [error, setError] = useState<Text | null>(null);
   const [busy, startBusy] = useTransition();
   const formId = `doctor-enable-${organization.id}`;
+  const toggle = useRef<HTMLButtonElement>(null);
+  const opened = useRef(false);
+
+  // Abrir leva o foco ao primeiro campo; fechar o devolve ao botão (o formulário some da página).
+  useEffect(() => {
+    if (open) document.getElementById(`${formId}-segment`)?.focus();
+    else if (opened.current) toggle.current?.focus();
+    opened.current = open;
+  }, [open, formId]);
+
+  const close = () => { setError(null); setOpen(false); };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -61,14 +72,14 @@ function Activatable({ organization }: { organization: AvailableOrganization }) 
     <div className="grid gap-3 rounded-lg border border-border bg-card px-4 py-3">
       <Heading organization={organization} />
       {!open ? (
-        <div><Button type="button" variant="outline" aria-expanded={false} aria-controls={formId} onClick={() => setOpen(true)}>{t("site.doctor.org.enable")}</Button></div>
+        <div><Button ref={toggle} type="button" variant="outline" aria-expanded={false} onClick={() => setOpen(true)}>{t("site.doctor.org.enable")}</Button></div>
       ) : (
         <form id={formId} onSubmit={submit} className="grid gap-4 border-t border-border pt-3">
           <DoctorSettingsFields id={formId} state={doctor} />
           {error && <p role="alert" className="text-sm text-destructive">{say(error)}</p>}
           <div className="flex flex-wrap gap-2">
             <Button type="submit" loading={busy} disabled={doctor.settings === null}>{t("site.doctor.org.enable")}</Button>
-            <Button type="button" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button type="button" variant="ghost" disabled={busy} onClick={close}>{t("common.cancel")}</Button>
           </div>
         </form>
       )}
