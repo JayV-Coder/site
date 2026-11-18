@@ -7,14 +7,17 @@ import type { Text } from "@/modules/i18n/types";
 const FAILURES: Record<string, string> = {
   slug_taken: "site.doctor.org.slugTaken",
   not_a_member: "site.doctor.org.notMember",
+  not_owner: "site.doctor.org.notOwner",
+  not_found: "site.doctor.org.notMember",
+  already_enabled: "site.doctor.org.alreadyEnabled",
   validation_error: "site.doctor.error.validation",
   membership_revoked: "site.doctor.error.revoked",
 };
 
 const failure = (response: Response | null) => failureText(response, FAILURES);
 
-/** As duas ações devolvem o erro, ou `null`: quem chama recarrega a página inteira, para nada
- * da Organização anterior ficar em memória. */
+/** As ações devolvem o erro, ou `null`: quem chama recarrega a página inteira, para nada da
+ * Organização anterior ficar em memória. */
 export async function switchOrganization(tenantId: string): Promise<Text | null> {
   const response = await doctorFetch(`/orgs/${encodeURIComponent(tenantId)}/switch`, { method: "POST" }).catch(() => null);
   if (!response?.ok) return failure(response);
@@ -23,14 +26,32 @@ export async function switchOrganization(tenantId: string): Promise<Text | null>
 
 /** O Segmento é texto na API; estes são os valores que as Organizações já criadas têm. */
 const SEGMENTS = { consulting: "Consultoria de integração", industry: "Indústria", retail: "Varejo" } as const;
+export type Segment = keyof typeof SEGMENTS;
+export type Provider = "anthropic" | "vertex";
 
-export interface NewOrganization { name: string; slug: string; segment: keyof typeof SEGMENTS; llmProvider: "anthropic" | "vertex"; dpaAccepted: boolean }
+export interface DoctorSettings { segment: Segment; llmProvider: Provider; dpaAccepted: true }
 
-export async function createOrganization(input: NewOrganization): Promise<Text | null> {
+function settingsBody(settings: DoctorSettings) {
+  return { segment: SEGMENTS[settings.segment], llm_provider: settings.llmProvider, dpa_accepted: settings.dpaAccepted };
+}
+
+export async function createOrganization(input: { name: string; slug: string } & DoctorSettings): Promise<Text | null> {
   if (!(input.segment in SEGMENTS)) return { key: "site.doctor.error.validation" };
   const response = await doctorFetch("/orgs", {
     method: "POST",
-    body: JSON.stringify({ name: input.name, slug: input.slug, segment: SEGMENTS[input.segment], llm_provider: input.llmProvider, dpa_accepted: input.dpaAccepted }),
+    body: JSON.stringify({ name: input.name, slug: input.slug, ...settingsBody(input) }),
+  }).catch(() => null);
+  if (!response?.ok) return failure(response);
+  return renewSession();
+}
+
+/** Ativa o Doctor numa Organização que já existe no jayv-coder (só o owner de lá): os membros
+ * entram com o Papel equivalente, e ela fica ativa para quem ativou. */
+export async function enableOrganization(orgId: string, settings: DoctorSettings): Promise<Text | null> {
+  if (!(settings.segment in SEGMENTS)) return { key: "site.doctor.error.validation" };
+  const response = await doctorFetch(`/orgs/${encodeURIComponent(orgId)}/enable`, {
+    method: "POST",
+    body: JSON.stringify(settingsBody(settings)),
   }).catch(() => null);
   if (!response?.ok) return failure(response);
   return renewSession();

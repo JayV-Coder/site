@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,9 +62,6 @@ export function OrgList({ organizations, activeId }: { organizations: Organizati
         })}
       </ul>
       {error && <p role="alert" className="text-sm text-destructive">{say(error)}</p>}
-      <Link href={href("/doctor/organizations/new")} className="justify-self-start text-sm underline underline-offset-4 hover:text-foreground">
-        {t("site.doctor.org.new")}
-      </Link>
     </div>
   );
 }

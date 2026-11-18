@@ -20,6 +20,8 @@ function keyOf<T extends string>(known: readonly T[], prefix: string, value: str
 
 /** A chave do rótulo, ou nulo para um valor que o site ainda não conhece (aí vale o valor). */
 export const roleKey = (role: string) => keyOf(ROLES, "site.doctor.role", role);
+/** O Papel na Organização do jayv-coder (os mesmos rótulos das Organizações do site). */
+export const coderRoleKey = (role: string) => keyOf(["owner", "maintainer", "member"] as const, "org.role", role);
 export const severityKey = (severity: string) => keyOf(SEVERITIES, "site.doctor.severity", severity);
 export const statusKey = (status: string) => keyOf(STATUSES, "site.doctor.status", status);
 export const environmentKey = (environment: string) => keyOf(ENVIRONMENTS, "site.doctor.env", environment);
