@@ -30,7 +30,8 @@ Incidentes (lista e detalhe, com o Diagnóstico, a revisão humana, a promoção
 conhecimento, os chamados no ITSM e o relatório técnico), Execuções (lista, Timeline e Evento
 original), Integrações (com os Mapas entre sistemas), Conectores (lista, histórico, o assistente
 de novo Conector do Google Cloud e do Salesforce e os agentes locais), Alertas (regras, canais,
-push neste aparelho e silêncio), Webhooks de saída (com as entregas), Importação (com o mapeamento de colunas), Chamados (Jira e ServiceNow), a Base de conhecimento, Uso e cotas, Subprocessadores, Membros e convites (com o aceite de convite), Privacidade (retenção, envio ao LLM, perfil de IA e exclusão total), Direitos do titular e o link compartilhado do
+push neste aparelho e silêncio), Webhooks de saída (com as entregas), Importação (com o mapeamento de colunas), Chamados (Jira e ServiceNow), a Base de conhecimento, Uso e cotas, Subprocessadores, Membros e convites (com o aceite de convite), Privacidade (retenção, envio ao LLM, perfil de IA e exclusão total), Direitos do titular, a Auditoria (com a exportação
+em CSV) e o link compartilhado do
 Relatório técnico (`/doctor/shared`, sem conta). O login do site manda ao provedor de identidade
 quem é de um domínio com o SSO de uma Organização do Doctor (`/doctor/sso/provision` na volta);
 o resto das telas chega em blocos. A volta do consentimento do Jira é `APP_URL/doctor/tickets/jira`.
