@@ -5,7 +5,7 @@ import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import { getT } from "@/modules/i18n/server";
 import type { Access } from "./access";
-import { CurrentInView } from "./CurrentInView";
+import { CurrentInView } from "@/components/molecules/CurrentInView";
 
 export type DashboardSection = "overview" | "account" | "organizations" | "mods" | "users" | "admin";
 
