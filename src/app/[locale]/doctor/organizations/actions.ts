@@ -1,7 +1,7 @@
 "use server";
 
-import { unstable_update } from "@/auth";
 import { doctorFetch } from "@/modules/doctor/api";
+import { failureText, renewSession } from "@/modules/doctor/session";
 import type { Text } from "@/modules/i18n/types";
 
 const FAILURES: Record<string, string> = {
@@ -11,18 +11,7 @@ const FAILURES: Record<string, string> = {
   membership_revoked: "site.doctor.error.revoked",
 };
 
-async function failure(response: Response | null): Promise<Text> {
-  if (!response) return { key: "site.doctor.error.offline" };
-  const { code } = (await response.json().catch(() => ({}))) as { code?: string };
-  return { key: FAILURES[code ?? ""] ?? "site.doctor.error.generic" };
-}
-
-/** A Organização ativa vai nas claims do token, e elas só mudam num token novo: sem renovar
- * a sessão, a API continuaria respondendo pela Organização anterior. */
-async function renewSession(): Promise<Text | null> {
-  const session = await unstable_update({ refresh: true } as Parameters<typeof unstable_update>[0]);
-  return session?.accessToken ? null : { key: "site.doctor.org.renewFailed" };
-}
+const failure = (response: Response | null) => failureText(response, FAILURES);
 
 /** As duas ações devolvem o erro, ou `null`: quem chama recarrega a página inteira, para nada
  * da Organização anterior ficar em memória. */

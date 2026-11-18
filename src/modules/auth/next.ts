@@ -5,6 +5,12 @@ export function safeNext(value: string | null | undefined, fallback: string) {
   return value;
 }
 
+/** A volta de um login fora do site (provedor, link do e-mail, IdP do SSO): o callback troca o
+ * código pela sessão e segue para `next`. */
+export function callbackPath(locale: string, next: string) {
+  return `/${locale}/auth/callback?next=${encodeURIComponent(next)}`;
+}
+
 /** Para onde ir depois de entrar quando ninguém pediu outro lugar: o painel. */
 export function landingPath(locale: string) {
   return `/${locale}/dashboard`;
