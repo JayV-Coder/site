@@ -5,12 +5,14 @@ import { SitePage } from "@/components/organisms/SitePage";
 import { cn } from "@/lib/utils";
 import type { Organization } from "@/modules/doctor/api";
 import { getT } from "@/modules/i18n/server";
+import { CurrentInView } from "../dashboard/CurrentInView";
 
 export type DoctorSection = "overview" | "incidents" | "executions" | "integrations" | "connectors" | "import" | "alerts" | "webhooks" | "tickets" | "knowledge" | "usage" | "subprocessors" | "members" | "privacy" | "audit";
 
-/** A moldura do Doctor: a Organização ativa em cima (o botão leva à troca), as seções e a
- * página. No celular as seções são uma faixa que rola de lado; a partir de `md`, uma coluna.
- * Cada bloco de telas que chega acrescenta a sua seção aqui. */
+/** A moldura do Doctor, como a do painel do site: a Organização ativa em cima (o botão leva à
+ * troca), as seções à esquerda e a página ao lado. No celular as seções são uma faixa que rola
+ * de lado (a aberta entra na vista); a partir de `md`, uma coluna fixa ao rolar. Cada bloco de
+ * telas que chega acrescenta a sua seção aqui. */
 export async function DoctorShell({ locale, active, current, children }: {
   locale: string; active: Organization; current: DoctorSection; children: ReactNode;
 }) {
@@ -36,8 +38,8 @@ export async function DoctorShell({ locale, active, current, children }: {
 
   return (
     <SitePage locale={locale}>
-      <div className="shell grid gap-5 py-6 md:py-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="shell grid gap-5 py-6 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-x-8 md:py-10">
+        <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
           <span className="text-xs tracking-wider text-muted-foreground uppercase">{t("site.doctor.name")}</span>
           <Link href={`${base}/organizations`} aria-label={t("site.doctor.org.switchLabel", { name: active.name })}
             className="flex min-h-9 max-w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-sm transition-colors hover:bg-secondary">
@@ -46,7 +48,8 @@ export async function DoctorShell({ locale, active, current, children }: {
           </Link>
         </div>
         {sections.length > 1 && (
-          <nav aria-label={t("site.doctor.nav.label")} className="-mx-4 flex gap-1 overflow-x-auto border-b border-border/70 px-4 pb-3 [scrollbar-width:none]">
+          <nav id="doctor-sections" aria-label={t("site.doctor.nav.label")}
+            className="relative -mx-4 flex gap-1 overflow-x-auto border-b border-border/70 px-4 pb-3 [scrollbar-width:none] md:sticky md:top-20 md:mx-0 md:max-h-[calc(100dvh-6rem)] md:flex-col md:self-start md:overflow-x-visible md:overflow-y-auto md:border-0 md:px-0 md:pb-0">
             {sections.map(({ id, href, label, Icon }) => (
               <Link key={id} href={href} aria-current={id === current ? "page" : undefined}
                 className={cn(
@@ -59,7 +62,8 @@ export async function DoctorShell({ locale, active, current, children }: {
             ))}
           </nav>
         )}
-        <div className="@container min-w-0">{children}</div>
+        {sections.length > 1 && <CurrentInView nav="doctor-sections" />}
+        <div className={cn("@container min-w-0", sections.length <= 1 && "md:col-span-2")}>{children}</div>
       </div>
     </SitePage>
   );
