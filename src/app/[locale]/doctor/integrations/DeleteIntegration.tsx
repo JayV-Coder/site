@@ -6,8 +6,9 @@ import { useKeyedAction } from "@/modules/doctor/useKeyedAction";
 import { useSay, useT } from "@/modules/i18n";
 import { deleteIntegration } from "./actions";
 
-/** Excluir de verdade: só a Integração sem histórico. Com Execuções, Eventos, Conectores ou
- * Importações, a API recusa e a mensagem manda arquivar. */
+/** Excluir de verdade: a página só mostra para a Integração `deletable` (sem histórico nem
+ * configuração ligada). Se algo chegar entre a lista e o clique, a API recusa e a mensagem manda
+ * arquivar. */
 export function DeleteIntegration({ id, name }: { id: string; name: string }) {
   const t = useT();
   const say = useSay();

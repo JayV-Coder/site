@@ -67,7 +67,8 @@ export default async function IntegrationsPage({ params }: PageProps<"/[locale]/
                     <Button asChild variant="outline" size="sm"><Link href={`/${locale}/doctor/integrations/${integration.id}/maps`}>{t("site.doctor.integrations.maps")}</Link></Button>
                     {manager && <EditIntegration integration={integration} />}
                     {manager && <ArchiveIntegration id={integration.id} name={integration.name} />}
-                    {manager && <DeleteIntegration id={integration.id} name={integration.name} />}
+                    {/* Excluir só sem histórico nem configuração ligada; nas outras, arquivar. */}
+                    {manager && integration.deletable && <DeleteIntegration id={integration.id} name={integration.name} />}
                   </div>
                 </article>
               </li>

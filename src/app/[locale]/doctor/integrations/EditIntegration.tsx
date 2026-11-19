@@ -16,7 +16,7 @@ export function EditIntegration({ integration }: { integration: Schemas["Integra
   };
   return (
     <IntegrationDialog id={`doctor-integration-${integration.id}-edit`} title={t("site.doctor.integrations.editTitle", { name: integration.name })}
-      initial={initial} submit={(draft, key) => updateIntegration(integration.id, draft, key)}
+      initial={initial} submit={(draft, key) => updateIntegration(integration.id, draft, initial, key)}
       trigger={<Button variant="outline" size="sm" aria-label={t("site.doctor.integrations.editTitle", { name: integration.name })}><PencilIcon />{t("site.doctor.integrations.edit")}</Button>} />
   );
 }

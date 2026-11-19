@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultRows, environmentVariant, integrationChange, keyParts, keysFromRows, lookupFromDraft, type KeyRow } from "./integrations";
+import { defaultRows, environmentVariant, integrationChange, integrationFields, keyParts, keysFromRows, lookupFromDraft, type KeyRow } from "./integrations";
 
 const row = (change: Partial<KeyRow>): KeyRow => ({ system: "sap", field: "", prefix: "", zeros: false, upper: false, ...change });
 
@@ -43,16 +43,29 @@ describe("Integrações e Mapas entre sistemas", () => {
   });
 });
 
-describe("integrationChange", () => {
+describe("integrationFields", () => {
   const draft = { name: "  Pedidos  ", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: " Time A ", description: "" };
 
-  it("manda todos os campos, aparados", () => {
-    expect(integrationChange(draft)).toEqual({
+  it("todos os campos, aparados; opcional vazio vai como null", () => {
+    expect(integrationFields(draft)).toEqual({
       name: "Pedidos", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: "Time A", description: null,
     });
+    expect(integrationFields({ ...draft, owner_team: "   " }).owner_team).toBeNull();
+  });
+});
+
+describe("integrationChange", () => {
+  const initial = { name: "Pedidos", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: "Time A", description: "" };
+
+  it("só o que mudou: a edição de outra pessoa nos outros campos não é desfeita", () => {
+    expect(integrationChange({ ...initial, description: "Fluxo de pedidos" }, initial)).toEqual({ description: "Fluxo de pedidos" });
   });
 
-  it("opcional vazio vai como null: a API limpa o campo, em vez de guardar texto vazio", () => {
-    expect(integrationChange({ ...draft, owner_team: "   " }).owner_team).toBeNull();
+  it("limpar um opcional manda null", () => {
+    expect(integrationChange({ ...initial, owner_team: "" }, initial)).toEqual({ owner_team: null });
+  });
+
+  it("espaço a mais não conta como mudança; nada mudou, nada vai", () => {
+    expect(integrationChange({ ...initial, name: " Pedidos " }, initial)).toEqual({});
   });
 });

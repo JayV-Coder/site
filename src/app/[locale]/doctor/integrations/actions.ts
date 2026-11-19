@@ -2,22 +2,16 @@
 
 import { sendToDoctor } from "@/modules/doctor/send";
 import type { IntegrationDraft, LookupDraft, MappingKey } from "@/modules/doctor/integrations";
-import { integrationChange, lookupFromDraft } from "@/modules/doctor/integrations";
+import { integrationChange, integrationFields, lookupFromDraft } from "@/modules/doctor/integrations";
 import type { Text } from "@/modules/i18n/types";
 
 const LIST = "/[locale]/doctor/integrations";
 const MAPS = "/[locale]/doctor/integrations/[id]/maps";
 
-/** Campo opcional vazio vai como ausente: a API guarda `null`, não texto vazio. */
-const optional = (value: string) => (value.trim() ? value.trim() : undefined);
-
 export async function createIntegration(draft: IntegrationDraft, key: string): Promise<Text | null> {
   return sendToDoctor("/integrations", {
     method: "POST",
-    body: JSON.stringify({
-      name: draft.name.trim(), source_system: draft.source_system, target_system: draft.target_system, environment: draft.environment,
-      owner_team: optional(draft.owner_team), description: optional(draft.description),
-    }),
+    body: JSON.stringify(integrationFields(draft)),
   }, {
     revalidate: LIST, key, invalid: "site.doctor.integration.error.invalid",
     known: { integration_exists: "site.doctor.integration.error.exists" },
@@ -30,13 +24,17 @@ const KNOWN = {
   integration_in_use: "site.doctor.integration.error.inUse",
 } as const;
 
-export async function updateIntegration(id: string, draft: IntegrationDraft, key: string): Promise<Text | null> {
-  return sendToDoctor(`/integrations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(integrationChange(draft)) }, {
-    revalidate: LIST, key, invalid: "site.doctor.integration.error.invalid", known: KNOWN,
+/** Só os campos que mudaram desde que o formulário abriu; sem mudança, nada vai. Revalida também
+ * as páginas de baixo (os Mapas mostram nome, sistemas e Ambiente). */
+export async function updateIntegration(id: string, draft: IntegrationDraft, initial: IntegrationDraft, key: string): Promise<Text | null> {
+  const change = integrationChange(draft, initial);
+  if (Object.keys(change).length === 0) return null;
+  return sendToDoctor(`/integrations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(change) }, {
+    revalidate: LIST, layout: true, key, invalid: "site.doctor.integration.error.invalid", known: KNOWN,
   });
 }
 
-/** Exclusão de verdade, só sem histórico; com histórico, a API responde `integration_in_use`. */
+/** Exclusão de verdade, só da Integração `deletable`; senão a API responde `integration_in_use`. */
 export async function deleteIntegration(id: string, key: string): Promise<Text | null> {
   return sendToDoctor(`/integrations/${encodeURIComponent(id)}`, { method: "DELETE" }, { revalidate: LIST, key, known: KNOWN });
 }
