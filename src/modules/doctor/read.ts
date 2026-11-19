@@ -17,7 +17,9 @@ const reader = cache(async () => {
   return { client, tenant: decodeClaims(session.accessToken)?.tenant_id ?? null };
 });
 
-const EXPECTED = new Set(["DR110", "DR112"]);
+// DR100: o código antigo de "sem Organização ativa", até a migração 20261120100000 do banco
+// entrar em produção (lá, o doctor_read não usa outro DR100).
+const EXPECTED = new Set(["DR100", "DR110", "DR112"]);
 
 /** Leitura direta no Supabase (ADR-0026 do jayv-doctor): a função do schema `doctor_read`, com o
  * token de quem entrou e o RLS, numa chamada ao PostgREST. A API do Doctor roda longe do banco;
