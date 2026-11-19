@@ -4,7 +4,6 @@ import { PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Schemas } from "@/modules/doctor/api";
 import { systemName } from "@/modules/doctor/diagnosis";
 import { environmentVariant } from "@/modules/doctor/integrations";
 import { canManage, environmentKey, nameOf } from "@/modules/doctor/labels";
@@ -16,7 +15,6 @@ import { ArchiveIntegration } from "./ArchiveIntegration";
 import { NewIntegration } from "./NewIntegration";
 import { listIntegrations } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/integrations">): Promise<Metadata> {
   const { locale } = await params;

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { LinkSegments, PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
-import type { Schemas } from "@/modules/doctor/api";
 import { filtersHref, readExecutionFilters } from "@/modules/doctor/executions";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
@@ -12,7 +11,6 @@ import { ExecutionFiltersDialog } from "./ExecutionFiltersDialog";
 import { ExecutionList } from "./ExecutionList";
 import { listIntegrations } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/executions">): Promise<Metadata> {
   const { locale } = await params;

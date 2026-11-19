@@ -16,7 +16,6 @@ import { listIntegrations } from "@/modules/doctor/lists";
 
 type Connector = Schemas["Connector"];
 type ConnectorSync = Schemas["ConnectorSync"];
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/connectors/[id]">): Promise<Metadata> {
   const { locale } = await params;

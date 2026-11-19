@@ -7,7 +7,7 @@ export interface SupabaseUser {
   factors?: { status: string; factor_type: string }[];
 }
 
-export interface Claims { sub: string; exp: number; aal?: string }
+export interface Claims { sub: string; exp: number; aal?: string; tenant_id?: string }
 
 /** O conteúdo do JWT, sem conferir a assinatura: quem confere é o Supabase,
  * no `GET /auth/v1/user` (e em cada consulta). */

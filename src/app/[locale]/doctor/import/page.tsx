@@ -16,7 +16,6 @@ import { Unavailable, UnavailablePage } from "../Unavailable";
 import { ImportUploader } from "./ImportUploader";
 import { listIntegrations } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 type Import = Schemas["Import"];
 
 const DOWNLOAD_FAILURES: Record<string, Key> = {

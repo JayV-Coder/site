@@ -5,7 +5,6 @@ import { PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
 import { Button } from "@/components/ui/button";
-import type { Schemas } from "@/modules/doctor/api";
 import { canManage } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
@@ -15,7 +14,6 @@ import { ConnectorSummary } from "./ConnectorCard";
 import { ConnectorAction, TestConnection } from "./ConnectorControls";
 import { listConnectors } from "@/modules/doctor/lists";
 
-type Connector = Schemas["Connector"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/connectors">): Promise<Metadata> {
   const { locale } = await params;

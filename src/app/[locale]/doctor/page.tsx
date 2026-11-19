@@ -9,7 +9,7 @@ import {
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
 import { LiveRefresh } from "@/components/organisms/doctor/LiveRefresh";
-import { doctorRead } from "@/modules/doctor/read";
+import { readOr } from "@/modules/doctor/read";
 import { requireDoctor, requireSession } from "./access";
 import { CategoryBars } from "./CategoryBars";
 import { DoctorShell } from "./DoctorShell";
@@ -38,11 +38,9 @@ function href(locale: string, period: Period, environment: Environment | null) {
  * moram no endereço, para dar para compartilhar o recorte. */
 /** Direto no Supabase (`doctor_read.dashboard`, ADR-0026); sem ele, pela API. */
 async function loadDashboard(period: Period, environment: Environment | null): Promise<Dashboard | null> {
-  const direct = await doctorRead<Dashboard>("dashboard", { period, environment });
-  if (direct.ok) return direct.value;
   const search = new URLSearchParams({ period });
   if (environment) search.set("environment", environment);
-  return doctorList<Dashboard>(`/dashboard?${search.toString()}`);
+  return readOr<Dashboard>("dashboard", { period, environment }, () => doctorList<Dashboard>(`/dashboard?${search.toString()}`));
 }
 
 export default async function DoctorPage({ params, searchParams }: PageProps<"/[locale]/doctor">) {

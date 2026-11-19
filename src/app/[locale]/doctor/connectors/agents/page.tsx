@@ -18,7 +18,6 @@ import { AgentActions } from "./AgentActions";
 import { listIntegrations } from "@/modules/doctor/lists";
 
 type Agent = Schemas["Agent"];
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/connectors/agents">): Promise<Metadata> {
   const { locale } = await params;

@@ -15,9 +15,7 @@ import { DeleteMapping } from "./DeleteMapping";
 import { NewMapping } from "./NewMapping";
 import { listIntegrations, listConnectors } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 type CorrelationMapping = Schemas["CorrelationMapping"];
-type Connector = Schemas["Connector"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/integrations/[id]/maps">): Promise<Metadata> {
   const { locale } = await params;

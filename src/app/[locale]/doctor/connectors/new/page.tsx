@@ -3,7 +3,6 @@ import Link from "next/link";
 import { BackLink, LinkSegments, PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
-import type { Schemas } from "@/modules/doctor/api";
 import { canManage, integrationOptions } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../../access";
@@ -13,7 +12,6 @@ import { GcpWizard } from "./GcpWizard";
 import { SalesforceWizard } from "./SalesforceWizard";
 import { listIntegrations } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/connectors/new">): Promise<Metadata> {
   const { locale } = await params;
