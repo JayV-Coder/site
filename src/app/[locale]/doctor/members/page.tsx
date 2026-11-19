@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { KeyRoundIcon } from "lucide-react";
+import { KeyRoundIcon, ShieldCheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
@@ -34,6 +34,7 @@ export default async function MembersPage({ params }: PageProps<"/[locale]/docto
     <DoctorShell locale={locale} active={access.active} current="members">
       <PageHeading title={t("site.doctor.nav.members")} description={t("site.doctor.members.intro")}>
         {/* O SSO é do Owner; a tela dele explica para quem não é. */}
+        {(role === "owner" || role === "admin") && <Button asChild variant="outline" size="sm"><Link href={`/${locale}/doctor/policies`}><ShieldCheckIcon />{t("site.doctor.policies.title")}</Link></Button>}
         {role === "owner" && <Button asChild variant="outline" size="sm"><Link href={`/${locale}/doctor/sso`}><KeyRoundIcon />{t("site.doctor.sso.members")}</Link></Button>}
       </PageHeading>
       {members && invitations && role ? <MembersPanel members={members} invitations={invitations} viewerRole={role} /> : (
