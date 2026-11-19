@@ -8,6 +8,9 @@ import {
 } from "@/modules/doctor/labels";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
+import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
+import { LiveRefresh } from "@/components/organisms/doctor/LiveRefresh";
+import { doctorRead } from "@/modules/doctor/read";
 import { requireDoctor } from "./access";
 import { CategoryBars } from "./CategoryBars";
 import { DoctorShell } from "./DoctorShell";
@@ -34,18 +37,26 @@ function href(locale: string, period: Period, environment: Environment | null) {
 /** O painel da Organização ativa: Execuções, taxa de erro, Incidentes abertos e MTTR do
  * período, as falhas no tempo e por categoria, e os Incidentes recentes. Período e ambiente
  * moram no endereço, para dar para compartilhar o recorte. */
+/** Direto no Supabase (`doctor_read.dashboard`, ADR-0026); sem ele, pela API. */
+async function loadDashboard(period: Period, environment: Environment | null): Promise<Dashboard | null> {
+  const direct = await doctorRead<Dashboard>("dashboard", { period, environment });
+  if (direct.ok) return direct.value;
+  const search = new URLSearchParams({ period });
+  if (environment) search.set("environment", environment);
+  return doctorList<Dashboard>(`/dashboard?${search.toString()}`);
+}
+
 export default async function DoctorPage({ params, searchParams }: PageProps<"/[locale]/doctor">) {
   const { locale } = await params;
   const query = await searchParams;
   const period = PERIODS.find((value) => value === query.period) ?? "24h";
   const environment = ENVIRONMENTS.find((value) => value === query.environment) ?? null;
+  // O painel sai junto com o `/me`, não depois dele.
+  const loading = loadDashboard(period, environment);
   const access = await requireDoctor(locale, "/doctor");
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-
-  const search = new URLSearchParams({ period });
-  if (environment) search.set("environment", environment);
-  const board = await doctorList<Dashboard>(`/dashboard?${search.toString()}`);
+  const board = await loading;
 
   const number = new Intl.NumberFormat(locale);
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 });
@@ -64,6 +75,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps<"/[
 
   return (
     <DoctorShell locale={locale} active={access.active} current="overview">
+      {/* Incidentes pelo Realtime; Execuções (agregado por hora, fora do Realtime) a cada 2 min. */}
+      <LiveRefresh tenantId={access.active.id} tables={["incidents"]} />
+      <AutoRefresh seconds={120} />
       <PageHeading title={t("site.doctor.dashboard.title")}>
         <LinkSegments label={t("site.doctor.dashboard.period")}
           options={PERIODS.map((value) => ({ href: href(locale, value, environment), label: t(`site.doctor.dashboard.period.${value}`), current: value === period }))} />
