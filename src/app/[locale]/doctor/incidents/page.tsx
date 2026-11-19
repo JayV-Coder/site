@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { LinkSegments, PageHeading } from "@/components/molecules";
-import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
+import { LiveRefresh } from "@/components/organisms/doctor/LiveRefresh";
 import { EmptyText } from "@/components/atoms";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
@@ -42,7 +42,7 @@ export default async function IncidentsPage({ params, searchParams }: PageProps<
 
   return (
     <DoctorShell locale={locale} active={access.active} current="incidents">
-      <AutoRefresh />
+      <LiveRefresh tenantId={access.active.id} tables={["incidents"]} />
       <PageHeading title={t("site.doctor.nav.incidents")}>
         <LinkSegments label={t("site.doctor.incidents.statusFilter")}
           options={STATUS_FILTERS.map((value) => ({

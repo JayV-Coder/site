@@ -36,9 +36,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 - O Integration AI Doctor mora em `/[locale]/doctor` (`src/app/[locale]/doctor` e
-  `src/modules/doctor`). As telas leem e gravam pela API do `JayV-Coder/jayv-doctor`
-  (`DOCTOR_API_URL`), só no servidor, com o token de quem entrou (`doctorFetch`); nada do
-  Doctor é lido direto do Supabase. Os tipos vêm de `contracts.gen.ts`, copiado de lá. O
+  `src/modules/doctor`). As telas gravam pela API do `JayV-Coder/jayv-doctor`
+  (`DOCTOR_API_URL`), só no servidor, com o token de quem entrou (`doctorFetch`). As leituras
+  que já têm função no schema `doctor_read` vão direto ao Supabase, no servidor, com o mesmo
+  token (`doctorRead`, ADR-0026 do jayv-doctor), e voltam para a API se falharem; nada do
+  schema `doctor` é lido direto. O Realtime (`LiveRefresh`) usa o token no navegador. Os tipos vêm de `contracts.gen.ts`, copiado de lá. O
   vocabulário é o do `GLOSSARY.md` do jayv-doctor (Organização, Integração, Execução,
   Incidente, Diagnóstico, Evidência), com inicial maiúscula. As chaves são `site.doctor.*`
   em `src/modules/i18n/messages/doctor.ts`, e a migração das traduções **não** leva

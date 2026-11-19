@@ -3,11 +3,13 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { auth } from "@/auth";
 import type { components } from "./contracts.gen";
+import { doctorRead } from "./read";
 
-/** O Integration AI Doctor (JayV-Coder/jayv-doctor) dentro do site: as telas leem e
- * gravam pela API dele, com o token do Supabase de quem entrou. O token só existe no
- * servidor (cookie do NextAuth); a API confere o JWT, a Organização ativa (claim do hook)
- * e o Papel, e o banco aplica o RLS. */
+/** O Integration AI Doctor (JayV-Coder/jayv-doctor) dentro do site: as telas gravam pela API
+ * dele, com o token do Supabase de quem entrou; a API confere o JWT, a Organização ativa
+ * (claim do hook) e o Papel, e o banco aplica o RLS. As leituras de `doctor_read` vão direto ao
+ * Supabase (`read.ts`, ADR-0026), e o Realtime usa o mesmo token no navegador
+ * (`LiveRefresh`). */
 export const DOCTOR_API_URL = (process.env.DOCTOR_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
 export type Schemas = components["schemas"];
@@ -80,5 +82,9 @@ export async function doctorSearch<T>(path: string, body: unknown): Promise<T | 
 }
 
 /** Quem entrou, as Organizações do Doctor e a ativa; `cache`: o layout e a página pedem o
- * mesmo `/me` na mesma requisição. */
-export const getMe = cache(async (): Promise<Me | null> => doctorList<Me>("/me"));
+ * mesmo `/me` na mesma requisição. Direto no Supabase (`doctor_read.me`, ADR-0026); sem ele,
+ * pela API. */
+export const getMe = cache(async (): Promise<Me | null> => {
+  const direct = await doctorRead<Me>("me");
+  return direct.ok ? direct.value : doctorList<Me>("/me");
+});
