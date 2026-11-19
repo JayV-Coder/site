@@ -11,8 +11,9 @@ export async function doctorRead<T>(fn: string, args: Record<string, unknown> = 
   try {
     const { data, error } = await supabase.schema("doctor_read").rpc(fn, args);
     if (error) {
-      // PGRST106: `doctor_read` ainda não está em "Exposed schemas" (Settings → Data API).
-      console.warn(`doctor_read.${fn} falhou (${error.code}); lendo pela API`);
+      // PGRST106: `doctor_read` ainda não está em "Exposed schemas" (Settings → Data API). O 42501
+      // (sem Organização ativa) é esperado logo depois de entrar ou trocar, e não vai para o log.
+      if (error.code !== "42501") console.warn(`doctor_read.${fn} falhou (${error.code}); lendo pela API`);
       return { ok: false };
     }
     return { ok: true, value: data as T };

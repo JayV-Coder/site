@@ -4,7 +4,7 @@ import { PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { doctorList, type Schemas } from "@/modules/doctor/api";
+import type { Schemas } from "@/modules/doctor/api";
 import { systemName } from "@/modules/doctor/diagnosis";
 import { environmentVariant } from "@/modules/doctor/integrations";
 import { canManage, environmentKey, nameOf } from "@/modules/doctor/labels";
@@ -14,6 +14,7 @@ import { DoctorShell } from "../DoctorShell";
 import { Unavailable, UnavailablePage } from "../Unavailable";
 import { ArchiveIntegration } from "./ArchiveIntegration";
 import { NewIntegration } from "./NewIntegration";
+import { listIntegrations } from "@/modules/doctor/lists";
 
 type Integration = Schemas["Integration"];
 
@@ -30,7 +31,7 @@ export default async function IntegrationsPage({ params }: PageProps<"/[locale]/
   const access = await requireDoctor(locale, "/doctor/integrations");
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-  const integrations = await doctorList<Integration[]>("/integrations");
+  const integrations = await listIntegrations();
   const manager = canManage(access.me);
   const system = (value: string) => nameOf(t, systemName(value));
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 });

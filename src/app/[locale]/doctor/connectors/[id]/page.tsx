@@ -12,6 +12,7 @@ import { DoctorShell } from "../../DoctorShell";
 import { Unavailable, UnavailablePage } from "../../Unavailable";
 import { ConnectorSummary } from "../ConnectorCard";
 import { ConnectorAction, CredentialDialog, EditConnector, TestConnection } from "../ConnectorControls";
+import { listIntegrations } from "@/modules/doctor/lists";
 
 type Connector = Schemas["Connector"];
 type ConnectorSync = Schemas["ConnectorSync"];
@@ -32,7 +33,7 @@ export default async function ConnectorPage({ params }: PageProps<"/[locale]/doc
   const [connector, syncs, integrations] = await Promise.all([
     doctorGet<Connector>(`/connectors/${encodeURIComponent(id)}`),
     doctorList<ConnectorSync[]>(`/connectors/${encodeURIComponent(id)}/syncs`),
-    doctorList<Integration[]>("/integrations"),
+    listIntegrations(),
   ]);
   if (connector === "not_found") notFound();
   const back = <BackLink href={`/${locale}/doctor/connectors`}>{t("site.doctor.nav.connectors")}</BackLink>;

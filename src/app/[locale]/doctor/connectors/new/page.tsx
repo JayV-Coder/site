@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BackLink, LinkSegments, PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
-import { doctorList, type Schemas } from "@/modules/doctor/api";
+import type { Schemas } from "@/modules/doctor/api";
 import { canManage, integrationOptions } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../../access";
@@ -11,6 +11,7 @@ import { DoctorShell } from "../../DoctorShell";
 import { Unavailable, UnavailablePage } from "../../Unavailable";
 import { GcpWizard } from "./GcpWizard";
 import { SalesforceWizard } from "./SalesforceWizard";
+import { listIntegrations } from "@/modules/doctor/lists";
 
 type Integration = Schemas["Integration"];
 
@@ -32,7 +33,7 @@ export default async function NewConnectorPage({ params, searchParams }: PagePro
     <DoctorShell locale={locale} active={access.active} current="connectors">{back}{children}</DoctorShell>
   );
   if (!canManage(access.me)) return shell(<EmptyText>{t("site.doctor.wizard.managersOnly")}</EmptyText>);
-  const integrations = await doctorList<Integration[]>("/integrations");
+  const integrations = await listIntegrations();
   if (integrations === null) return shell(<Unavailable locale={locale} title={t("site.doctor.integrations.unavailable")} retry="/doctor/connectors/new" />);
   if (integrations.length === 0) {
     return shell(

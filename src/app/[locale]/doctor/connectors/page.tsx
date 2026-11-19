@@ -5,7 +5,7 @@ import { PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
 import { Button } from "@/components/ui/button";
-import { doctorList, type Schemas } from "@/modules/doctor/api";
+import type { Schemas } from "@/modules/doctor/api";
 import { canManage } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
@@ -13,6 +13,7 @@ import { DoctorShell } from "../DoctorShell";
 import { Unavailable, UnavailablePage } from "../Unavailable";
 import { ConnectorSummary } from "./ConnectorCard";
 import { ConnectorAction, TestConnection } from "./ConnectorControls";
+import { listConnectors } from "@/modules/doctor/lists";
 
 type Connector = Schemas["Connector"];
 
@@ -28,7 +29,7 @@ export default async function ConnectorsPage({ params }: PageProps<"/[locale]/do
   const access = await requireDoctor(locale, "/doctor/connectors");
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
-  const connectors = await doctorList<Connector[]>("/connectors");
+  const connectors = await listConnectors();
   const manager = canManage(access.me);
   const now = new Date();
 

@@ -13,6 +13,7 @@ import { Channels } from "./Channels";
 import { MyChannels } from "./MyChannels";
 import { NewRule } from "./NewRule";
 import { RuleCard } from "./RuleCard";
+import { listIntegrations } from "@/modules/doctor/lists";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/alerts">): Promise<Metadata> {
   const { locale } = await params;
@@ -33,7 +34,7 @@ export default async function AlertsPage({ params }: PageProps<"/[locale]/doctor
     doctorList<Schemas["PushSubscription"][]>("/push-subscriptions"),
     doctorList<Schemas["Preferences"]>("/alert-preferences"),
     doctorList<Schemas["PushKey"]>("/push/key"),
-    doctorList<Schemas["Integration"][]>("/integrations"),
+    listIntegrations(),
   ]);
   const manager = canManage(access.me);
   const loaded = rules && channels && subscriptions && preferences;
