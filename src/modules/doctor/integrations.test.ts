@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultRows, environmentVariant, keyParts, keysFromRows, lookupFromDraft, type KeyRow } from "./integrations";
+import { defaultRows, environmentVariant, integrationChange, keyParts, keysFromRows, lookupFromDraft, type KeyRow } from "./integrations";
 
 const row = (change: Partial<KeyRow>): KeyRow => ({ system: "sap", field: "", prefix: "", zeros: false, upper: false, ...change });
 
@@ -40,5 +40,19 @@ describe("Integrações e Mapas entre sistemas", () => {
     expect(keyParts({ system: "custom", field: "x" }).system).toEqual({ key: "site.doctor.lane.custom" });
     // Os nomes vêm da mesma lista das raias da Timeline.
     expect(keyParts({ system: "manual", field: "x" }).system).toEqual({ key: "site.doctor.lane.manual" });
+  });
+});
+
+describe("integrationChange", () => {
+  const draft = { name: "  Pedidos  ", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: " Time A ", description: "" };
+
+  it("manda todos os campos, aparados", () => {
+    expect(integrationChange(draft)).toEqual({
+      name: "Pedidos", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: "Time A", description: null,
+    });
+  });
+
+  it("opcional vazio vai como null: a API limpa o campo, em vez de guardar texto vazio", () => {
+    expect(integrationChange({ ...draft, owner_team: "   " }).owner_team).toBeNull();
   });
 });

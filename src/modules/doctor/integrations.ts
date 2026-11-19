@@ -6,6 +6,21 @@ import { systemLabel } from "./executions";
 
 export { SYSTEMS as INTEGRATION_SYSTEMS } from "./diagnosis";
 
+/** O formulário de Integração, criar ou editar (texto livre nos campos opcionais). */
+export type IntegrationDraft = {
+  name: string; source_system: string; target_system: string; environment: string; owner_team: string; description: string;
+};
+
+/** O corpo do `PATCH /integrations/{id}`: todos os campos, aparados; opcional vazio vai como
+ * `null`, que a API entende como limpar. */
+export function integrationChange(draft: IntegrationDraft) {
+  const optional = (value: string) => value.trim() || null;
+  return {
+    name: draft.name.trim(), source_system: draft.source_system, target_system: draft.target_system, environment: draft.environment,
+    owner_team: optional(draft.owner_team), description: optional(draft.description),
+  };
+}
+
 export function environmentVariant(environment: string): "destructive" | "secondary" | "outline" {
   if (environment === "prd") return "destructive";
   return environment === "hml" ? "secondary" : "outline";

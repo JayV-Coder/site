@@ -12,6 +12,8 @@ import { requireDoctor } from "../access";
 import { DoctorShell } from "../DoctorShell";
 import { Unavailable, UnavailablePage } from "../Unavailable";
 import { ArchiveIntegration } from "./ArchiveIntegration";
+import { DeleteIntegration } from "./DeleteIntegration";
+import { EditIntegration } from "./EditIntegration";
 import { NewIntegration } from "./NewIntegration";
 import { listIntegrations } from "@/modules/doctor/lists";
 
@@ -22,8 +24,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/i
   return { title: `${t("site.doctor.nav.integrations")} · ${t("site.doctor.name")}`, robots: { index: false } };
 }
 
-/** Tela 10: os fluxos de negócio monitorados, em cards; Owner e Admin (com MFA) cadastram e
- * arquivam. */
+/** Tela 10: os fluxos de negócio monitorados, em cards; Owner e Admin (com MFA) cadastram,
+ * editam, arquivam e excluem (só a sem histórico). */
 export default async function IntegrationsPage({ params }: PageProps<"/[locale]/doctor/integrations">) {
   const { locale } = await params;
   const access = await requireDoctor(locale, "/doctor/integrations");
@@ -63,7 +65,9 @@ export default async function IntegrationsPage({ params }: PageProps<"/[locale]/
                   {integration.description && <p className="text-sm break-words text-muted-foreground">{integration.description}</p>}
                   <div className="flex flex-wrap gap-2">
                     <Button asChild variant="outline" size="sm"><Link href={`/${locale}/doctor/integrations/${integration.id}/maps`}>{t("site.doctor.integrations.maps")}</Link></Button>
+                    {manager && <EditIntegration integration={integration} />}
                     {manager && <ArchiveIntegration id={integration.id} name={integration.name} />}
+                    {manager && <DeleteIntegration id={integration.id} name={integration.name} />}
                   </div>
                 </article>
               </li>

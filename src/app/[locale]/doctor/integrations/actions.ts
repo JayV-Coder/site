@@ -1,16 +1,12 @@
 "use server";
 
 import { sendToDoctor } from "@/modules/doctor/send";
-import type { LookupDraft, MappingKey } from "@/modules/doctor/integrations";
-import { lookupFromDraft } from "@/modules/doctor/integrations";
+import type { IntegrationDraft, LookupDraft, MappingKey } from "@/modules/doctor/integrations";
+import { integrationChange, lookupFromDraft } from "@/modules/doctor/integrations";
 import type { Text } from "@/modules/i18n/types";
 
 const LIST = "/[locale]/doctor/integrations";
 const MAPS = "/[locale]/doctor/integrations/[id]/maps";
-
-export type IntegrationDraft = {
-  name: string; source_system: string; target_system: string; environment: string; owner_team: string; description: string;
-};
 
 /** Campo opcional vazio vai como ausente: a API guarda `null`, não texto vazio. */
 const optional = (value: string) => (value.trim() ? value.trim() : undefined);
@@ -26,6 +22,23 @@ export async function createIntegration(draft: IntegrationDraft, key: string): P
     revalidate: LIST, key, invalid: "site.doctor.integration.error.invalid",
     known: { integration_exists: "site.doctor.integration.error.exists" },
   });
+}
+
+const KNOWN = {
+  integration_exists: "site.doctor.integration.error.exists",
+  integration_archived: "site.doctor.integration.error.archived",
+  integration_in_use: "site.doctor.integration.error.inUse",
+} as const;
+
+export async function updateIntegration(id: string, draft: IntegrationDraft, key: string): Promise<Text | null> {
+  return sendToDoctor(`/integrations/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(integrationChange(draft)) }, {
+    revalidate: LIST, key, invalid: "site.doctor.integration.error.invalid", known: KNOWN,
+  });
+}
+
+/** Exclusão de verdade, só sem histórico; com histórico, a API responde `integration_in_use`. */
+export async function deleteIntegration(id: string, key: string): Promise<Text | null> {
+  return sendToDoctor(`/integrations/${encodeURIComponent(id)}`, { method: "DELETE" }, { revalidate: LIST, key, known: KNOWN });
 }
 
 export async function archiveIntegration(id: string, key: string): Promise<Text | null> {
