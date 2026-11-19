@@ -13,10 +13,9 @@ import { DoctorShell } from "../../../DoctorShell";
 import { Unavailable, UnavailablePage } from "../../../Unavailable";
 import { DeleteMapping } from "./DeleteMapping";
 import { NewMapping } from "./NewMapping";
+import { listIntegrations, listConnectors } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 type CorrelationMapping = Schemas["CorrelationMapping"];
-type Connector = Schemas["Connector"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/integrations/[id]/maps">): Promise<Metadata> {
   const { locale } = await params;
@@ -34,9 +33,9 @@ export default async function MapsPage({ params }: PageProps<"/[locale]/doctor/i
   const canChange = canManage(access.me);
   const [integrations, mappings, connectors] = await Promise.all([
     // Com as arquivadas: o link antigo de um Mapa continua abrindo (só para leitura).
-    doctorList<Integration[]>("/integrations?include_archived=true"),
+    listIntegrations({ includeArchived: true }),
     doctorGet<CorrelationMapping[]>(`/integrations/${encodeURIComponent(id)}/correlation-mappings`),
-    canChange ? doctorList<Connector[]>("/connectors") : null,
+    canChange ? listConnectors() : null,
   ]);
   if (mappings === "not_found") notFound();
   const integration = integrations?.find((item) => item.id === id);

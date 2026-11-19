@@ -15,9 +15,9 @@ import { DoctorShell } from "../../DoctorShell";
 import { Unavailable, UnavailablePage } from "../../Unavailable";
 import { relative } from "../ConnectorCard";
 import { AgentActions } from "./AgentActions";
+import { listIntegrations } from "@/modules/doctor/lists";
 
 type Agent = Schemas["Agent"];
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/connectors/agents">): Promise<Metadata> {
   const { locale } = await params;
@@ -34,7 +34,7 @@ export default async function AgentsPage({ params }: PageProps<"/[locale]/doctor
   const [agents, integrations] = await Promise.all([
     doctorList<Agent[]>("/agents"),
     // Com as arquivadas: o card diz de qual Integração o agente é, para não confundir dois iguais.
-    doctorList<Integration[]>("/integrations?include_archived=true"),
+    listIntegrations({ includeArchived: true }),
   ]);
   const names = new Map((integrations ?? []).map((item) => [item.id, item.name]));
   const manager = canManage(access.me);

@@ -3,15 +3,14 @@ import Link from "next/link";
 import { BackLink, PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
 import { Button } from "@/components/ui/button";
-import { doctorList, type Schemas } from "@/modules/doctor/api";
 import { canManage, integrationOptions } from "@/modules/doctor/labels";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../../../access";
 import { DoctorShell } from "../../../DoctorShell";
 import { Unavailable, UnavailablePage } from "../../../Unavailable";
 import { NewAgentForm } from "./NewAgentForm";
+import { listIntegrations } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/connectors/agents/new">): Promise<Metadata> {
   const { locale } = await params;
@@ -30,7 +29,7 @@ export default async function NewAgentPage({ params }: PageProps<"/[locale]/doct
     </DoctorShell>
   );
   if (!canManage(access.me)) return shell(<EmptyText>{t("site.doctor.agents.managersOnly")}</EmptyText>);
-  const integrations = await doctorList<Integration[]>("/integrations");
+  const integrations = await listIntegrations();
   if (integrations === null) return shell(<Unavailable locale={locale} title={t("site.doctor.integrations.unavailable")} retry="/doctor/connectors/agents/new" />);
   if (integrations.length === 0) {
     return shell(

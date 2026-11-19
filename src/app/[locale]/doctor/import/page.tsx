@@ -14,8 +14,8 @@ import { requireDoctor } from "../access";
 import { DoctorShell } from "../DoctorShell";
 import { Unavailable, UnavailablePage } from "../Unavailable";
 import { ImportUploader } from "./ImportUploader";
+import { listIntegrations } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 type Import = Schemas["Import"];
 
 const DOWNLOAD_FAILURES: Record<string, Key> = {
@@ -39,7 +39,7 @@ export default async function ImportPage({ params, searchParams }: PageProps<"/[
   const canImport = isOperator(access.me.active_role);
   const [integrations, imports] = await Promise.all([
     // Com as arquivadas: a lista de Importações mostra de qual Integração veio cada uma.
-    doctorList<Integration[]>("/integrations?include_archived=true"),
+    listIntegrations({ includeArchived: true }),
     doctorList<Import[]>("/imports"),
   ]);
   const failure = DOWNLOAD_FAILURES[typeof query.download === "string" ? query.download : ""];

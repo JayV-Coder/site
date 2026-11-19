@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { LinkSegments, PageHeading } from "@/components/molecules";
 import { EmptyText } from "@/components/atoms";
-import { doctorList, type Schemas } from "@/modules/doctor/api";
 import { filtersHref, readExecutionFilters } from "@/modules/doctor/executions";
 import { getT } from "@/modules/i18n/server";
 import { requireDoctor } from "../access";
@@ -10,8 +9,8 @@ import { Unavailable, UnavailablePage } from "../Unavailable";
 import { findExecutions } from "./actions";
 import { ExecutionFiltersDialog } from "./ExecutionFiltersDialog";
 import { ExecutionList } from "./ExecutionList";
+import { listIntegrations } from "@/modules/doctor/lists";
 
-type Integration = Schemas["Integration"];
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/doctor/executions">): Promise<Metadata> {
   const { locale } = await params;
@@ -31,7 +30,7 @@ export default async function ExecutionsPage({ params, searchParams }: PageProps
   const since = new Date().toISOString();
   const [page, integrations] = await Promise.all([
     findExecutions(filters, since, null, null),
-    doctorList<Integration[]>("/integrations"),
+    listIntegrations(),
   ]);
   const base = `/${locale}/doctor/executions`;
   const filtered = Object.keys(filters).length > 0;
