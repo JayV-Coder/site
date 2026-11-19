@@ -8,10 +8,9 @@ import {
 } from "@/modules/doctor/labels";
 import type { Key } from "@/modules/i18n";
 import { getT } from "@/modules/i18n/server";
-import { AutoRefresh } from "@/components/organisms/doctor/AutoRefresh";
 import { LiveRefresh } from "@/components/organisms/doctor/LiveRefresh";
 import { doctorRead } from "@/modules/doctor/read";
-import { requireDoctor } from "./access";
+import { requireDoctor, requireSession } from "./access";
 import { CategoryBars } from "./CategoryBars";
 import { DoctorShell } from "./DoctorShell";
 import { Unavailable, UnavailablePage } from "./Unavailable";
@@ -51,8 +50,9 @@ export default async function DoctorPage({ params, searchParams }: PageProps<"/[
   const query = await searchParams;
   const period = PERIODS.find((value) => value === query.period) ?? "24h";
   const environment = ENVIRONMENTS.find((value) => value === query.environment) ?? null;
-  // O painel sai junto com o `/me`, não depois dele.
-  const loading = loadDashboard(period, environment);
+  // Com sessão, o painel sai junto com o `/me`, não depois dele.
+  await requireSession(locale, "/doctor");
+  const loading = loadDashboard(period, environment).catch(() => null);
   const access = await requireDoctor(locale, "/doctor");
   const t = await getT(locale);
   if (!access) return <UnavailablePage locale={locale} />;
@@ -76,8 +76,7 @@ export default async function DoctorPage({ params, searchParams }: PageProps<"/[
   return (
     <DoctorShell locale={locale} active={access.active} current="overview">
       {/* Incidentes pelo Realtime; Execuções (agregado por hora, fora do Realtime) a cada 2 min. */}
-      <LiveRefresh tenantId={access.active.id} tables={["incidents"]} />
-      <AutoRefresh seconds={120} />
+      <LiveRefresh tenantId={access.active.id} tables={["incidents"]} everySeconds={120} />
       <PageHeading title={t("site.doctor.dashboard.title")}>
         <LinkSegments label={t("site.doctor.dashboard.period")}
           options={PERIODS.map((value) => ({ href: href(locale, value, environment), label: t(`site.doctor.dashboard.period.${value}`), current: value === period }))} />

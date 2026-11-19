@@ -22,20 +22,17 @@ const KNOWN = {
 /** A busca vai no corpo (POST): o termo pode ser um nº de pedido e não vai para a URL nem log. */
 export async function findIncidents(filters: IncidentFilters, q: string | null, cursor: string | null): Promise<IncidentPage | null> {
   // Sem termo de busca, direto no Supabase (`doctor_read.incidents`, ADR-0026). A busca por texto
-  // precisa do HMAC da Referência de negócio, que só a API tem.
-  if (!q?.trim()) {
-    const after = readCursor(cursor);
-    if (cursor === null || after !== null) {
-      const direct = await doctorRead<{ items: IncidentPage["items"]; next_cursor: Cursor | null; counts: IncidentPage["counts"] }>("incidents", {
-        status: filters.status.length > 0 ? filters.status : null,
-        severity: filters.severity.length > 0 ? filters.severity : null,
-        cursor_at: after?.at ?? null,
-        cursor_id: after?.id ?? null,
-      });
-      if (direct.ok) return { ...direct.value, next_cursor: direct.value.next_cursor ? writeCursor(direct.value.next_cursor) : null };
-      // O cursor direto não vale na API: sem a leitura direta, a página seguinte não sai.
-      if (after !== null) return null;
-    }
+  // precisa do HMAC da Referência de negócio, que só a API tem. O cursor é o mesmo nos dois
+  // caminhos: sem a leitura direta, a API serve a mesma página.
+  const after = readCursor(cursor);
+  if (!q?.trim() && (cursor === null || after !== null)) {
+    const direct = await doctorRead<{ items: IncidentPage["items"]; next_cursor: Cursor | null; counts: IncidentPage["counts"] }>("incidents", {
+      status: filters.status.length > 0 ? filters.status : null,
+      severity: filters.severity.length > 0 ? filters.severity : null,
+      cursor_at: after?.at ?? null,
+      cursor_id: after?.id ?? null,
+    });
+    if (direct.ok) return { ...direct.value, next_cursor: direct.value.next_cursor ? writeCursor(direct.value.next_cursor) : null };
   }
   return doctorSearch<IncidentPage>("/incidents/search", {
     status: filters.status.length > 0 ? filters.status : null,

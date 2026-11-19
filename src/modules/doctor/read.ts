@@ -10,9 +10,14 @@ export async function doctorRead<T>(fn: string, args: Record<string, unknown> = 
   if (!supabase) return { ok: false };
   try {
     const { data, error } = await supabase.schema("doctor_read").rpc(fn, args);
-    if (error) return { ok: false };
+    if (error) {
+      // PGRST106: `doctor_read` ainda não está em "Exposed schemas" (Settings → Data API).
+      console.warn(`doctor_read.${fn} falhou (${error.code}); lendo pela API`);
+      return { ok: false };
+    }
     return { ok: true, value: data as T };
-  } catch {
+  } catch (cause) {
+    console.warn(`doctor_read.${fn} falhou (${cause instanceof Error ? cause.name : "erro"}); lendo pela API`);
     return { ok: false };
   }
 }

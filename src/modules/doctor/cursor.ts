@@ -1,21 +1,24 @@
-/** O cursor das leituras diretas (`doctor_read`, ADR-0026 do jayv-doctor): (last_seen_at, id) do
- * último item, num texto que vai no endereço. O prefixo `r.` o separa do cursor da API, que a
- * busca por texto continua usando. */
+/** O cursor da lista de Incidentes: (last_seen_at, id) do último item, no mesmo formato do
+ * `encode_cursor` da API (base64 url-safe, com preenchimento, de `[instante, id]`). Assim a
+ * página seguinte sai tanto pela leitura direta (`doctor_read`, ADR-0026 do jayv-doctor) quanto
+ * pela API. */
 export interface Cursor { at: string; id: string }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function writeCursor(cursor: Cursor): string {
-  return `r.${Buffer.from(JSON.stringify(cursor)).toString("base64url")}`;
+  return Buffer.from(JSON.stringify([cursor.at, cursor.id])).toString("base64").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 export function readCursor(text: string | null): Cursor | null {
-  if (!text?.startsWith("r.")) return null;
+  if (!text) return null;
   try {
-    const value = JSON.parse(Buffer.from(text.slice(2), "base64url").toString()) as Partial<Cursor>;
-    if (typeof value.at !== "string" || typeof value.id !== "string") return null;
-    if (Number.isNaN(Date.parse(value.at)) || !UUID.test(value.id)) return null;
-    return { at: value.at, id: value.id };
+    const value: unknown = JSON.parse(Buffer.from(text, "base64url").toString());
+    if (!Array.isArray(value) || value.length !== 2) return null;
+    const [at, id] = value as unknown[];
+    if (typeof at !== "string" || typeof id !== "string") return null;
+    if (Number.isNaN(Date.parse(at)) || !UUID.test(id)) return null;
+    return { at, id };
   } catch {
     return null;
   }
