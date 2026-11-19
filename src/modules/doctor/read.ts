@@ -17,6 +17,10 @@ const reader = cache(async () => {
   return { client, tenant: decodeClaims(session.accessToken)?.tenant_id ?? null };
 });
 
+// DR100: o código antigo de "sem Organização ativa", até a migração 20261120100000 do banco
+// entrar em produção (lá, o doctor_read não usa outro DR100).
+const EXPECTED = new Set(["DR100", "DR110", "DR112"]);
+
 /** Leitura direta no Supabase (ADR-0026 do jayv-doctor): a função do schema `doctor_read`, com o
  * token de quem entrou e o RLS, numa chamada ao PostgREST. A API do Doctor roda longe do banco;
  * daqui a leitura vai direto. `ok: false` quando não deu (sem sessão, sem Organização ativa,
@@ -27,10 +31,11 @@ export async function doctorRead<T>(fn: string, args: Record<string, unknown> = 
   try {
     const { data, error } = await current.client.schema("doctor_read").rpc(fn, args);
     if (error) {
-      // DR100 (sem Organização ativa, com Vínculo) é esperado logo depois de trocar; o resto vai
-      // para o log: PGRST106 é o `doctor_read` fora de "Exposed schemas" (Settings → Data API), e
-      // 42501, uma permissão faltando numa função nova.
-      if (error.code !== "DR100") console.warn(`doctor_read.${fn} falhou (${error.code}); lendo pela API`);
+      // Esperados: DR110 (sem Organização ativa, logo depois de trocar) e DR112 (a Organização
+      // exige MFA; a página manda configurá-lo). O resto vai para o log: PGRST106 é o
+      // `doctor_read` fora de "Exposed schemas" (Settings → Data API), e 42501, uma permissão
+      // faltando numa função nova.
+      if (!EXPECTED.has(error.code)) console.warn(`doctor_read.${fn} falhou (${error.code}); lendo pela API`);
       return { ok: false };
     }
     return { ok: true, value: data as T };

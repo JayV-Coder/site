@@ -24,3 +24,15 @@ export function organizationSections(
     createOpen: me.organizations.length === 0 && available.length === 0,
   };
 }
+
+export type DoctorGate = { kind: "ok"; active: Organization } | { kind: "choose" } | { kind: "mfa" };
+
+/** Para onde vai quem abre o Doctor: a Organização ativa exige MFA e a sessão não o tem (#49 do
+ * jayv-doctor) → configurar o app autenticador; sem Organização ativa → escolher; senão, entra. */
+export function doctorGate(
+  me: Pick<Me, "organizations" | "active_tenant_id"> & { mfa_required?: boolean | undefined },
+): DoctorGate {
+  if (me.mfa_required) return { kind: "mfa" };
+  const active = me.organizations.find(({ id }) => id === me.active_tenant_id);
+  return active ? { kind: "ok", active } : { kind: "choose" };
+}
