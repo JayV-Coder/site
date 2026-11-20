@@ -6,6 +6,31 @@ import { systemLabel } from "./executions";
 
 export { SYSTEMS as INTEGRATION_SYSTEMS } from "./diagnosis";
 
+/** O formulário de Integração, criar ou editar (texto livre nos campos opcionais). */
+export type IntegrationDraft = {
+  name: string; source_system: string; target_system: string; environment: string; owner_team: string; description: string;
+};
+
+/** Os campos para a API, aparados; opcional vazio vai como `null` (criar: sem valor; editar:
+ * limpar). Um lugar só para criar e editar. */
+export function integrationFields(draft: IntegrationDraft) {
+  const optional = (value: string) => value.trim() || null;
+  return {
+    name: draft.name.trim(), source_system: draft.source_system, target_system: draft.target_system, environment: draft.environment,
+    owner_team: optional(draft.owner_team), description: optional(draft.description),
+  };
+}
+
+/** O corpo do `PATCH /integrations/{id}`: só os campos que mudaram desde que o formulário abriu,
+ * para não desfazer o que outra pessoa salvou nos outros. Vazio: nada a enviar. */
+export function integrationChange(draft: IntegrationDraft, initial: IntegrationDraft) {
+  const next = integrationFields(draft);
+  const before = integrationFields(initial);
+  return Object.fromEntries(
+    (Object.keys(next) as (keyof typeof next)[]).filter((field) => next[field] !== before[field]).map((field) => [field, next[field]]),
+  ) as Partial<ReturnType<typeof integrationFields>>;
+}
+
 export function environmentVariant(environment: string): "destructive" | "secondary" | "outline" {
   if (environment === "prd") return "destructive";
   return environment === "hml" ? "secondary" : "outline";

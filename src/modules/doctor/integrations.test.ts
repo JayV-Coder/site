@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultRows, environmentVariant, keyParts, keysFromRows, lookupFromDraft, type KeyRow } from "./integrations";
+import { defaultRows, environmentVariant, integrationChange, integrationFields, keyParts, keysFromRows, lookupFromDraft, type KeyRow } from "./integrations";
 
 const row = (change: Partial<KeyRow>): KeyRow => ({ system: "sap", field: "", prefix: "", zeros: false, upper: false, ...change });
 
@@ -40,5 +40,32 @@ describe("Integrações e Mapas entre sistemas", () => {
     expect(keyParts({ system: "custom", field: "x" }).system).toEqual({ key: "site.doctor.lane.custom" });
     // Os nomes vêm da mesma lista das raias da Timeline.
     expect(keyParts({ system: "manual", field: "x" }).system).toEqual({ key: "site.doctor.lane.manual" });
+  });
+});
+
+describe("integrationFields", () => {
+  const draft = { name: "  Pedidos  ", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: " Time A ", description: "" };
+
+  it("todos os campos, aparados; opcional vazio vai como null", () => {
+    expect(integrationFields(draft)).toEqual({
+      name: "Pedidos", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: "Time A", description: null,
+    });
+    expect(integrationFields({ ...draft, owner_team: "   " }).owner_team).toBeNull();
+  });
+});
+
+describe("integrationChange", () => {
+  const initial = { name: "Pedidos", source_system: "sap", target_system: "salesforce", environment: "prd", owner_team: "Time A", description: "" };
+
+  it("só o que mudou: a edição de outra pessoa nos outros campos não é desfeita", () => {
+    expect(integrationChange({ ...initial, description: "Fluxo de pedidos" }, initial)).toEqual({ description: "Fluxo de pedidos" });
+  });
+
+  it("limpar um opcional manda null", () => {
+    expect(integrationChange({ ...initial, owner_team: "" }, initial)).toEqual({ owner_team: null });
+  });
+
+  it("espaço a mais não conta como mudança; nada mudou, nada vai", () => {
+    expect(integrationChange({ ...initial, name: " Pedidos " }, initial)).toEqual({});
   });
 });
